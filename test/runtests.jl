@@ -11,7 +11,7 @@ using TestItemRunner
     using DispatchDoctor
     using JET
 
-    JET.test_package(DispatchDoctor; target_defined_modules = true)
+    JET.test_package(DispatchDoctor; target_defined_modules=true)
 end
 
 @run_package_tests

@@ -7,30 +7,41 @@ using Test: Test
 using TestItems: @testitem
 
 macro stable(fex)
-    fdef = splitdef(fex)
-
-    # We create a second f with the actual body
-    fdef2 = splitdef(fex)
-    fdef2_name = gensym("f2")
-    fdef2_args = fdef2[:args]
-    fdef2_kwargs = fdef2[:kwargs]
-    fdef2_body = :($(fdef2_name)($(fdef2_args)...; $(fdef2_kwargs)...))
-
-    fdef2[:name] = fdef2_name
-    
-    # And call this from the primary function, with the _inferred
-    fdef[:body] = Test._inferred(fdef2_body, __module__)
-
-    return quote
-        $(combinedef(fdef2))
-        $(combinedef(fdef))
-    end
+    return esc(_stable(fex))
 end
 
-@testitem "stable" begin
-    using MacroTools: splitdef
+function _stable(fex::Expr)
+    fdef = splitdef(fex)
+    closure_func = gensym("closure_func")
+    fdef[:body] = quote
+        let $(closure_func)() = $(fdef[:body])
+            $(Test).@inferred $(closure_func)()
+        end
+    end
 
-    @show splitdef(:(f(x::Int; a, b, c::Float32=1., kws...) = x))
+    return combinedef(fdef)
+end
+
+@testitem "smoke test" begin
+    using DispatchDoctor
+    @stable f(x) = x
+    @test f(1) == 1
+end
+@testitem "with error" begin
+    using DispatchDoctor
+    @stable f(x) = x > 0 ? x : 1.0
+
+    # Will catch type instability:
+    @test_throws ErrorException f(1)
+    @test f(2.0) == 2.0
+end
+@testitem "with kwargs" begin
+    using DispatchDoctor
+    @stable f(x; a=1, b=2) = x + a + b
+    @test f(1) == 4
+    @stable g(; a=1) = a > 0 ? a : 1.0
+    @test_throws ErrorException g()
+    @test g(; a=2.0) == 2.0
 end
 
 end
