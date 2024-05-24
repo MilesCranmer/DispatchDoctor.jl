@@ -1,14 +1,17 @@
-using DispatchDoctor
-using Test
-using Aqua
-using JET
+using TestItems: @testitem
+using TestItemRunner
 
-@testset "DispatchDoctor.jl" begin
-    @testset "Code quality (Aqua.jl)" begin
-        Aqua.test_all(DispatchDoctor)
-    end
-    @testset "Code linting (JET.jl)" begin
-        JET.test_package(DispatchDoctor; target_defined_modules = true)
-    end
-    # Write your tests here.
+# @testitem "Code quality (Aqua.jl)" begin
+#     using DispatchDoctor
+#     using Aqua
+
+#     Aqua.test_all(DispatchDoctor)
+# end
+@testitem "Code linting (JET.jl)" begin
+    using DispatchDoctor
+    using JET
+
+    JET.test_package(DispatchDoctor; target_defined_modules = true)
 end
+
+@run_package_tests
