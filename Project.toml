@@ -1,0 +1,15 @@
+name = "DispatchDoctor"
+uuid = "8d63f2c5-f18a-4cf2-ba9d-b3f60fc568c8"
+authors = ["MilesCranmer <miles.cranmer@gmail.com> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1.6.7"
+
+[extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Aqua", "JET", "Test"]
