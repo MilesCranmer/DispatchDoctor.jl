@@ -35,3 +35,8 @@ Stacktrace:
  [3] top-level scope
    @ REPL[4]:1
 ```
+
+Right now this package calls `Test.@inferred`
+for all inputs (which adds a ~400ns overhead).
+However, I would like to make this only be called upon first execution.
+Help appreciated :)
