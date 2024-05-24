@@ -1,6 +1,10 @@
+<div align="center">
+
 # DispatchDoctor
 
 *Nature abhors type instability*
+
+</div>
 
 This package provides the `@stable` macro
 as a more ergonomic way to use `Test.@inferred`
