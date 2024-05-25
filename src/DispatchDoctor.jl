@@ -45,12 +45,9 @@ function _stable_module(ex)
     @assert ex.head == :module
     module_body = ex.args[3]
     @assert module_body.head == :block
-    # f = gensym("_stable_fnc")
     pushfirst!(
         module_body.args,
         quote
-            # using DispatchDoctor: _stable_fnc as $f
-            # include(path) = include($f, path)
             include(path) = include($(_stable_fnc), path)
         end,
     )
