@@ -43,3 +43,5 @@ Stacktrace:
  [4] top-level scope
    @ REPL[7]:1
 ```
+
+Note that `@stable` acts as a no-op on Julia versions before 1.10.
