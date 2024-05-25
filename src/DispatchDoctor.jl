@@ -35,6 +35,8 @@ function extract_symb(ex::Expr)
         return ex.args[1]
     elseif ex.head == :tuple
         return ex
+    elseif ex.head == :(::)
+        return extract_symb(ex.args[1])
     else
         error("Unexpected: head=$(ex.head) args=$(ex.args)")
     end

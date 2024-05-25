@@ -46,6 +46,11 @@ end
         @test g((1, 2)) == 2.0
     end
 end
+@testitem ":: args" begin
+    using DispatchDoctor
+
+    @stable f(x::Int) = x
+end
 @testitem "showerror" begin
     using DispatchDoctor
 
