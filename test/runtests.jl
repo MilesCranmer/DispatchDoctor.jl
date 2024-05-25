@@ -107,7 +107,7 @@ end
     end
 
     # TODO: Julia 1.11's @doc acting weird so we skip it
-    if VERSION < v"1.11"
+    if VERSION < v"1.11.0-DEV.0"
         @test strip(string(@doc(f1))) == "Docs for my function."
         @test strip(string(@doc(f2))) == "Docs for my stable function."
     end
