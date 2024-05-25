@@ -135,6 +135,34 @@ end
         @test_throws "Incompatible format for function argument: `::Type{T}`" eval(fdef)
     end
 end
+@testitem "modules" begin
+    using DispatchDoctor
+    @stable module A
+    f1(x) = x
+    f2(; a=1) = a > 0 ? a : 0.0
+    function f3()
+        return rand(Bool) ? 0.0 : 1
+    end
+    end
+
+    @test A.f1(1) == 1
+    @test A.f2(; a=1.0) == 1.0
+    @test_throws TypeInstabilityError A.f2(a=1)
+    @test_throws TypeInstabilityError A.f3()
+end
+@testitem "module with include" begin
+    using DispatchDoctor
+    (path, io) = mktemp()
+    println(io, "f(x) = x > 0 ? x : 0.0")
+    close(io)
+
+    @eval @stable module A
+    include($path)
+    end
+
+    @test A.f(1.0) == 1.0
+    @test_throws TypeInstabilityError A.f(1)
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
     @test_throws ErrorException DD.extract_symb(:([1, 2]), :([1, 2, 3]), "argument")

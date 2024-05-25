@@ -2,7 +2,7 @@ module DispatchDoctor
 
 export @stable, TypeInstabilityError
 
-using MacroTools: combinedef, splitdef
+using MacroTools: combinedef, splitdef, postwalk, isdef, isshortdef, rmlines, prettify
 using TestItems: @testitem
 
 struct TypeInstabilityError <: Exception
@@ -32,7 +32,45 @@ function extract_symb(ex::Expr, full_ex, type::String)
     end
 end
 
-function _stable(fex::Expr)
+function _stable(ex::Expr)
+    if ex.head == :module
+        return _stable_module(ex)
+    else
+        return _stable_fnc(ex)
+    end
+end
+
+function _stable_module(ex)
+    ex = _stable_all_fnc(ex)
+    @assert ex.head == :module
+    module_body = ex.args[3]
+    @assert module_body.head == :block
+    # f = gensym("_stable_fnc")
+    pushfirst!(
+        module_body.args,
+        quote
+            # using DispatchDoctor: _stable_fnc as $f
+            # include(path) = include($f, path)
+            include(path) = include($(_stable_fnc), path)
+        end,
+    )
+    return ex
+end
+
+function _stable_all_fnc(ex)
+    return postwalk(ex) do ex_part
+        if isdef(ex_part)
+            _stable_fnc(ex_part)
+        else
+            ex_part
+        end
+    end
+end
+
+# TODO: Test that closures aren't wrapped
+# TODO: Test that we don't get any `@stable @stable`
+
+function _stable_fnc(fex::Expr)
     func = splitdef(fex)
 
     arg_symbols = map(a -> extract_symb(a, a, "argument"), func[:args])
