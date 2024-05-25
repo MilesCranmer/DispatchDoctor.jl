@@ -93,6 +93,22 @@ end
         )
     end
 end
+@testitem "Test forwarding documentation" begin
+    using DispatchDoctor
+
+    """Docs for my function."""
+    function f1(x)
+        return x
+    end
+
+    """Docs for my stable function."""
+    @stable function f2(x)
+        return x
+    end
+
+    @test strip(string(@doc(f1))) == "Docs for my function."
+    @test strip(string(@doc(f2))) == "Docs for my stable function."
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
     @test_throws ErrorException DD.extract_symb(:([1, 2]))

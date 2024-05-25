@@ -58,7 +58,7 @@ function _stable(fex::Expr)
 
     return quote
         $(combinedef(func_runner))
-        $(combinedef(func))
+        $(Base).@__doc__ $(combinedef(func))
     end
 end
 
