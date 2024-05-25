@@ -1,6 +1,6 @@
 <div align="center">
 
-# DispatchDoctor
+# DispatchDoctor 🩺
 
 *The doctor's orders: no type instability allowed!*
 
