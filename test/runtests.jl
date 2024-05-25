@@ -181,12 +181,15 @@ end
 @testitem "avoid double stable in module" begin
     using DispatchDoctor: _stable_module
     using MacroTools: postwalk, @capture
-    ex = _stable_module(:(module Aavoiddouble
-    using DispatchDoctor: @stable
 
-    @stable f(x) = x > 0 ? x : 0.0
-    g(x, y) = x > 0 ? y : 0.0
-    end))
+    #! format: off
+    ex = _stable_module(:(module Aavoiddouble
+        using DispatchDoctor: @stable
+
+        @stable f(x) = x > 0 ? x : 0.0
+        g(x, y) = x > 0 ? y : 0.0
+    end), warnonly=false)
+    #! format: on
 
     # First, we capture `f` using postwalk and `@capture`
     f_defs = []
