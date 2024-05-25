@@ -57,9 +57,6 @@ top:
 
 and thus meaning there is zero overhead on the type stability check.
 
-Note that `@stable` acts as a no-op on Julia versions which are either not tested
-or known to be incompatible.
-
 ## Credits
 
 Many thanks to @chriselrod for performance tips on this [discord thread](https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697).

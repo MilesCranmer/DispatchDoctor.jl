@@ -9,14 +9,7 @@ end
 @testitem "with error" begin
     using DispatchDoctor
     @stable f(x) = x > 0 ? x : 1.0
-
-    # Will catch type instability:
-    if VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
-        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
-        @test_throws TypeInstabilityError f(1)
-    else
-        @test f(1) == 1
-    end
+    @test_throws TypeInstabilityError f(1)
     @test f(2.0) == 2.0
 end
 @testitem "with kwargs" begin
@@ -24,12 +17,7 @@ end
     @stable f(x; a=1, b=2) = x + a + b
     @test f(1) == 4
     @stable g(; a=1) = a > 0 ? a : 1.0
-    if VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
-        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
-        @test_throws TypeInstabilityError g()
-    else
-        @test g() == 1
-    end
+    @test_throws TypeInstabilityError g(a=1)
     @test g(; a=2.0) == 2.0
 end
 @testitem "tuple args" begin
@@ -39,12 +27,7 @@ end
     @test f((1, 2); b=3) == 7
     @stable g((x, y), z=1.0; c=2.0) = x > 0 ? y : c + z
     @test g((1, 2.0)) == 2.0
-    if VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
-        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
-        @test_throws TypeInstabilityError g((1, 2))
-    else
-        @test g((1, 2)) == 2.0
-    end
+    @test_throws TypeInstabilityError g((1, 2))
 end
 @testitem ":: args" begin
     using DispatchDoctor
@@ -55,10 +38,7 @@ end
     @test g(; x=1) == 1
     @stable h(x::Number; y::Number) = x > y ? x : y
     @test h(1; y=2) == 2
-    if VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
-        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
-        @test_throws TypeInstabilityError h(1; y=2.0)
-    end
+    @test_throws TypeInstabilityError h(1; y=2.0)
 end
 @testitem "Type specialization" begin
     using DispatchDoctor
@@ -102,9 +82,7 @@ end
     @test f2(1.0) == 1.0
     @test f3(; a=1.0) == 1.0
     @test f4(2.0; a=1.0) == 2.0
-    if VERSION >= v"1.9" &&
-        VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
-        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
+    if VERSION >= v"1.9"
         @test_throws TypeInstabilityError f1()
         @test_throws TypeInstabilityError f2(0)
         @test_throws TypeInstabilityError f3(a=0)
@@ -151,7 +129,7 @@ end
 end
 @testitem "Useful error for bad signature" begin
     using DispatchDoctor: DispatchDoctor as DD
-    if VERSION >= v"1.9" && VERSION > DD.JULIA_LOWER_BOUND && VERSION < DD.JULIA_UPPER_BOUND
+    if VERSION >= v"1.9"
         fdef = :(@stable f(::Type{T}) where {T} = T)
         @test_throws LoadError eval(fdef)
         @test_throws "Incompatible format for function argument: `::Type{T}`" eval(fdef)

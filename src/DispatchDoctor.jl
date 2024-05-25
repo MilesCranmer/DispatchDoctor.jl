@@ -5,9 +5,6 @@ export @stable, TypeInstabilityError
 using MacroTools: combinedef, splitdef
 using TestItems: @testitem
 
-const JULIA_LOWER_BOUND = v"1.10.0"
-const JULIA_UPPER_BOUND = v"1.12.0-DEV.0"
-
 struct TypeInstabilityError <: Exception
     f::Any
     args::Any
@@ -95,17 +92,9 @@ with arguments `(Int64,)`. Inferred to be `Union{Float64, Int64}`,
 which is not a concrete type.
 ```
 
-# Note
-
-`@stable` acts as a no-op on Julia versions which are either not tested
-or known to be incompatible.
 """
 macro stable(fex)
-    if VERSION < JULIA_LOWER_BOUND || VERSION >= JULIA_UPPER_BOUND
-        return esc(fex)
-    else
-        return esc(_stable(fex))
-    end
+    return esc(_stable(fex))
 end
 
 function Base.showerror(io::IO, e::TypeInstabilityError)
