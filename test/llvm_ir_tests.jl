@@ -9,6 +9,7 @@ llvm_ir = sprint((args...) -> code_llvm(args...; debuginfo=:none), f, (Int,))
 
 lines = split(llvm_ir, "\n")
 filter!(l -> !isempty(l), lines)
+filter!(l -> !startswith(l, ";"), lines)
 
 # If Julia failed to optimize the code, we should expect
 # to see some GC pool allocations:

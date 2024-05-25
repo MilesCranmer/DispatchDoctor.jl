@@ -22,8 +22,7 @@ using DispatchDoctor: @stable
 end
 ```
 
-which will then throw an error for
-any type instability:
+which will then throw an error for any type instability:
 
 ```julia
 julia> relu(1.0)
@@ -42,6 +41,21 @@ Stacktrace:
    @ Main ~/PermaDocuments/DispatchDoctor.jl/src/DispatchDoctor.jl:65
  [4] top-level scope
    @ REPL[7]:1
+```
+
+Code which is stable should safely compile away the check:
+
+```julia
+julia> @stable f(x) = x;
+```
+
+where `@code_llvm f(1)` will output:
+
+```llvm
+define i64 @julia_f_12055(i64 signext %"x::Int64") #0 {
+top:
+  ret i64 %"x::Int64"
+}
 ```
 
 Note that `@stable` acts as a no-op on Julia versions which are either not tested
