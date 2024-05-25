@@ -45,7 +45,10 @@ function _stable_module(ex)
     @assert ex.head == :module
     module_body = ex.args[3]
     @assert module_body.head == :block
-    pushfirst!(module_body.args, :(include(path) = include($(_stable_all_fnc), path)))
+    pushfirst!(
+        module_body.args,
+        :(include(path::AbstractString) = include($(_stable_all_fnc), path)),
+    )
     return ex
 end
 

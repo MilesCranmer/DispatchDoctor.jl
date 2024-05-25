@@ -57,6 +57,45 @@ top:
 
 and thus meaning there is zero overhead on the type stability check.
 
+You can also use `@stable` on entire modules:
+
+```julia
+@stable module A
+    using DispatchDoctor: @unstable
+
+    @unstable f1() = rand(Bool) ? 0 : 1.0
+    f2(x) = x
+    f3(; a=1) = a > 0 ? a : 0.0
+end
+```
+
+where we use `@unstable` to mark functions that should not be wrapped.
+
+(*Tip: in the REPL, wrap this with `@eval`, because the REPL has special handling of the `module` keyword.*)
+
+This gives us:
+
+```julia
+julia> A.f1()
+0
+
+julia> A.f2(1.0)
+1.0
+
+julia> A.f3(a=2)
+ERROR: TypeInstabilityError: Instability detected in function `f3`
+with keyword arguments `@NamedTuple{a::Int64}`. Inferred to be
+`Union{Float64, Int64}`, which is not a concrete type.
+```
+
+where we can see that the `@stable` was automatically applied
+to all the functions, except for `f1`.
+
+> [!NOTE]
+> This will also automatically be applied to the code
+> being added by any `include` within the module, by defining
+> a custom `include` function at the top of the module.
+
 ## Credits
 
 Many thanks to @chriselrod for performance tips on this [discord thread](https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697).
