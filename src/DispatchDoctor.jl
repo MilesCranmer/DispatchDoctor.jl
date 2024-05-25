@@ -99,8 +99,17 @@ end
     @stable f(x; a=1, b=2) = x + a + b
     @test f(1) == 4
     @stable g(; a=1) = a > 0 ? a : 1.0
-    @test_throws ErrorException g()
+    @test_throws TypeInstabilityError g()
     @test g(; a=2.0) == 2.0
+end
+@testitem "tuple args" begin
+    using DispatchDoctor
+    @stable f((x, y); a=1, b=2) = x + y + a + b
+    @test f((1, 2)) == 6
+    @test f((1, 2); b=3) == 7
+    @stable g((x, y), z=1.0; c=2.0) = x > 0 ? y : c + z
+    @test g((1, 2.0)) == 2.0
+    @test_throws TypeInstabilityError g((1, 2))
 end
 
 end
