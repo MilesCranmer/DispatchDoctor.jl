@@ -88,6 +88,13 @@ end
         )
     end
 end
+@testitem "Miscellaneous" begin
+    using DispatchDoctor: DispatchDoctor as DD
+    @test_throws ErrorException DD.extract_symb(:([1, 2]))
+    if VERSION >= v"1.9"
+        @test_throws "Unexpected: head=" DD.extract_symb(:([1, 2]))
+    end
+end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor
     using Aqua
