@@ -65,6 +65,24 @@ end
     @stable f(a, t::Type{T}) where {T} = sum(a; init=zero(T))
     @test f([1.0f0, 1.0f0], Float32) == 2.0f0
 end
+@testitem "args and kwargs" begin
+    using DispatchDoctor
+    # Without the dots
+    @stable f1(a, args::Vararg) = sum(args) + a
+    @test f1(1, 1, 2, 3) == 7
+
+    # With the dots
+    @stable f2(a, args...) = sum(args) + a
+    @test f2(1, 1, 2, 3) == 7
+
+    # With kwargs
+    @stable f3(c; kwargs...) = sum(values(kwargs)) + c
+    @test f3(1; a=1, b=2, c=3) == 7
+
+    # With both
+    @stable f4(a, args...; d, kwargs...) = sum(args) + sum(values(kwargs)) + a + d
+    @test f4(1, 1, 2, 3; d=0, a=1, b=2, c=3) == sum((1, 1, 2, 3, 0, 1, 2, 3))
+end
 @testitem "showerror" begin
     using DispatchDoctor
 

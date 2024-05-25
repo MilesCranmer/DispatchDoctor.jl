@@ -25,6 +25,8 @@ function extract_symb(ex::Expr, type::String)
         return ex
     elseif ex.head == :(::)
         return extract_symb(ex.args[1], type)
+    elseif ex.head == :(...)
+        return ex
     else
         error(
             "Incompatible format for function $(type): `$(ex)` " *
