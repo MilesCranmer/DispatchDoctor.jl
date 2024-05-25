@@ -2,7 +2,7 @@
 
 # DispatchDoctor
 
-*Nature abhors type instability*
+*The doctor's orders: no type instability allowed!*
 
 </div>
 
