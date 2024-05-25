@@ -15,32 +15,21 @@ struct TypeInstabilityError <: Exception
     T::Any
 end
 
-@inline function _stable_wrap(f::F, caller::G, args...; kwargs...) where {F,G}
-    T = if isempty(kwargs)
-        Base.promote_op(f, map(typeof, args)...)
-    else
-        Base.promote_op(Core.kwcall, typeof(NamedTuple(kwargs)), F, map(typeof, args)...)
-    end
-    if !Base.isconcretetype(T)
-        throw(TypeInstabilityError(caller, args, NamedTuple(kwargs), T))
-    end
-    return f(args...; kwargs...)::T
-end
-
-function extract_symb(ex::Symbol, ::String)
+function extract_symb(ex::Symbol, full_ex, ::String)
     return ex
 end
-function extract_symb(ex::Expr, type::String)
+function extract_symb(ex::Expr, full_ex, type::String)
     if ex.head == :kw
-        return extract_symb(ex.args[1], type)
+        return extract_symb(ex.args[1], full_ex, type)
     elseif ex.head == :tuple
         return ex
     elseif ex.head == :(::)
-        return extract_symb(ex.args[1], type)
+        return extract_symb(ex.args[1], full_ex, type)
+    elseif ex.head == :(...)
+        return ex
     else
         error(
-            "Incompatible format for function $(type): `$(ex)` " *
-            "with head=$(ex.head) args=$(ex.args). " *
+            "Incompatible format for function $(type): `$(full_ex)`. " *
             "Make sure to specify a symbol for each $(type) in the signature.",
         )
     end
@@ -48,24 +37,31 @@ end
 
 function _stable(fex::Expr)
     func = splitdef(fex)
-    func_runner = splitdef(fex)
 
-    # keys: :name, :args, :kwargs, :body, :whereparams
-    func_runner[:name] = gensym(string(func[:name]))
+    arg_symbols = map(a -> extract_symb(a, a, "argument"), func[:args])
+    kwarg_symbols = map(a -> extract_symb(a, a, "keyword argument"), func[:kwargs])
+
+    closure = gensym(string(func[:name], "_closure"))
+    T = gensym(string(func[:name], "_return_type"))
 
     func[:body] = quote
-        $(_stable_wrap)(
-            $(func_runner[:name]),
-            $(func[:name]),
-            $(map(a -> extract_symb(a, "argument"), func[:args])...);
-            $(map(a -> extract_symb(a, "keyword argument"), func[:kwargs])...),
-        )
+        let $closure() = $(func[:body]), $T = $(Base).promote_op($closure)
+            if !$(Base).isconcretetype($T)
+                throw(
+                    $(TypeInstabilityError)(
+                        $(func[:name]),
+                        ($(arg_symbols...),),
+                        (; $(kwarg_symbols...)),
+                        $T,
+                    ),
+                )
+            end
+
+            return $closure()::$T
+        end
     end
 
-    return quote
-        $(combinedef(func_runner))
-        $(Base).@__doc__ $(combinedef(func))
-    end
+    return combinedef(func)
 end
 
 """

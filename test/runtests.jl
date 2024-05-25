@@ -60,6 +60,29 @@ end
         @test_throws TypeInstabilityError h(1; y=2.0)
     end
 end
+@testitem "Type specialization" begin
+    using DispatchDoctor
+    @stable f(a, t::Type{T}) where {T} = sum(a; init=zero(T))
+    @test f([1.0f0, 1.0f0], Float32) == 2.0f0
+end
+@testitem "args and kwargs" begin
+    using DispatchDoctor
+    # Without the dots
+    @stable f1(a, args::Vararg) = sum(args) + a
+    @test f1(1, 1, 2, 3) == 7
+
+    # With the dots
+    @stable f2(a, args...) = sum(args) + a
+    @test f2(1, 1, 2, 3) == 7
+
+    # With kwargs
+    @stable f3(c; kwargs...) = sum(values(kwargs)) + c
+    @test f3(1; a=1, b=2, c=3) == 7
+
+    # With both
+    @stable f4(a, args...; d, kwargs...) = sum(args) + sum(values(kwargs)) + a + d
+    @test f4(1, 1, 2, 3; d=0, a=1, b=2, c=3) == sum((1, 1, 2, 3, 0, 1, 2, 3))
+end
 @testitem "showerror" begin
     using DispatchDoctor
 
@@ -136,10 +159,10 @@ end
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
-    @test_throws ErrorException DD.extract_symb(:([1, 2]), "argument")
+    @test_throws ErrorException DD.extract_symb(:([1, 2]), :([1, 2, 3]), "argument")
     if VERSION >= v"1.9"
-        @test_throws "Incompatible format for function argument: `[1, 2]` with head=" DD.extract_symb(
-            :([1, 2]), "argument"
+        @test_throws "Incompatible format for function argument: `[1, 2, 3]`." DD.extract_symb(
+            :([1, 2]), :([1, 2, 3]), "argument"
         )
     end
 end
