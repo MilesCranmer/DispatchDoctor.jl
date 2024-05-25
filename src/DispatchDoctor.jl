@@ -15,6 +15,24 @@ struct TypeInstabilityError <: Exception
     T::Any
 end
 
+# These are used to prevent
+# https://docs.julialang.org/en/v1.10/manual/performance-tips/#Be-aware-of-when-Julia-avoids-specializing
+struct TypeWrapper{T} end
+struct ValWrapper{T} end
+struct FuncWrapper{F}
+    f::F
+end
+
+@inline wrap_type(t) = t
+@inline wrap_type(::Type{T}) where {T} = TypeWrapper{T}()
+@inline wrap_type(::Val{T}) where {T} = ValWrapper{T}()
+@inline wrap_type(f::F) where {F<:Function} = FuncWrapper{F}(f)
+
+@inline unwrap_type(t) = t
+@inline unwrap_type(::TypeWrapper{T}) where {T} = T
+@inline unwrap_type(::ValWrapper{T}) where {T} = Val{T}()
+@inline unwrap_type(f::FuncWrapper{F}) where {F} = f.f
+
 @inline function _stable_wrap(f::F, caller::G, args...; kwargs...) where {F,G}
     T = if isempty(kwargs)
         Base.promote_op(f, map(typeof, args)...)

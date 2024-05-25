@@ -60,6 +60,16 @@ end
         @test_throws TypeInstabilityError h(1; y=2.0)
     end
 end
+@testitem "wrap unwrap" begin
+    using DispatchDoctor: DispatchDoctor as DD
+
+    # Test that the unwrap type method is idempotent
+
+    @test DD.unwrap_type(DD.wrap_type(1.0)) == 1.0
+    @test DD.unwrap_type(DD.wrap_type(Float32)) == Float32
+    @test DD.unwrap_type(DD.wrap_type(Val(Float32))) == Val(Float32)
+    @test DD.unwrap_type(DD.wrap_type(sum)) == sum
+end
 @testitem "showerror" begin
     using DispatchDoctor
 
