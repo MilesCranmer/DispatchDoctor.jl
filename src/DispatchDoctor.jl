@@ -71,12 +71,14 @@ function _stable(fex::Expr)
     # keys: :name, :args, :kwargs, :body, :whereparams
     func_runner[:name] = gensym(string(func[:name]))
 
+    arg_symbols = map(a -> extract_symb(a, "argument"), func[:args])
+    kwarg_symbols = map(a -> extract_symb(a, "keyword argument"), func[:kwargs])
     func[:body] = quote
         $(_stable_wrap)(
             $(func_runner[:name]),
             $(func[:name]),
-            $(map(a -> extract_symb(a, "argument"), func[:args])...);
-            $(map(a -> extract_symb(a, "keyword argument"), func[:kwargs])...),
+            $(arg_symbols...);
+            $(kwarg_symbols...),
         )
     end
 
