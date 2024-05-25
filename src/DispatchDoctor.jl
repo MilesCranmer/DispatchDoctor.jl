@@ -15,36 +15,6 @@ struct TypeInstabilityError <: Exception
     T::Any
 end
 
-# These are used to prevent
-# https://docs.julialang.org/en/v1.10/manual/performance-tips/#Be-aware-of-when-Julia-avoids-specializing
-struct TypeWrapper{T} end
-struct ValWrapper{T} end
-struct FuncWrapper{F}
-    f::F
-end
-
-@inline wrap_type(t) = t
-@inline wrap_type(::Type{T}) where {T} = TypeWrapper{T}()
-@inline wrap_type(::Val{T}) where {T} = ValWrapper{T}()
-@inline wrap_type(f::F) where {F<:Function} = FuncWrapper{F}(f)
-
-@inline unwrap_type(t) = t
-@inline unwrap_type(::TypeWrapper{T}) where {T} = T
-@inline unwrap_type(::ValWrapper{T}) where {T} = Val{T}()
-@inline unwrap_type(f::FuncWrapper{F}) where {F} = f.f
-
-@inline function _stable_wrap(f::F, caller::G, args...; kwargs...) where {F,G}
-    T = if isempty(kwargs)
-        Base.promote_op(f, map(typeof, args)...)
-    else
-        Base.promote_op(Core.kwcall, typeof(NamedTuple(kwargs)), F, map(typeof, args)...)
-    end
-    if !Base.isconcretetype(T)
-        throw(TypeInstabilityError(caller, args, NamedTuple(kwargs), T))
-    end
-    return f(args...; kwargs...)::T
-end
-
 function extract_symb(ex::Symbol, ::String)
     return ex
 end
@@ -66,26 +36,31 @@ end
 
 function _stable(fex::Expr)
     func = splitdef(fex)
-    func_runner = splitdef(fex)
-
-    # keys: :name, :args, :kwargs, :body, :whereparams
-    func_runner[:name] = gensym(string(func[:name]))
 
     arg_symbols = map(a -> extract_symb(a, "argument"), func[:args])
     kwarg_symbols = map(a -> extract_symb(a, "keyword argument"), func[:kwargs])
+
+    closure = gensym(string(func[:name], "_closure"))
+    T = gensym(string(func[:name], "_return_type"))
+
     func[:body] = quote
-        $(_stable_wrap)(
-            $(func_runner[:name]),
-            $(func[:name]),
-            $(arg_symbols...);
-            $(kwarg_symbols...),
-        )
+        let $closure() = $(func[:body]), $T = $(Base).promote_op($closure)
+            if !$(Base).isconcretetype($T)
+                throw(
+                    $(TypeInstabilityError)(
+                        $(func[:name]),
+                        ($(arg_symbols...),),
+                        (; $(kwarg_symbols...)),
+                        $T,
+                    ),
+                )
+            end
+
+            return $closure()::$T
+        end
     end
 
-    return quote
-        $(combinedef(func_runner))
-        $(Base).@__doc__ $(combinedef(func))
-    end
+    return combinedef(func)
 end
 
 """
