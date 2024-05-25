@@ -3,7 +3,6 @@ module DispatchDoctor
 export @stable, TypeInstabilityError
 
 using MacroTools: combinedef, splitdef
-using Test: Test
 using TestItems: @testitem
 
 struct TypeInstabilityError <: Exception
