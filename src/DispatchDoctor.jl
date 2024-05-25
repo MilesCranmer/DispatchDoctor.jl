@@ -45,33 +45,31 @@ function _stable_module(ex)
     @assert ex.head == :module
     module_body = ex.args[3]
     @assert module_body.head == :block
-    pushfirst!(
-        module_body.args,
-        quote
-            include(path) = include($(_stable_all_fnc), path)
-        end,
-    )
+    pushfirst!(module_body.args, :(include(path) = include($(_stable_all_fnc), path)))
     return ex
 end
 
 function _stable_all_fnc(ex)
-    return postwalk(ex) do ex_part
-        if isdef(ex_part)
-            _stable_fnc(ex_part)
-        else
-            ex_part
-        end
+    return ex
+end
+function _stable_all_fnc(ex::Expr)
+    if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
+        # Avoid recursive tags
+        return ex
+    elseif isdef(ex)
+        # Avoiding `MacroTools.postwalk` means we don't
+        # recursively call this on closures
+        _stable_fnc(ex)
+    else
+        Expr(ex.head, map(_stable_all_fnc, ex.args)...)
     end
 end
-
-# TODO: Test that closures aren't wrapped
-# TODO: Test that we don't get any `@stable @stable`
 
 function _stable_fnc(fex::Expr)
     func = splitdef(fex)
 
-    arg_symbols = map(a -> extract_symb(a, a, "argument"), func[:args])
-    kwarg_symbols = map(a -> extract_symb(a, a, "keyword argument"), func[:kwargs])
+    arg_symbols = map(extract_symb, func[:args])
+    kwarg_symbols = map(extract_symb, func[:kwargs])
 
     closure = gensym(string(func[:name], "_closure"))
     T = gensym(string(func[:name], "_return_type"))

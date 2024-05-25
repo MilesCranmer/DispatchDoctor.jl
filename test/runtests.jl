@@ -165,6 +165,55 @@ end
     @test A.f(1.0) == 1.0
     @test_throws TypeInstabilityError A.f(1)
 end
+@testitem "closures not wrapped in module version" begin
+    using DispatchDoctor: @stable
+    @stable module A
+    function f(x)
+        closure() = rand(Bool) ? 0 : 1.0
+        print(devnull, closure())
+        return x
+    end
+    end
+
+    # If it wrapped the closure, this would have thrown an error!
+    @test A.f(1) == 1
+end
+@testitem "avoid double stable in module" begin
+    using DispatchDoctor: _stable_module
+    using MacroTools: postwalk, @capture
+    ex = _stable_module(:(module A
+    using DispatchDoctor: @stable
+
+    @stable f(x) = x > 0 ? x : 0.0
+    g(x, y) = x > 0 ? y : 0.0
+    end))
+
+    # First, we capture `f` using postwalk and `@capture`
+    f_defs = []
+    postwalk(ex) do ex_part
+        if @capture(ex_part, (f_(args__) = body_) | (function f_(args__)
+            return body_
+        end))
+            push!(f_defs, ex_part)
+        end
+        ex_part
+    end
+
+    # We should be able to find a g_closure, but NOT
+    # an f_closure (indicating the `@stable` has not
+    # been expanded yet)
+    @test length(f_defs) == 4  # The 4th is the `include`
+
+    @test any(e -> occursin("g_closure", string(e)), f_defs)
+    @test !any(e -> occursin("f_closure", string(e)), f_defs)
+
+    eval(ex)
+
+    @test A.f(1.0) == 1.0
+    @test A.g(1.0, 0.0) == 0.0
+    @test_throws TypeInstabilityError A.f(0)
+    @test_throws TypeInstabilityError A.g(1.0, 0)
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
     @test DD.extract_symb(:([1, 2])) == DD.Unknown()
