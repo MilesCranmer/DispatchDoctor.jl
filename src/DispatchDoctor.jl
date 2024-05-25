@@ -2,7 +2,7 @@ module DispatchDoctor
 
 export @stable, TypeInstabilityError
 
-using MacroTools: combinedef, splitdef, postwalk, isdef, isshortdef, rmlines, prettify
+using MacroTools: combinedef, splitdef, isdef
 using TestItems: @testitem
 
 struct TypeInstabilityError <: Exception
@@ -12,23 +12,23 @@ struct TypeInstabilityError <: Exception
     T::Any
 end
 
-function extract_symb(ex::Symbol, full_ex, ::String)
+struct Unknown end
+Base.show(io::IO, ::Type{Unknown}) = print(io, "[undefined symbol]")
+
+function extract_symb(ex::Symbol)
     return ex
 end
-function extract_symb(ex::Expr, full_ex, type::String)
+function extract_symb(ex::Expr)
     if ex.head == :kw
-        return extract_symb(ex.args[1], full_ex, type)
+        return extract_symb(ex.args[1])
     elseif ex.head == :tuple
         return ex
     elseif ex.head == :(::)
-        return extract_symb(ex.args[1], full_ex, type)
+        return extract_symb(ex.args[1])
     elseif ex.head == :(...)
         return ex
     else
-        error(
-            "Incompatible format for function $(type): `$(full_ex)`. " *
-            "Make sure to specify a symbol for each $(type) in the signature.",
-        )
+        return Unknown()
     end
 end
 

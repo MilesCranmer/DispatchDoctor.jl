@@ -127,12 +127,14 @@ end
         @test strip(string(@doc(f2))) == "Docs for my stable function."
     end
 end
-@testitem "Useful error for bad signature" begin
+@testitem "Signature without symbol" begin
     using DispatchDoctor: DispatchDoctor as DD
+    @stable f(::Type{T}) where {T} = rand(Bool) ? 0.0 : 1
+    @test_throws TypeInstabilityError f(Int)
     if VERSION >= v"1.9"
-        fdef = :(@stable f(::Type{T}) where {T} = T)
-        @test_throws LoadError eval(fdef)
-        @test_throws "Incompatible format for function argument: `::Type{T}`" eval(fdef)
+        @test_throws "TypeInstabilityError: Instability detected in function `f` with arguments `([undefined symbol],)`." f(
+            Int
+        )
     end
 end
 @testitem "modules" begin
@@ -165,12 +167,7 @@ end
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
-    @test_throws ErrorException DD.extract_symb(:([1, 2]), :([1, 2, 3]), "argument")
-    if VERSION >= v"1.9"
-        @test_throws "Incompatible format for function argument: `[1, 2, 3]`." DD.extract_symb(
-            :([1, 2]), :([1, 2, 3]), "argument"
-        )
-    end
+    @test DD.extract_symb(:([1, 2])) == DD.Unknown()
 end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor
