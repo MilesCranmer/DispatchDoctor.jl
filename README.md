@@ -97,4 +97,5 @@ to all the functions, except for `f1`.
 
 ## Credits
 
-Many thanks to @chriselrod for performance tips on this [discord thread](https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697).
+Many thanks to @chriselrod and @thofma for tips on this
+[discord thread](https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697).
