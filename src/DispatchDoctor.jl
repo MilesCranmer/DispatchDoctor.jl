@@ -119,47 +119,4 @@ macro stable(fex)
     end
 end
 
-@testitem "smoke test" begin
-    using DispatchDoctor
-    @stable f(x) = x
-    @test f(1) == 1
-end
-@testitem "with error" begin
-    using DispatchDoctor
-    @stable f(x) = x > 0 ? x : 1.0
-
-    # Will catch type instability:
-    if VERSION >= v"1.10"
-        @test_throws TypeInstabilityError f(1)
-    else
-        @test f(1) == 1
-    end
-    @test f(2.0) == 2.0
-end
-@testitem "with kwargs" begin
-    using DispatchDoctor
-    @stable f(x; a=1, b=2) = x + a + b
-    @test f(1) == 4
-    @stable g(; a=1) = a > 0 ? a : 1.0
-    if VERSION >= v"1.10"
-        @test_throws TypeInstabilityError g()
-    else
-        @test g() == 1
-    end
-    @test g(; a=2.0) == 2.0
-end
-@testitem "tuple args" begin
-    using DispatchDoctor
-    @stable f((x, y); a=1, b=2) = x + y + a + b
-    @test f((1, 2)) == 6
-    @test f((1, 2); b=3) == 7
-    @stable g((x, y), z=1.0; c=2.0) = x > 0 ? y : c + z
-    @test g((1, 2.0)) == 2.0
-    if VERSION >= v"1.10"
-        @test_throws TypeInstabilityError g((1, 2))
-    else
-        @test g((1, 2)) == 2.0
-    end
-end
-
 end

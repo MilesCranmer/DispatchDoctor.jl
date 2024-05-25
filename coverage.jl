@@ -9,7 +9,7 @@ LCOV.writefile("lcov.info", coverage)
 coverage = merge_coverage_counts(
     coverage,
     filter!(
-        let prefixes = (joinpath(pwd(), "src", ""), #=joinpath(pwd(), "ext", "")=#)
+        let prefixes = (joinpath(pwd(), "src", ""),) #=joinpath(pwd(), "ext", "")=#
             c -> any(p -> startswith(c.filename, p), prefixes)
         end,
         LCOV.readfolder("test"),
