@@ -50,6 +50,15 @@ end
     using DispatchDoctor
 
     @stable f(x::Int) = x
+    @test f(1) == 1
+    @stable g(; x::Int) = x
+    @test g(; x=1) == 1
+    @stable h(x::Number; y::Number) = x > y ? x : y
+    @test h(1; y=2) == 2
+    if VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
+        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
+        @test_throws TypeInstabilityError h(1; y=2.0)
+    end
 end
 @testitem "showerror" begin
     using DispatchDoctor

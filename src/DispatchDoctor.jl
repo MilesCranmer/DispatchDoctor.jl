@@ -32,7 +32,7 @@ function extract_symb(ex::Symbol)
 end
 function extract_symb(ex::Expr)
     if ex.head == :kw
-        return ex.args[1]
+        return extract_symb(ex.args[1])
     elseif ex.head == :tuple
         return ex
     elseif ex.head == :(::)
