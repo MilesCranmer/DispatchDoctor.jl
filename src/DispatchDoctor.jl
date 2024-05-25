@@ -33,7 +33,7 @@ end
     T = if isempty(kwargs)
         Base.promote_op(f, map(typeof, args)...)
     else
-        if VERSION < v"1.7"
+        if VERSION < v"1.9"
             Base.promote_op(Core.kwfunc(f), typeof(NamedTuple(kwargs)), map(typeof, args)...)
         else
             Base.promote_op(Core.kwcall, typeof(NamedTuple(kwargs)), F, map(typeof, args)...)
