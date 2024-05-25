@@ -106,10 +106,10 @@ function Base.showerror(io::IO, e::TypeInstabilityError)
     print(io, "TypeInstabilityError: Type instability detected in function `$(e.f)`")
     parts = []
     if !isempty(e.args)
-        push!(parts, "arguments `$(e.args)`")
+        push!(parts, "arguments `$(map(typeof, e.args))`")
     end
     if !isempty(e.kwargs)
-        push!(parts, "keyword arguments `$(e.kwargs)`")
+        push!(parts, "keyword arguments `$(typeof(e.kwargs))`")
     end
     if !isempty(parts)
         print(io, " with ")

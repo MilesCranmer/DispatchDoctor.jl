@@ -51,7 +51,7 @@ end
 
     # only args:
     @stable f2(x) = x > 0 ? x : 0.0
-    
+
     # only kwargs:
     @stable f3(; a) = a > 0 ? a : 0.0
 
@@ -60,31 +60,31 @@ end
 
     # Stable calls:
     @test f2(1.0) == 1.0
-    @test f3(a = 1.0) == 1.0
-    @test f4(2.0; a = 1.0) == 2.0
+    @test f3(; a=1.0) == 1.0
+    @test f4(2.0; a=1.0) == 2.0
     if VERSION >= v"1.9"
         @test_throws TypeInstabilityError f1()
         @test_throws TypeInstabilityError f2(0)
         @test_throws TypeInstabilityError f3(a=0)
-        @test_throws TypeInstabilityError f4(0; a = 0.0)
+        @test_throws TypeInstabilityError f4(0; a=0.0)
 
         @test_throws(
             "TypeInstabilityError: Type instability detected in function `f1`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
             f1()
         )
         @test_throws(
-            "TypeInstabilityError: Type instability detected in function `f2` with arguments `(0,)`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            "TypeInstabilityError: Type instability detected in function `f2` with arguments `(Int64,)`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
             f2(0)
         )
 
         @test_throws(
-            "TypeInstabilityError: Type instability detected in function `f3` with keyword arguments `(a = 0,)`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            "TypeInstabilityError: Type instability detected in function `f3` with keyword arguments `@NamedTuple{a::Int64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
             f3(a=0)
         )
 
         @test_throws(
-            "TypeInstabilityError: Type instability detected in function `f4` with arguments `(0,)` and keyword arguments `(a = 0.0,)`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
-            f4(0; a = 0.0)
+            "TypeInstabilityError: Type instability detected in function `f4` with arguments `(Int64,)` and keyword arguments `@NamedTuple{a::Float64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            f4(0; a=0.0)
         )
     end
 end
