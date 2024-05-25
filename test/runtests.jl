@@ -16,4 +16,13 @@ end
     end
 end
 
+@testitem "llvm ir" begin
+    using PerformanceTestTools: @include
+    
+    @include("llvm_ir_tests.jl")
+    # Important to run the LLVM IR tests in a new
+    # julia process with things like --code-coverage disabled.
+    # See https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697/14?u=milescranmer
+end
+
 @run_package_tests
