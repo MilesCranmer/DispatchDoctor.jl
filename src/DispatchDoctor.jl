@@ -33,11 +33,7 @@ end
     T = if isempty(kwargs)
         Base.promote_op(f, map(typeof, args)...)
     else
-        if VERSION < v"1.9"
-            Base.promote_op(Core.kwfunc(f), typeof(NamedTuple(kwargs)), map(typeof, args)...)
-        else
-            Base.promote_op(Core.kwcall, typeof(NamedTuple(kwargs)), F, map(typeof, args)...)
-        end
+        Base.promote_op(Core.kwcall, typeof(NamedTuple(kwargs)), F, map(typeof, args)...)
     end
     if !Base.isconcretetype(T)
         throw(TypeInstabilityError(caller, args, kwargs, T))
@@ -81,7 +77,11 @@ function _stable(fex::Expr)
 end
 
 macro stable(fex)
-    return esc(_stable(fex))
+    if VERSION < v"1.10"
+        return esc(fex)
+    else
+        return esc(_stable(fex))
+    end
 end
 
 @testitem "smoke test" begin
@@ -94,7 +94,11 @@ end
     @stable f(x) = x > 0 ? x : 1.0
 
     # Will catch type instability:
-    @test_throws TypeInstabilityError f(1)
+    if VERSION >= v"1.10"
+        @test_throws TypeInstabilityError f(1)
+    else
+        @test f(1) == 1
+    end
     @test f(2.0) == 2.0
 end
 @testitem "with kwargs" begin
@@ -102,7 +106,11 @@ end
     @stable f(x; a=1, b=2) = x + a + b
     @test f(1) == 4
     @stable g(; a=1) = a > 0 ? a : 1.0
-    @test_throws TypeInstabilityError g()
+    if VERSION >= v"1.10"
+        @test_throws TypeInstabilityError g()
+    else
+        @test g() == 1
+    end
     @test g(; a=2.0) == 2.0
 end
 @testitem "tuple args" begin
@@ -112,7 +120,11 @@ end
     @test f((1, 2); b=3) == 7
     @stable g((x, y), z=1.0; c=2.0) = x > 0 ? y : c + z
     @test g((1, 2.0)) == 2.0
-    @test_throws TypeInstabilityError g((1, 2))
+    if VERSION >= v"1.10"
+        @test_throws TypeInstabilityError g((1, 2))
+    else
+        @test g((1, 2)) == 2.0
+    end
 end
 
 end
