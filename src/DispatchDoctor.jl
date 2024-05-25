@@ -76,6 +76,41 @@ function _stable(fex::Expr)
     end
 end
 
+"""
+    @stable [func_definition]
+
+A macro to enforce type stability in functions. When applied, it ensures that the return type of the function is concrete. If type instability is detected, a `TypeInstabilityError` is thrown.
+
+# Usage
+    
+```julia
+using DispatchDoctor: @stable
+
+@stable function relu(x)
+    if x > 0
+        return x
+    else
+        return 0.0
+    end
+end
+```
+
+# Example
+
+```julia
+julia> relu(1.0)
+1.0
+
+julia> relu(0)
+ERROR: TypeInstabilityError: Type instability detected
+in function `relu` with arguments `(0,)`. Inferred to be
+`Union{Float64, Int64}`, which is not a concrete type.
+```
+
+# Note
+
+`@stable` acts as a no-op on Julia versions before 1.10.
+"""
 macro stable(fex)
     if VERSION < v"1.10"
         return esc(fex)
