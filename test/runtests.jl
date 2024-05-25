@@ -139,7 +139,7 @@ end
 end
 @testitem "modules" begin
     using DispatchDoctor
-    @stable module A
+    @stable module Amodules
     f1(x) = x
     f2(; a=1) = a > 0 ? a : 0.0
     function f3()
@@ -147,10 +147,10 @@ end
     end
     end
 
-    @test A.f1(1) == 1
-    @test A.f2(; a=1.0) == 1.0
-    @test_throws TypeInstabilityError A.f2(a=1)
-    @test_throws TypeInstabilityError A.f3()
+    @test Amodules.f1(1) == 1
+    @test Amodules.f2(; a=1.0) == 1.0
+    @test_throws TypeInstabilityError Amodules.f2(a=1)
+    @test_throws TypeInstabilityError Amodules.f3()
 end
 @testitem "module with include" begin
     using DispatchDoctor
@@ -158,16 +158,16 @@ end
     println(io, "f(x) = x > 0 ? x : 0.0")
     close(io)
 
-    @eval @stable module A
+    @eval @stable module Amodulewithinclude
     include($path)
     end
 
-    @test A.f(1.0) == 1.0
-    @test_throws TypeInstabilityError A.f(1)
+    @test Amodulewithinclude.f(1.0) == 1.0
+    @test_throws TypeInstabilityError Amodulewithinclude.f(1)
 end
 @testitem "closures not wrapped in module version" begin
     using DispatchDoctor: @stable
-    @stable module A
+    @stable module Aclosuresunwrapped
     function f(x)
         closure() = rand(Bool) ? 0 : 1.0
         print(devnull, closure())
@@ -176,12 +176,12 @@ end
     end
 
     # If it wrapped the closure, this would have thrown an error!
-    @test A.f(1) == 1
+    @test Aclosuresunwrapped.f(1) == 1
 end
 @testitem "avoid double stable in module" begin
     using DispatchDoctor: _stable_module
     using MacroTools: postwalk, @capture
-    ex = _stable_module(:(module A
+    ex = _stable_module(:(module Aavoiddouble
     using DispatchDoctor: @stable
 
     @stable f(x) = x > 0 ? x : 0.0
@@ -190,14 +190,14 @@ end
 
     # First, we capture `f` using postwalk and `@capture`
     f_defs = []
+    #! format: off
     postwalk(ex) do ex_part
-        if @capture(ex_part, (f_(args__) = body_) | (function f_(args__)
-            return body_
-        end))
+        if @capture(ex_part, (f_(args__) = body_) | (function f_(args__) body_ end))
             push!(f_defs, ex_part)
         end
         ex_part
     end
+    #! format: on
 
     # We should be able to find a g_closure, but NOT
     # an f_closure (indicating the `@stable` has not
@@ -209,10 +209,23 @@ end
 
     eval(ex)
 
-    @test A.f(1.0) == 1.0
-    @test A.g(1.0, 0.0) == 0.0
-    @test_throws TypeInstabilityError A.f(0)
-    @test_throws TypeInstabilityError A.g(1.0, 0)
+    @test Aavoiddouble.f(1.0) == 1.0
+    @test Aavoiddouble.g(1.0, 0.0) == 0.0
+    @test_throws TypeInstabilityError Aavoiddouble.f(0)
+    @test_throws TypeInstabilityError Aavoiddouble.g(1.0, 0)
+end
+@testitem "allow unstable within module" begin
+    using DispatchDoctor
+
+    @stable module Aallowunstable
+    using DispatchDoctor: @unstable
+
+    g() = f()
+    @unstable f() = rand(Bool) ? 0 : 1.0
+    end
+
+    @test Aallowunstable.f() in (0, 1.0)
+    @test_throws TypeInstabilityError Aallowunstable.g()
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD

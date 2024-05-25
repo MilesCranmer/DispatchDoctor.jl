@@ -1,6 +1,6 @@
 module DispatchDoctor
 
-export @stable, TypeInstabilityError
+export @stable, @unstable, TypeInstabilityError
 
 using MacroTools: combinedef, splitdef, isdef
 using TestItems: @testitem
@@ -55,6 +55,9 @@ end
 function _stable_all_fnc(ex::Expr)
     if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
         # Avoid recursive tags
+        return ex
+    elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
+        # Allow disabling
         return ex
     elseif isdef(ex)
         # Avoiding `MacroTools.postwalk` means we don't
@@ -128,6 +131,15 @@ which is not a concrete type.
 """
 macro stable(fex)
     return esc(_stable(fex))
+end
+
+"""
+    @unstable [func_definition]
+
+A no-op macro to mark functions as unstable when `@stable` is used on a module.
+"""
+macro unstable(fex)
+    return esc(fex)
 end
 
 function Base.showerror(io::IO, e::TypeInstabilityError)
