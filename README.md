@@ -7,17 +7,17 @@
 </div>
 
 This package provides the `@stable` macro
-as a more ergonomic way to use `Test.@inferred`
-within a codebase:
+to enforce that a function has a type stable
+return value.
 
 ```julia
 using DispatchDoctor: @stable
 
-@stable function f(x)
+@stable function relu(x)
     if x > 0
         return x
     else
-        return 1.0
+        return 0.0
     end
 end
 ```
@@ -26,21 +26,20 @@ which will then throw an error for
 any type instability:
 
 ```julia
-julia> f(2.0)
-2.0
+julia> relu(1.0)
+1.0
 
-julia> f(1)
-ERROR: return type Int64 does not match inferred return type Union{Float64, Int64}
+julia> relu(0)
+ERROR: TypeInstabilityError: Type instability detected
+in function relu with arguments (0,). Inferred to be
+Union{Float64, Int64}, which is not a concrete type.
 Stacktrace:
- [1] error(s::String)
-   @ Base ./error.jl:35
- [2] f(x::Int64)
-   @ Main ~/PermaDocuments/DispatchDoctor.jl/src/DispatchDoctor.jl:18
- [3] top-level scope
-   @ REPL[4]:1
+ [1] #_stable_wrap#1
+   @ ~/PermaDocuments/DispatchDoctor.jl/src/DispatchDoctor.jl:39 [inlined]
+ [2] _stable_wrap
+   @ ~/PermaDocuments/DispatchDoctor.jl/src/DispatchDoctor.jl:32 [inlined]
+ [3] relu(x::Int64)
+   @ Main ~/PermaDocuments/DispatchDoctor.jl/src/DispatchDoctor.jl:65
+ [4] top-level scope
+   @ REPL[7]:1
 ```
-
-Right now this package calls `Test.@inferred`
-for all inputs (which adds a ~400ns overhead).
-However, I would like to make this only be called upon first execution.
-Help appreciated :)

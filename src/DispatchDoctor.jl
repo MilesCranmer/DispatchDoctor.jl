@@ -13,20 +13,20 @@ struct TypeInstabilityError <: Exception
 end
 
 function Base.showerror(io::IO, e::TypeInstabilityError)
-    print(io, "Type instability detected in function $(e.f)")
+    print(io, "TypeInstabilityError: Type instability detected in function `$(e.f)`")
     parts = []
     if !isempty(e.args)
-        push!(parts, "arguments $(e.args)")
+        push!(parts, "arguments `$(e.args)`")
     end
     if !isempty(e.kwargs)
-        push!(parts, "keyword arguments $(e.kwargs)")
+        push!(parts, "keyword arguments `$(e.kwargs)`")
     end
     if !isempty(parts)
         print(io, " with ")
         join(io, parts, " and ")
     end
     print(io, ". ")
-    return print(io, "Inferred to be $(e.T), which is not a concrete type.")
+    return print(io, "Inferred to be `$(e.T)`, which is not a concrete type.")
 end
 
 @inline function _stable_wrap(f::F, caller::G, args...; kwargs...) where {F,G}
