@@ -15,22 +15,21 @@ struct TypeInstabilityError <: Exception
     T::Any
 end
 
-function extract_symb(ex::Symbol, ::String)
+function extract_symb(ex::Symbol, full_ex, ::String)
     return ex
 end
-function extract_symb(ex::Expr, type::String)
+function extract_symb(ex::Expr, full_ex, type::String)
     if ex.head == :kw
-        return extract_symb(ex.args[1], type)
+        return extract_symb(ex.args[1], full_ex, type)
     elseif ex.head == :tuple
         return ex
     elseif ex.head == :(::)
-        return extract_symb(ex.args[1], type)
+        return extract_symb(ex.args[1], full_ex, type)
     elseif ex.head == :(...)
         return ex
     else
         error(
-            "Incompatible format for function $(type): `$(ex)` " *
-            "with head=$(ex.head) args=$(ex.args). " *
+            "Incompatible format for function $(type): `$(full_ex)`. " *
             "Make sure to specify a symbol for each $(type) in the signature.",
         )
     end
@@ -39,8 +38,8 @@ end
 function _stable(fex::Expr)
     func = splitdef(fex)
 
-    arg_symbols = map(a -> extract_symb(a, "argument"), func[:args])
-    kwarg_symbols = map(a -> extract_symb(a, "keyword argument"), func[:kwargs])
+    arg_symbols = map(a -> extract_symb(a, a, "argument"), func[:args])
+    kwarg_symbols = map(a -> extract_symb(a, a, "keyword argument"), func[:kwargs])
 
     closure = gensym(string(func[:name], "_closure"))
     T = gensym(string(func[:name], "_return_type"))

@@ -159,10 +159,10 @@ end
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
-    @test_throws ErrorException DD.extract_symb(:([1, 2]), "argument")
+    @test_throws ErrorException DD.extract_symb(:([1, 2]), :([1, 2, 3]), "argument")
     if VERSION >= v"1.9"
-        @test_throws "Incompatible format for function argument: `[1, 2]` with head=" DD.extract_symb(
-            :([1, 2]), "argument"
+        @test_throws "Incompatible format for function argument: `[1, 2, 3]`." DD.extract_symb(
+            :([1, 2]), :([1, 2, 3]), "argument"
         )
     end
 end
