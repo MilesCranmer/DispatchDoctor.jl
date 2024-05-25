@@ -1,8 +1,8 @@
 module DispatchDoctor
 
-export @stable, TypeInstabilityError
+export @stable, @unstable, TypeInstabilityError
 
-using MacroTools: combinedef, splitdef
+using MacroTools: combinedef, splitdef, isdef
 using TestItems: @testitem
 
 struct TypeInstabilityError <: Exception
@@ -12,31 +12,70 @@ struct TypeInstabilityError <: Exception
     T::Any
 end
 
-function extract_symb(ex::Symbol, full_ex, ::String)
+struct Unknown end
+Base.show(io::IO, ::Type{Unknown}) = print(io, "[undefined symbol]")
+
+function extract_symb(ex::Symbol)
     return ex
 end
-function extract_symb(ex::Expr, full_ex, type::String)
+function extract_symb(ex::Expr)
     if ex.head == :kw
-        return extract_symb(ex.args[1], full_ex, type)
+        return extract_symb(ex.args[1])
     elseif ex.head == :tuple
         return ex
     elseif ex.head == :(::)
-        return extract_symb(ex.args[1], full_ex, type)
+        return extract_symb(ex.args[1])
     elseif ex.head == :(...)
         return ex
     else
-        error(
-            "Incompatible format for function $(type): `$(full_ex)`. " *
-            "Make sure to specify a symbol for each $(type) in the signature.",
-        )
+        return Unknown()
     end
 end
 
-function _stable(fex::Expr)
+function _stable(ex::Expr)
+    if ex.head == :module
+        return _stable_module(ex)
+    else
+        return _stable_fnc(ex)
+    end
+end
+
+function _stable_module(ex)
+    ex = _stable_all_fnc(ex)
+    @assert ex.head == :module
+    module_body = ex.args[3]
+    @assert module_body.head == :block
+    pushfirst!(
+        module_body.args,
+        :(include(path::AbstractString) = include($(_stable_all_fnc), path)),
+    )
+    return ex
+end
+
+function _stable_all_fnc(ex)
+    return ex
+end
+function _stable_all_fnc(ex::Expr)
+    if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
+        # Avoid recursive tags
+        return ex
+    elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
+        # Allow disabling
+        return ex
+    elseif isdef(ex)
+        # Avoiding `MacroTools.postwalk` means we don't
+        # recursively call this on closures
+        _stable_fnc(ex)
+    else
+        Expr(ex.head, map(_stable_all_fnc, ex.args)...)
+    end
+end
+
+function _stable_fnc(fex::Expr)
     func = splitdef(fex)
 
-    arg_symbols = map(a -> extract_symb(a, a, "argument"), func[:args])
-    kwarg_symbols = map(a -> extract_symb(a, a, "keyword argument"), func[:kwargs])
+    arg_symbols = map(extract_symb, func[:args])
+    kwarg_symbols = map(extract_symb, func[:kwargs])
 
     closure = gensym(string(func[:name], "_closure"))
     T = gensym(string(func[:name], "_return_type"))
@@ -95,6 +134,15 @@ which is not a concrete type.
 """
 macro stable(fex)
     return esc(_stable(fex))
+end
+
+"""
+    @unstable [func_definition]
+
+A no-op macro to mark functions as unstable when `@stable` is used on a module.
+"""
+macro unstable(fex)
+    return esc(fex)
 end
 
 function Base.showerror(io::IO, e::TypeInstabilityError)

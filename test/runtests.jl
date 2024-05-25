@@ -127,22 +127,109 @@ end
         @test strip(string(@doc(f2))) == "Docs for my stable function."
     end
 end
-@testitem "Useful error for bad signature" begin
+@testitem "Signature without symbol" begin
     using DispatchDoctor: DispatchDoctor as DD
+    @stable f(::Type{T}) where {T} = rand(Bool) ? 0.0 : 1
+    @test_throws TypeInstabilityError f(Int)
     if VERSION >= v"1.9"
-        fdef = :(@stable f(::Type{T}) where {T} = T)
-        @test_throws LoadError eval(fdef)
-        @test_throws "Incompatible format for function argument: `::Type{T}`" eval(fdef)
+        @test_throws "TypeInstabilityError: Instability detected in function `f` with arguments `([undefined symbol],)`." f(
+            Int
+        )
     end
+end
+@testitem "modules" begin
+    using DispatchDoctor
+    @stable module Amodules
+    f1(x) = x
+    f2(; a=1) = a > 0 ? a : 0.0
+    function f3()
+        return rand(Bool) ? 0.0 : 1
+    end
+    end
+
+    @test Amodules.f1(1) == 1
+    @test Amodules.f2(; a=1.0) == 1.0
+    @test_throws TypeInstabilityError Amodules.f2(a=1)
+    @test_throws TypeInstabilityError Amodules.f3()
+end
+@testitem "module with include" begin
+    using DispatchDoctor
+    (path, io) = mktemp()
+    println(io, "f(x) = x > 0 ? x : 0.0")
+    close(io)
+
+    @eval @stable module Amodulewithinclude
+    include($path)
+    end
+
+    @test Amodulewithinclude.f(1.0) == 1.0
+    @test_throws TypeInstabilityError Amodulewithinclude.f(1)
+end
+@testitem "closures not wrapped in module version" begin
+    using DispatchDoctor: @stable
+    @stable module Aclosuresunwrapped
+    function f(x)
+        closure() = rand(Bool) ? 0 : 1.0
+        print(devnull, closure())
+        return x
+    end
+    end
+
+    # If it wrapped the closure, this would have thrown an error!
+    @test Aclosuresunwrapped.f(1) == 1
+end
+@testitem "avoid double stable in module" begin
+    using DispatchDoctor: _stable_module
+    using MacroTools: postwalk, @capture
+    ex = _stable_module(:(module Aavoiddouble
+    using DispatchDoctor: @stable
+
+    @stable f(x) = x > 0 ? x : 0.0
+    g(x, y) = x > 0 ? y : 0.0
+    end))
+
+    # First, we capture `f` using postwalk and `@capture`
+    f_defs = []
+    #! format: off
+    postwalk(ex) do ex_part
+        if @capture(ex_part, (f_(args__) = body_) | (function f_(args__) body_ end))
+            push!(f_defs, ex_part)
+        end
+        ex_part
+    end
+    #! format: on
+
+    # We should be able to find a g_closure, but NOT
+    # an f_closure (indicating the `@stable` has not
+    # been expanded yet)
+    @test length(f_defs) == 4  # The 4th is the `include`
+
+    @test any(e -> occursin("g_closure", string(e)), f_defs)
+    @test !any(e -> occursin("f_closure", string(e)), f_defs)
+
+    eval(ex)
+
+    @test Aavoiddouble.f(1.0) == 1.0
+    @test Aavoiddouble.g(1.0, 0.0) == 0.0
+    @test_throws TypeInstabilityError Aavoiddouble.f(0)
+    @test_throws TypeInstabilityError Aavoiddouble.g(1.0, 0)
+end
+@testitem "allow unstable within module" begin
+    using DispatchDoctor
+
+    @stable module Aallowunstable
+    using DispatchDoctor: @unstable
+
+    g() = f()
+    @unstable f() = rand(Bool) ? 0 : 1.0
+    end
+
+    @test Aallowunstable.f() in (0, 1.0)
+    @test_throws TypeInstabilityError Aallowunstable.g()
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
-    @test_throws ErrorException DD.extract_symb(:([1, 2]), :([1, 2, 3]), "argument")
-    if VERSION >= v"1.9"
-        @test_throws "Incompatible format for function argument: `[1, 2, 3]`." DD.extract_symb(
-            :([1, 2]), :([1, 2, 3]), "argument"
-        )
-    end
+    @test DD.extract_symb(:([1, 2])) == DD.Unknown()
 end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor
