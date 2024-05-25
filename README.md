@@ -44,7 +44,8 @@ Stacktrace:
    @ REPL[7]:1
 ```
 
-Note that `@stable` acts as a no-op on Julia versions before 1.10.
+Note that `@stable` acts as a no-op on Julia versions which are either not tested
+or known to be incompatible.
 
 ## Credits
 

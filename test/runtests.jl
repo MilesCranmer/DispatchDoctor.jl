@@ -11,7 +11,8 @@ end
     @stable f(x) = x > 0 ? x : 1.0
 
     # Will catch type instability:
-    if VERSION >= v"1.10"
+    if VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
+        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
         @test_throws TypeInstabilityError f(1)
     else
         @test f(1) == 1
@@ -23,7 +24,8 @@ end
     @stable f(x; a=1, b=2) = x + a + b
     @test f(1) == 4
     @stable g(; a=1) = a > 0 ? a : 1.0
-    if VERSION >= v"1.10"
+    if VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
+        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
         @test_throws TypeInstabilityError g()
     else
         @test g() == 1
@@ -37,7 +39,8 @@ end
     @test f((1, 2); b=3) == 7
     @stable g((x, y), z=1.0; c=2.0) = x > 0 ? y : c + z
     @test g((1, 2.0)) == 2.0
-    if VERSION >= v"1.10"
+    if VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
+        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
         @test_throws TypeInstabilityError g((1, 2))
     else
         @test g((1, 2)) == 2.0
@@ -62,7 +65,9 @@ end
     @test f2(1.0) == 1.0
     @test f3(; a=1.0) == 1.0
     @test f4(2.0; a=1.0) == 2.0
-    if VERSION >= v"1.9"
+    if VERSION >= v"1.9" &&
+        VERSION >= DispatchDoctor.JULIA_LOWER_BOUND &&
+        VERSION < DispatchDoctor.JULIA_UPPER_BOUND
         @test_throws TypeInstabilityError f1()
         @test_throws TypeInstabilityError f2(0)
         @test_throws TypeInstabilityError f3(a=0)

@@ -5,6 +5,9 @@ export @stable, TypeInstabilityError
 using MacroTools: combinedef, splitdef
 using TestItems: @testitem
 
+const JULIA_LOWER_BOUND = v"1.10.0"
+const JULIA_UPPER_BOUND = v"1.12.0-DEV.0"
+
 struct TypeInstabilityError <: Exception
     f::Any
     args::Any
@@ -92,10 +95,11 @@ in function `relu` with arguments `(0,)`. Inferred to be
 
 # Note
 
-`@stable` acts as a no-op on Julia versions before 1.10.
+`@stable` acts as a no-op on Julia versions which are either not tested
+or known to be incompatible.
 """
 macro stable(fex)
-    if VERSION < v"1.10"
+    if VERSION < JULIA_LOWER_BOUND || VERSION >= JULIA_UPPER_BOUND
         return esc(fex)
     else
         return esc(_stable(fex))
