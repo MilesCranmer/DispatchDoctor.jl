@@ -48,7 +48,7 @@ function _stable_module(ex)
     pushfirst!(
         module_body.args,
         quote
-            include(path) = include($(_stable_fnc), path)
+            include(path) = include($(_stable_all_fnc), path)
         end,
     )
     return ex
