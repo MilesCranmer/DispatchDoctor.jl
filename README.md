@@ -45,3 +45,7 @@ Stacktrace:
 ```
 
 Note that `@stable` acts as a no-op on Julia versions before 1.10.
+
+## Credits
+
+Many thanks to @chriselrod for performance tips on this [discord thread](https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697).
