@@ -74,21 +74,21 @@ end
         @test_throws TypeInstabilityError f4(0; a=0.0)
 
         @test_throws(
-            "TypeInstabilityError: Type instability detected in function `f1`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            "TypeInstabilityError: Instability detected in function `f1`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
             f1()
         )
         @test_throws(
-            "TypeInstabilityError: Type instability detected in function `f2` with arguments `(Int64,)`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            "TypeInstabilityError: Instability detected in function `f2` with arguments `(Int64,)`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
             f2(0)
         )
 
         @test_throws(
-            "TypeInstabilityError: Type instability detected in function `f3` with keyword arguments `@NamedTuple{a::Int64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            "TypeInstabilityError: Instability detected in function `f3` with keyword arguments `@NamedTuple{a::Int64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
             f3(a=0)
         )
 
         @test_throws(
-            "TypeInstabilityError: Type instability detected in function `f4` with arguments `(Int64,)` and keyword arguments `@NamedTuple{a::Float64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            "TypeInstabilityError: Instability detected in function `f4` with arguments `(Int64,)` and keyword arguments `@NamedTuple{a::Float64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
             f4(0; a=0.0)
         )
     end

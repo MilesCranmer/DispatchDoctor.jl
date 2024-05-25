@@ -88,9 +88,9 @@ julia> relu(1.0)
 1.0
 
 julia> relu(0)
-ERROR: TypeInstabilityError: Type instability detected
-in function `relu` with arguments `(0,)`. Inferred to be
-`Union{Float64, Int64}`, which is not a concrete type.
+ERROR: TypeInstabilityError: Instability detected in function `relu`
+with arguments `(Int64,)`. Inferred to be `Union{Float64, Int64}`,
+which is not a concrete type.
 ```
 
 # Note

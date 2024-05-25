@@ -29,18 +29,9 @@ julia> relu(1.0)
 1.0
 
 julia> relu(0)
-ERROR: TypeInstabilityError: Type instability detected
-in function relu with arguments (0,). Inferred to be
-Union{Float64, Int64}, which is not a concrete type.
-Stacktrace:
- [1] #_stable_wrap#1
-   @ ~/PermaDocuments/DispatchDoctor.jl/src/DispatchDoctor.jl:39 [inlined]
- [2] _stable_wrap
-   @ ~/PermaDocuments/DispatchDoctor.jl/src/DispatchDoctor.jl:32 [inlined]
- [3] relu(x::Int64)
-   @ Main ~/PermaDocuments/DispatchDoctor.jl/src/DispatchDoctor.jl:65
- [4] top-level scope
-   @ REPL[7]:1
+ERROR: TypeInstabilityError: Instability detected in function `relu`
+with arguments `(Int64,)`. Inferred to be `Union{Float64, Int64}`,
+which is not a concrete type.
 ```
 
 Code which is stable should safely compile away the check:
