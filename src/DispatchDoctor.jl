@@ -170,6 +170,9 @@ end
     lines = split(sprint(code_llvm, f, (Int,)), "\n")
     filter!(l -> !isempty(l), lines)
     filter!(l -> !startswith(l, ";"), lines)
+    if length(lines) != 4
+        @show lines
+    end
     @test length(lines) == 4
 end
 
