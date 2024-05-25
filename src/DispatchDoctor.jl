@@ -107,7 +107,7 @@ macro stable(fex)
 end
 
 function Base.showerror(io::IO, e::TypeInstabilityError)
-    print(io, "TypeInstabilityError: Type instability detected in function `$(e.f)`")
+    print(io, "TypeInstabilityError: Instability detected in function `$(e.f)`")
     parts = []
     if !isempty(e.args)
         push!(parts, "arguments `$(map(typeof, e.args))`")
