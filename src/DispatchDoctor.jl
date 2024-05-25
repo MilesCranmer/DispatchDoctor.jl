@@ -27,18 +27,22 @@ end
     return f(args...; kwargs...)::T
 end
 
-function extract_symb(ex::Symbol)
+function extract_symb(ex::Symbol, ::String)
     return ex
 end
-function extract_symb(ex::Expr)
+function extract_symb(ex::Expr, type::String)
     if ex.head == :kw
-        return extract_symb(ex.args[1])
+        return extract_symb(ex.args[1], type)
     elseif ex.head == :tuple
         return ex
     elseif ex.head == :(::)
-        return extract_symb(ex.args[1])
+        return extract_symb(ex.args[1], type)
     else
-        error("Unexpected: head=$(ex.head) args=$(ex.args)")
+        error(
+            "Incompatible format for function $(type): `$(ex)` " *
+            "with head=$(ex.head) args=$(ex.args). " *
+            "Make sure to specify a symbol for each $(type) in the signature.",
+        )
     end
 end
 
@@ -53,8 +57,8 @@ function _stable(fex::Expr)
         $(_stable_wrap)(
             $(func_runner[:name]),
             $(func[:name]),
-            $(map(extract_symb, func[:args])...);
-            $(map(extract_symb, func[:kwargs])...),
+            $(map(a -> extract_symb(a, "argument"), func[:args])...);
+            $(map(a -> extract_symb(a, "keyword argument"), func[:kwargs])...),
         )
     end
 

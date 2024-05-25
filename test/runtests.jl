@@ -126,11 +126,21 @@ end
         @test strip(string(@doc(f2))) == "Docs for my stable function."
     end
 end
+@testitem "Useful error for bad signature" begin
+    using DispatchDoctor: DispatchDoctor as DD
+    if VERSION >= v"1.9" && VERSION > DD.JULIA_LOWER_BOUND && VERSION < DD.JULIA_UPPER_BOUND
+        fdef = :(@stable f(::Type{T}) where {T} = T)
+        @test_throws LoadError eval(fdef)
+        @test_throws "Incompatible format for function argument: `::Type{T}`" eval(fdef)
+    end
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
-    @test_throws ErrorException DD.extract_symb(:([1, 2]))
+    @test_throws ErrorException DD.extract_symb(:([1, 2]), "argument")
     if VERSION >= v"1.9"
-        @test_throws "Unexpected: head=" DD.extract_symb(:([1, 2]))
+        @test_throws "Incompatible format for function argument: `[1, 2]` with head=" DD.extract_symb(
+            :([1, 2]), "argument"
+        )
     end
 end
 @testitem "Code quality (Aqua.jl)" begin
