@@ -12,23 +12,6 @@ struct TypeInstabilityError <: Exception
     T::Any
 end
 
-function Base.showerror(io::IO, e::TypeInstabilityError)
-    print(io, "TypeInstabilityError: Type instability detected in function `$(e.f)`")
-    parts = []
-    if !isempty(e.args)
-        push!(parts, "arguments `$(e.args)`")
-    end
-    if !isempty(e.kwargs)
-        push!(parts, "keyword arguments `$(e.kwargs)`")
-    end
-    if !isempty(parts)
-        print(io, " with ")
-        join(io, parts, " and ")
-    end
-    print(io, ". ")
-    return print(io, "Inferred to be `$(e.T)`, which is not a concrete type.")
-end
-
 @inline function _stable_wrap(f::F, caller::G, args...; kwargs...) where {F,G}
     T = if isempty(kwargs)
         Base.promote_op(f, map(typeof, args)...)
@@ -36,7 +19,7 @@ end
         Base.promote_op(Core.kwcall, typeof(NamedTuple(kwargs)), F, map(typeof, args)...)
     end
     if !Base.isconcretetype(T)
-        throw(TypeInstabilityError(caller, args, kwargs, T))
+        throw(TypeInstabilityError(caller, args, NamedTuple(kwargs), T))
     end
     return f(args...; kwargs...)::T
 end
@@ -117,6 +100,23 @@ macro stable(fex)
     else
         return esc(_stable(fex))
     end
+end
+
+function Base.showerror(io::IO, e::TypeInstabilityError)
+    print(io, "TypeInstabilityError: Type instability detected in function `$(e.f)`")
+    parts = []
+    if !isempty(e.args)
+        push!(parts, "arguments `$(e.args)`")
+    end
+    if !isempty(e.kwargs)
+        push!(parts, "keyword arguments `$(e.kwargs)`")
+    end
+    if !isempty(parts)
+        print(io, " with ")
+        join(io, parts, " and ")
+    end
+    print(io, ". ")
+    return print(io, "Inferred to be `$(e.T)`, which is not a concrete type.")
 end
 
 end

@@ -43,6 +43,51 @@ end
         @test g((1, 2)) == 2.0
     end
 end
+@testitem "showerror" begin
+    using DispatchDoctor
+
+    # no args or kwargs
+    @stable f1() = rand() > 0 ? 1.0 : 0
+
+    # only args:
+    @stable f2(x) = x > 0 ? x : 0.0
+    
+    # only kwargs:
+    @stable f3(; a) = a > 0 ? a : 0.0
+
+    # args and kwargs:
+    @stable f4(x; a) = x > 0 ? x : a
+
+    # Stable calls:
+    @test f2(1.0) == 1.0
+    @test f3(a = 1.0) == 1.0
+    @test f4(2.0; a = 1.0) == 2.0
+    if VERSION >= v"1.9"
+        @test_throws TypeInstabilityError f1()
+        @test_throws TypeInstabilityError f2(0)
+        @test_throws TypeInstabilityError f3(a=0)
+        @test_throws TypeInstabilityError f4(0; a = 0.0)
+
+        @test_throws(
+            "TypeInstabilityError: Type instability detected in function `f1`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            f1()
+        )
+        @test_throws(
+            "TypeInstabilityError: Type instability detected in function `f2` with arguments `(0,)`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            f2(0)
+        )
+
+        @test_throws(
+            "TypeInstabilityError: Type instability detected in function `f3` with keyword arguments `(a = 0,)`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            f3(a=0)
+        )
+
+        @test_throws(
+            "TypeInstabilityError: Type instability detected in function `f4` with arguments `(0,)` and keyword arguments `(a = 0.0,)`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+            f4(0; a = 0.0)
+        )
+    end
+end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor
     using Aqua
@@ -57,7 +102,6 @@ end
         JET.test_package(DispatchDoctor; target_defined_modules=true)
     end
 end
-
 @testitem "llvm ir" begin
     using PerformanceTestTools: @include
 
