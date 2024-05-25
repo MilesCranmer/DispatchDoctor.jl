@@ -11,7 +11,9 @@ using TestItemRunner
     using DispatchDoctor
     using JET
 
-    JET.test_package(DispatchDoctor; target_defined_modules=true)
+    if VERSION >= v"1.10"
+        JET.test_package(DispatchDoctor; target_defined_modules=true)
+    end
 end
 
 @run_package_tests
