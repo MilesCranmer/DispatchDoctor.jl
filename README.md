@@ -92,9 +92,8 @@ where we can see that the `@stable` was automatically applied
 to all the functions, except for `f1`.
 
 > [!NOTE]
-> This will also automatically be applied to the code
-> being added by any `include` within the module, by defining
-> a custom `include` function at the top of the module.
+> This will automatically propagate apply through any `include` within the module,
+> by overwriting the default method.
 
 ## Credits
 
