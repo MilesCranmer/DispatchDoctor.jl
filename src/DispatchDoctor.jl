@@ -33,7 +33,11 @@ end
     T = if isempty(kwargs)
         Base.promote_op(f, map(typeof, args)...)
     else
-        Base.promote_op(Core.kwcall, typeof(NamedTuple(kwargs)), F, map(typeof, args)...)
+        if VERSION < v"1.7"
+            Base.promote_op(Core.kwfunc(f), typeof(NamedTuple(kwargs)), map(typeof, args)...)
+        else
+            Base.promote_op(Core.kwcall, typeof(NamedTuple(kwargs)), F, map(typeof, args)...)
+        end
     end
     if !Base.isconcretetype(T)
         throw(TypeInstabilityError(caller, args, kwargs, T))
