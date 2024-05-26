@@ -44,6 +44,9 @@ function _stabilize_all(ex::Expr; kws...)
     elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
         # Allow disabling
         return ex
+    elseif ex.head == :macro
+        # Do nothing inside macros (in case of closure)
+        return ex
     elseif ex.head == :module
         return _stabilize_module(ex; kws...)
     elseif ex.head == :call && ex.args[1] == Symbol("include") && length(ex.args) == 2

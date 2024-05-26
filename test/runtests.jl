@@ -272,6 +272,20 @@ end
     @test Aallowunstable.f() in (0, 1.0)
     @test_throws TypeInstabilityError Aallowunstable.g()
 end
+@testitem "skip closures inside macros" begin
+    using DispatchDoctor: DispatchDoctor as DD
+
+    stabilized = DD._stabilize_all(
+        :(macro m(ex)
+            f() = rand(Bool) ? Float32 : Float64
+            f()
+            return ex
+        end); warnonly=false
+    )
+
+    # Should skip the internal function
+    @test !occursin("f_closure", string(stabilized))
+end
 @testitem "warnings" begin
     using DispatchDoctor
     using Suppressor: @capture_err
