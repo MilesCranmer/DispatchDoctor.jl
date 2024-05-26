@@ -190,7 +190,7 @@ macro stable(args...)
 end
 
 """
-    @unstable [func_definition]
+    @unstable [code_block]
 
 A no-op macro to hide blocks of code from `@stable`.
 """
