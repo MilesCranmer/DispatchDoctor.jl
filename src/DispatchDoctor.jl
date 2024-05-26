@@ -130,7 +130,7 @@ function _stabilize_fnc(
 
     func[:body] = quote
         let $closure() = $(func[:body]), $T = $(Base).promote_op($closure)
-            if $(type_instability)($T)
+            if $(type_instability)($T) && !$(is_precompiling)()
                 $err
             end
 
@@ -140,6 +140,8 @@ function _stabilize_fnc(
 
     return combinedef(func)
 end
+"""To avoid errors and warnings during precompilation."""
+is_precompiling() = ccall(:jl_generating_output, Cint, ()) == 1
 
 """
     type_instability(T::Type)

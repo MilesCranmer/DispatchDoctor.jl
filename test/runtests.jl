@@ -391,7 +391,10 @@ end
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
+
     @test DD.extract_symbol(:([1, 2])) == DD.Unknown(string(:([1, 2])))
+
+    @test DD.is_precompiling() == false
 end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor
