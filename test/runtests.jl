@@ -257,9 +257,16 @@ end
         @test_throws("Unknown macro option", @eval @stable badoption = true f(x) = x^2)
     end
 end
+@testitem "allow errors through" begin
+    using DispatchDoctor
+
+    @stable my_bad_function(x) = x / "blah"
+
+    @test_throws MethodError my_bad_function(1)
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
-    @test DD.extract_symb(:([1, 2])) == DD.Unknown()
+    @test DD.extract_symbol(:([1, 2])) == DD.Unknown()
 end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor

@@ -7,3 +7,9 @@ with quantities are `ustrip` and `dimension`:
 @stable
 @unstable
 ```
+
+## Utilities
+
+```@docs
+DispatchDoctor.type_instability
+```

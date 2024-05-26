@@ -5,16 +5,16 @@ export @stable, @unstable, TypeInstabilityError
 using MacroTools: combinedef, splitdef, isdef
 using TestItems: @testitem
 
-function extract_symb(ex::Symbol)
+function extract_symbol(ex::Symbol)
     return ex
 end
-function extract_symb(ex::Expr)
+function extract_symbol(ex::Expr)
     if ex.head == :kw
-        return extract_symb(ex.args[1])
+        return extract_symbol(ex.args[1])
     elseif ex.head == :tuple
         return ex
     elseif ex.head == :(::)
-        return extract_symb(ex.args[1])
+        return extract_symbol(ex.args[1])
     elseif ex.head == :(...)
         return ex
     else
@@ -80,8 +80,8 @@ end
 function _stable_fnc(fex::Expr; warnonly::Bool)
     func = splitdef(fex)
 
-    arg_symbols = map(extract_symb, func[:args])
-    kwarg_symbols = map(extract_symb, func[:kwargs])
+    arg_symbols = map(extract_symbol, func[:args])
+    kwarg_symbols = map(extract_symbol, func[:kwargs])
 
     closure = gensym(string(func[:name], "_closure"))
     T = gensym(string(func[:name], "_return_type"))
@@ -103,7 +103,7 @@ function _stable_fnc(fex::Expr; warnonly::Bool)
 
     func[:body] = quote
         let $closure() = $(func[:body]), $T = $(Base).promote_op($closure)
-            if !$(Base).isconcretetype($T)
+            if $(type_instability)($T)
                 $err
             end
 
@@ -113,6 +113,15 @@ function _stable_fnc(fex::Expr; warnonly::Bool)
 
     return combinedef(func)
 end
+
+"""
+    type_instability(T::Type)
+
+Returns true if this type is not concrete. Will also
+return false for `Union{}`, so that errors can propagate.
+"""
+@inline type_instability(::Type{T}) where {T} = !Base.isconcretetype(T)
+@inline type_instability(::Type{Union{}}) = false
 
 """
     @stable [warnonly=false] [func_definition]
