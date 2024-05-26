@@ -133,8 +133,20 @@ end
     @test_throws TypeInstabilityError f(1.0, Float32)
     if VERSION >= v"1.9"
         @test_throws(
-            "Instability detected in function `f` with arguments `(Float64, [::Type{T}])`.",
+            "Instability detected in function `f` with arguments `(Float64, [::Type{T}])` and parameters `(:T => Float32,)`.",
             f(1.0, Float32)
+        )
+    end
+end
+@testitem "showing whereparams" begin
+    using DispatchDoctor
+    @stable f(::Type{T}, ::A) where {T,G,A<:AbstractArray{G}} =
+        rand(Bool) ? Float32 : Float64
+
+    @test_throws TypeInstabilityError f(Int, [1.0, 2.0])
+    if VERSION >= v"1.9"
+        @test_throws "and parameters `(:T => Int64, :G => Float64, :A => Vector{Float64})`" f(
+            Int, [1.0, 2.0]
         )
     end
 end

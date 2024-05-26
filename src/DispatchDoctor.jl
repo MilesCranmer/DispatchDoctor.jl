@@ -9,7 +9,7 @@ function extract_symbol(ex::Symbol)
     return ex
 end
 function extract_symbol(ex::Expr)
-    if ex.head in (:kw, :(::))
+    if ex.head in (:kw, :(::), :(<:))
         out = extract_symbol(ex.args[1])
         return out isa Unknown ? Unknown(string(ex)) : out
     elseif ex.head in (:tuple, :(...))
@@ -78,6 +78,7 @@ function _stabilize_fnc(fex::Expr; warnonly::Bool)
     name = string(func[:name])
     arg_symbols = map(extract_symbol, func[:args])
     kwarg_symbols = map(extract_symbol, func[:kwargs])
+    where_params = map(extract_symbol, func[:whereparams])
 
     closure = gensym(string(name, "_closure"))
     T = gensym(string(name, "_return_type"))
@@ -85,13 +86,21 @@ function _stabilize_fnc(fex::Expr; warnonly::Bool)
     err = if !warnonly
         :(throw(
             $(TypeInstabilityError)(
-                $(name), ($(arg_symbols...),), (; $(kwarg_symbols...)), $T
+                $(name),
+                ($(arg_symbols...),),
+                (; $(kwarg_symbols...)),
+                ($(where_params) .=> ($(where_params...),)),
+                $T,
             ),
         ))
     else
         :(@warn(
             $(TypeInstabilityWarning)(
-                $(name), ($(arg_symbols...),), (; $(kwarg_symbols...)), $T
+                $(name),
+                ($(arg_symbols...),),
+                (; $(kwarg_symbols...)),
+                ($(where_params) .=> ($(where_params...),)),
+                $T,
             ),
             maxlog = 1
         ))
@@ -199,13 +208,15 @@ struct TypeInstabilityError <: Exception
     f::String
     args::Any
     kwargs::Any
-    T::Any
+    params::Any
+    return_type::Any
 end
 struct TypeInstabilityWarning
     f::String
     args::Any
     kwargs::Any
-    T::Any
+    params::Any
+    return_type::Any
 end
 function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning})
     print(io, "$(typeof(e)): Instability detected in function `$(e.f)`")
@@ -216,12 +227,15 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
     if !isempty(e.kwargs)
         push!(parts, "keyword arguments `$(typeof(e.kwargs))`")
     end
+    if !isempty(e.params)
+        push!(parts, "parameters `$(e.params)`")
+    end
     if !isempty(parts)
         print(io, " with ")
         join(io, parts, " and ")
     end
     print(io, ". ")
-    return print(io, "Inferred to be `$(e.T)`, which is not a concrete type.")
+    return print(io, "Inferred to be `$(e.return_type)`, which is not a concrete type.")
 end
 typeinfo(x) = typeof(x)
 
