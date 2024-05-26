@@ -114,22 +114,13 @@ function _stable_fnc(fex::Expr; warnonly::Bool)
     return combinedef(func)
 end
 
-@testitem "@warn" begin
-    using DispatchDoctor
-    using Suppressor: @capture_stderr
-    #! format: off
-    @stable warnonly=true function f(x)
-        x > 0 ? x : 0.0
-    end
-    #! format: on
-    s = sprint(show, f(1))
-    @show s
-end
-
 """
-    @stable [func_definition]
+    @stable [warnonly=false] [func_definition]
 
-A macro to enforce type stability in functions. When applied, it ensures that the return type of the function is concrete. If type instability is detected, a `TypeInstabilityError` is thrown.
+A macro to enforce type stability in functions.
+When applied, it ensures that the return type of the function is concrete.
+If type instability is detected, a `TypeInstabilityError` is thrown.
+You may also pass `warnonly=true` to only emit a warning.
 
 # Usage
     

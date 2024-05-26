@@ -230,6 +230,23 @@ end
     @test Aallowunstable.f() in (0, 1.0)
     @test_throws TypeInstabilityError Aallowunstable.g()
 end
+@testitem "warnings" begin
+    using DispatchDoctor
+    using Suppressor: @capture_err
+    #! format: off
+    @stable warnonly=true function f(x)
+        x > 0 ? x : 0.0
+    end
+    #! format: on
+
+    msg = @capture_err f(1)
+    @test occursin("TypeInstabilityWarning", msg)
+
+    # The second call will not emit a warning,
+    # as maxlog=1
+    msg = @capture_err f(1)
+    @test !occursin("TypeInstabilityWarning", msg)
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
     @test DD.extract_symb(:([1, 2])) == DD.Unknown()
