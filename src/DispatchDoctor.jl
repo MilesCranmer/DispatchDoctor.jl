@@ -49,6 +49,9 @@ function _stabilize_all(ex::Expr; kws...)
         return ex
     elseif ex.head == :module
         return _stabilize_module(ex; kws...)
+    elseif ex.head == :call && ex.args[1] == Symbol("include") && length(ex.args) == 2
+        # Replace include with DispatchDoctor version
+        return :($(_stabilizing_include)(@__MODULE__, $(ex.args[2]); $(kws)...))
     elseif isdef(ex)
         # Avoiding `MacroTools.postwalk` means we don't
         # recursively call this on closures
@@ -58,19 +61,16 @@ function _stabilize_all(ex::Expr; kws...)
     end
 end
 
+function _stabilizing_include(m::Module, path; kws...)
+    return Base.include(ex -> _stabilize_all(ex; kws...), m, path)
+end
+
 function _stabilize_module(ex; kws...)
     ex = Expr(
         :module,
         ex.args[1],
         ex.args[2],
         Expr(:block, map(e -> _stabilize_all(e; kws...), ex.args[3].args)...),
-    )
-    module_body = ex.args[3]
-    pushfirst!(
-        module_body.args,
-        :(function include(path::AbstractString)
-            return include(ex -> $(_stabilize_all)(ex; $(kws)...), path)
-        end),
     )
     return ex
 end

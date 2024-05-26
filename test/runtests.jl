@@ -234,7 +234,7 @@ end
     # We should be able to find a g_closure, but NOT
     # an f_closure (indicating the `@stable` has not
     # been expanded yet)
-    @test length(f_defs) == 4  # The 4th is the `include`
+    @test length(f_defs) == 3
 
     @test any(e -> occursin("g_closure", string(e)), f_defs)
     @test !any(e -> occursin("f_closure", string(e)), f_defs)
@@ -305,6 +305,20 @@ end
     @test g(1.0) == 1.0
     @test_throws TypeInstabilityError f(1)
     @test_throws TypeInstabilityError g(1)
+end
+@testitem "include within begin" begin
+    using DispatchDoctor
+
+    (path, io) = mktemp()
+    println(io, "f(x) = x > 0 ? x : 0.0")
+    close(io)
+
+    @stable begin
+        include(path)
+    end
+
+    @test f(1.0) == 1.0
+    @test_throws TypeInstabilityError f(1)
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
