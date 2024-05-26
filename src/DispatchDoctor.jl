@@ -155,6 +155,34 @@ with arguments `(Int64,)`. Inferred to be `Union{Float64, Int64}`,
 which is not a concrete type.
 ```
 
+# Extended help
+
+You may also apply `@stable` to arbitrary blocks of code, such as `begin`
+or `module`, and have it be applied to all functions.
+(Just note that this skips closure functions.)
+
+```julia
+using DispatchDoctor: @stable
+
+@stable begin
+    f(x) = x
+    g(x) = x > 0 ? x : 0.0
+    @unstable begin
+        g(x::Int) = x > 0 ? x : 0.0
+    end
+    module A
+        h(x) = x
+        include("myfile.jl")
+    end
+end
+```
+
+This `@stable` will apply to `f`, `g`, `h`,
+as well as all functions within `myfile.jl`.
+It skips the definition `g(x::Int)`, meaning
+that when `Int` input is provided to `g`,
+type instability is not detected.
+
 """
 macro stable(args...)
     return esc(_stable(args...))
@@ -163,7 +191,7 @@ end
 """
     @unstable [func_definition]
 
-A no-op macro to mark functions as unstable when `@stable` is used on a module.
+A no-op macro to hide blocks of code from `@stable`.
 """
 macro unstable(fex)
     return esc(fex)
