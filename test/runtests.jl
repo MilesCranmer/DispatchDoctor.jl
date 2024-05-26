@@ -159,7 +159,7 @@ end
     end
 
     @test Asingleline.f(1.0) == 1.0
-    # @test_throws TypeInstabilityError Asingleline.f(1)
+    @test_throws TypeInstabilityError Asingleline.f(1)
 end
 @testitem "module with include" begin
     using DispatchDoctor
