@@ -57,7 +57,7 @@ top:
 
 and thus meaning there is zero overhead on the type stability check.
 
-You can also use `@stable` on entire modules:
+You can also use `@stable` on arbitrary blocks of code:
 
 ```julia
 @stable module A
@@ -69,7 +69,9 @@ You can also use `@stable` on entire modules:
 end
 ```
 
-where we use `@unstable` to mark functions that should not be wrapped.
+where it will apply to all functions (except closures)
+within the contents. Here, we can use `@unstable` to mark blocks
+that should not be wrapped.
 
 (*Tip: in the REPL, wrap this with `@eval`, because the REPL has special handling of the `module` keyword.*)
 
@@ -92,8 +94,8 @@ where we can see that the `@stable` was automatically applied
 to all the functions, except for `f1`.
 
 > [!NOTE]
-> This will automatically propagate apply through any `include` within the module,
-> by overwriting the default method.
+> This will automatically propagate through any `include` within a module,
+> by replacing with `_stabilizing_include`.
 
 ## Credits
 
