@@ -85,15 +85,12 @@ function _stabilize_fnc(
     fex::Expr; warnonly::Bool=false, source_info::Union{LineNumberNode,Nothing}=nothing
 )
     func = splitdef(fex)
+    source_info =
+        source_info === nothing ? nothing : string(source_info.file, ":", source_info.line)
 
     if haskey(func, :name)
         name = string(func[:name])
         print_name = string("`", name, "`")
-    elseif source_info !== nothing
-        name = string(
-            "anonymous function defined at ", source_info.file, ":", source_info.line
-        )
-        print_name = name
     else
         name = "anonymous function"
         print_name = name
@@ -109,6 +106,7 @@ function _stabilize_fnc(
         :(throw(
             $(TypeInstabilityError)(
                 $(print_name),
+                $(source_info),
                 ($(arg_symbols...),),
                 (; $(kwarg_symbols...)),
                 ($(where_params) .=> ($(where_params...),)),
@@ -119,6 +117,7 @@ function _stabilize_fnc(
         :(@warn(
             $(TypeInstabilityWarning)(
                 $(print_name),
+                $(source_info),
                 ($(arg_symbols...),),
                 (; $(kwarg_symbols...)),
                 ($(where_params) .=> ($(where_params...),)),
@@ -297,6 +296,7 @@ Base.showerror(io::IO, e::AllowUnstableDataRace) = print(io, e.msg)
 
 struct TypeInstabilityError <: Exception
     f::String
+    source_info::Union{String,Nothing}
     args::Any
     kwargs::Any
     params::Any
@@ -304,13 +304,17 @@ struct TypeInstabilityError <: Exception
 end
 struct TypeInstabilityWarning
     f::String
+    source_info::Union{String,Nothing}
     args::Any
     kwargs::Any
     params::Any
     return_type::Any
 end
 function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning})
-    print(io, "$(typeof(e)): Instability detected in function $(e.f)")
+    print(io, "$(typeof(e)): Instability detected in $(e.f)")
+    if e.source_info !== nothing
+        print(io, " defined at ", e.source_info)
+    end
     parts = []
     if !isempty(e.args)
         push!(parts, "arguments `$(map(typeinfo, e.args))`")
