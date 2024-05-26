@@ -1,9 +1,7 @@
 using DispatchDoctor
 using Documenter
 
-DocMeta.setdocmeta!(
-    DispatchDoctor, :DocTestSetup, :(using DispatchDoctor); recursive=true
-)
+DocMeta.setdocmeta!(DispatchDoctor, :DocTestSetup, :(using DispatchDoctor); recursive=true)
 
 readme = open(dirname(@__FILE__) * "/../README.md") do io
     read(io, String)

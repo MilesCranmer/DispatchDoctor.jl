@@ -247,6 +247,13 @@ end
     msg = @capture_err f(1)
     @test !occursin("TypeInstabilityWarning", msg)
 end
+@testitem "bad macro option" begin
+    using DispatchDoctor
+    @test_throws(LoadError, @eval @stable badoption = true f(x) = x^2)
+    if VERSION >= v"1.9"
+        @test_throws("Unknown macro option", @eval @stable badoption = true f(x) = x^2)
+    end
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
     @test DD.extract_symb(:([1, 2])) == DD.Unknown()
