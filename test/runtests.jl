@@ -230,7 +230,7 @@ end
 
         @stable f(x) = x > 0 ? x : 0.0
         g(x, y) = x > 0 ? y : 0.0
-    end), warnonly=false)
+    end))
     #! format: on
 
     # First, we capture `f` using postwalk and `@capture`
@@ -272,16 +272,31 @@ end
     @test Aallowunstable.f() in (0, 1.0)
     @test_throws TypeInstabilityError Aallowunstable.g()
 end
+@testitem "anonymous functions" begin
+    using DispatchDoctor
+    using DispatchDoctor: _stabilize_fnc
+
+    @stable f = () -> rand(Bool) ? Float32 : Float64
+    @test_throws TypeInstabilityError f()
+    if VERSION >= v"1.9"
+        @test_throws " anonymous function defined at " f()
+    end
+
+    # Without source info, we just get "anonymous function"
+    f2 = eval(_stabilize_fnc(:(() -> rand(Bool) ? Float32 : Float64)))
+    @test_throws TypeInstabilityError f2()
+    if VERSION >= v"1.9"
+        @test_throws "anonymous function. Inferred" f2()
+    end
+end
 @testitem "skip closures inside macros" begin
     using DispatchDoctor: DispatchDoctor as DD
 
-    stabilized = DD._stabilize_all(
-        :(macro m(ex)
-            f() = rand(Bool) ? Float32 : Float64
-            f()
-            return ex
-        end); warnonly=false
-    )
+    stabilized = DD._stabilize_all(:(macro m(ex)
+        f() = rand(Bool) ? Float32 : Float64
+        f()
+        return ex
+    end))
 
     # Should skip the internal function
     @test !occursin("f_closure", string(stabilized))

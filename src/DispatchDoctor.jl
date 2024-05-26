@@ -19,7 +19,7 @@ function extract_symbol(ex::Expr)
     end
 end
 
-function _stable(args...)
+function _stable(args...; kws...)
     options, ex = args[begin:(end - 1)], args[end]
     warnonly = false
     for option in options
@@ -31,7 +31,7 @@ function _stable(args...)
         end
         error("Unknown macro option: $option")
     end
-    return _stabilize_all(ex; warnonly)
+    return _stabilize_all(ex; kws..., warnonly)
 end
 
 function _stabilize_all(ex; kws...)
@@ -75,10 +75,23 @@ function _stabilize_module(ex; kws...)
     return ex
 end
 
-function _stabilize_fnc(fex::Expr; warnonly::Bool)
+function _stabilize_fnc(
+    fex::Expr; warnonly::Bool=false, source_info::Union{LineNumberNode,Nothing}=nothing
+)
     func = splitdef(fex)
 
-    name = string(func[:name])
+    if haskey(func, :name)
+        name = string(func[:name])
+        print_name = string("`", name, "`")
+    elseif source_info !== nothing
+        name = string(
+            "anonymous function defined at ", source_info.file, ":", source_info.line
+        )
+        print_name = name
+    else
+        name = "anonymous function"
+        print_name = name
+    end
     arg_symbols = map(extract_symbol, func[:args])
     kwarg_symbols = map(extract_symbol, func[:kwargs])
     where_params = map(extract_symbol, func[:whereparams])
@@ -89,7 +102,7 @@ function _stabilize_fnc(fex::Expr; warnonly::Bool)
     err = if !warnonly
         :(throw(
             $(TypeInstabilityError)(
-                $(name),
+                $(print_name),
                 ($(arg_symbols...),),
                 (; $(kwarg_symbols...)),
                 ($(where_params) .=> ($(where_params...),)),
@@ -99,7 +112,7 @@ function _stabilize_fnc(fex::Expr; warnonly::Bool)
     else
         :(@warn(
             $(TypeInstabilityWarning)(
-                $(name),
+                $(print_name),
                 ($(arg_symbols...),),
                 (; $(kwarg_symbols...)),
                 ($(where_params) .=> ($(where_params...),)),
@@ -195,7 +208,7 @@ type instability is not detected.
 
 """
 macro stable(args...)
-    return esc(_stable(args...))
+    return esc(_stable(args...; source_info=__source__))
 end
 
 """
@@ -222,7 +235,7 @@ struct TypeInstabilityWarning
     return_type::Any
 end
 function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning})
-    print(io, "$(typeof(e)): Instability detected in function `$(e.f)`")
+    print(io, "$(typeof(e)): Instability detected in function $(e.f)")
     parts = []
     if !isempty(e.args)
         push!(parts, "arguments `$(map(typeinfo, e.args))`")
