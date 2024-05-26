@@ -174,6 +174,26 @@ end
     @test Amodulewithinclude.f(1.0) == 1.0
     @test_throws TypeInstabilityError Amodulewithinclude.f(1)
 end
+@testitem "nested modules with include" begin
+    using DispatchDoctor
+    (path, io) = mktemp()
+    println(io, "f(x) = x > 0 ? x : 0.0")
+    close(io)
+
+    #! format: off
+    @eval @stable module Anestedmoduleswithinclude
+        module B
+            include($path)
+            h(x) = x > 0 ? x : 0.0
+        end
+    end
+    #! format: on
+
+    @test Anestedmoduleswithinclude.B.f(1.0) == 1.0
+    @test Anestedmoduleswithinclude.B.h(1.0) == 1.0
+    @test_throws TypeInstabilityError Anestedmoduleswithinclude.B.f(1)
+    @test_throws TypeInstabilityError Anestedmoduleswithinclude.B.h(1)
+end
 @testitem "closures not wrapped in module version" begin
     using DispatchDoctor: @stable
     @stable module Aclosuresunwrapped
