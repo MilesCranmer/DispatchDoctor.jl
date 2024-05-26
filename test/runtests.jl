@@ -244,8 +244,11 @@ end
 
     # The second call will not emit a warning,
     # as maxlog=1
-    msg = @capture_err f(1)
-    @test !occursin("TypeInstabilityWarning", msg)
+    maxlog_available = VERSION >= v"1.9"
+    if maxlog_available
+        msg = @capture_err f(1)
+        @test !occursin("TypeInstabilityWarning", msg)
+    end
 end
 @testitem "bad macro option" begin
     using DispatchDoctor
