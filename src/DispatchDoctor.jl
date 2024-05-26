@@ -123,7 +123,7 @@ return false for `Union{}`, so that errors can propagate.
 @inline type_instability(::Type{Union{}}) = false
 
 """
-    @stable [warnonly=false] [func_definition]
+    @stable [warnonly=false] [code_block]
 
 A macro to enforce type stability in functions.
 When applied, it ensures that the return type of the function is concrete.
