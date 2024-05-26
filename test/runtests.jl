@@ -398,6 +398,15 @@ end
     # Should maintain type stability if not present
     @inferred allow_unstable(@stable () -> 1.0)
 end
+@testitem "allow unstable with error" begin
+    using DispatchDoctor
+    @stable f() = 1 / "blah"
+    @test_throws MethodError f()
+    @test_throws MethodError allow_unstable(f)
+
+    # Should be safely turned back on, despite the early exit
+    @test DispatchDoctor.INSTABILITY_CHECK_ENABLED.value[] == true
+end
 @testitem "nested allow unstable" begin
     using DispatchDoctor
     @stable f() = rand(Bool) ? 1 : 1.0
