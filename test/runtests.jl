@@ -289,6 +289,14 @@ end
         @test_throws "anonymous function. Inferred" f2()
     end
 end
+@testitem "skip empty functions" begin
+    using DispatchDoctor: _stabilize_fnc, _stabilize_all
+
+    @test _stabilize_all(:(function donothing end)) == :(function donothing end)
+
+    # TODO: Fragile test of MacroTools internals
+    @test_throws AssertionError _stabilize_fnc(:(function donothing end))
+end
 @testitem "skip closures inside macros" begin
     using DispatchDoctor: DispatchDoctor as DD
 

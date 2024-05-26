@@ -2,7 +2,7 @@ module DispatchDoctor
 
 export @stable, @unstable, TypeInstabilityError
 
-using MacroTools: combinedef, splitdef, isdef
+using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
 
 function extract_symbol(ex::Symbol)
@@ -38,6 +38,7 @@ function _stabilize_all(ex; kws...)
     return ex
 end
 function _stabilize_all(ex::Expr; kws...)
+    #! format: off
     if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
         # Avoid recursive tags
         return ex
@@ -52,13 +53,14 @@ function _stabilize_all(ex::Expr; kws...)
     elseif ex.head == :call && ex.args[1] == Symbol("include") && length(ex.args) == 2
         # Replace include with DispatchDoctor version
         return :($(_stabilizing_include)(@__MODULE__, $(ex.args[2]); $(kws)...))
-    elseif isdef(ex)
-        # Avoiding `MacroTools.postwalk` means we don't
-        # recursively call this on closures
-        _stabilize_fnc(ex; kws...)
+    elseif isdef(ex) && @capture(longdef(ex), function (fcall_ | fcall_) body_ end)
+        #               ^ This is the same check done by `splitdef`
+        # TODO: Should report `isdef` to MacroTools as not capturing all cases
+        return _stabilize_fnc(ex; kws...)
     else
-        Expr(ex.head, map(e -> _stabilize_all(e; kws...), ex.args)...)
+        return Expr(ex.head, map(e -> _stabilize_all(e; kws...), ex.args)...)
     end
+    #! format: on
 end
 
 function _stabilizing_include(m::Module, path; kws...)
