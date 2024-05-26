@@ -152,6 +152,15 @@ end
     @test_throws TypeInstabilityError Amodules.f2(a=1)
     @test_throws TypeInstabilityError Amodules.f3()
 end
+@testitem "single-line module" begin
+    using DispatchDoctor
+    @stable module Asingleline
+    f(x) = x > 0 ? x : 0.0
+    end
+
+    @test Asingleline.f(1.0) == 1.0
+    # @test_throws TypeInstabilityError Asingleline.f(1)
+end
 @testitem "module with include" begin
     using DispatchDoctor
     (path, io) = mktemp()
@@ -179,11 +188,11 @@ end
     @test Aclosuresunwrapped.f(1) == 1
 end
 @testitem "avoid double stable in module" begin
-    using DispatchDoctor: _stable_module
+    using DispatchDoctor: _stabilize_module
     using MacroTools: postwalk, @capture
 
     #! format: off
-    ex = _stable_module(:(module Aavoiddouble
+    ex = _stabilize_module(:(module Aavoiddouble
         using DispatchDoctor: @stable
 
         @stable f(x) = x > 0 ? x : 0.0

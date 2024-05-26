@@ -34,50 +34,48 @@ function _stable(args...)
         end
         error("Unknown macro option: $option")
     end
-    return _stable_dispatch(ex; warnonly)
-end
-function _stable_dispatch(ex::Expr; kws...)
-    if ex.head == :module
-        return _stable_module(ex; kws...)
-    else
-        return _stable_fnc(ex; kws...)
-    end
+    return _stabilize_all(ex; warnonly)
 end
 
-function _stable_module(ex; kws...)
-    ex = _stable_all_fnc(ex; kws...)
-    @assert ex.head == :module
-    module_body = ex.args[3]
-    @assert module_body.head == :block
-    pushfirst!(
-        module_body.args,
-        :(function include(path::AbstractString)
-            return include(ex -> $(_stable_all_fnc)(ex; $(kws)...), path)
-        end),
-    )
+function _stabilize_all(ex; kws...)
     return ex
 end
-
-function _stable_all_fnc(ex; kws...)
-    return ex
-end
-function _stable_all_fnc(ex::Expr; kws...)
+function _stabilize_all(ex::Expr; kws...)
     if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
         # Avoid recursive tags
         return ex
     elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
         # Allow disabling
         return ex
+    elseif ex.head == :module
+        return _stabilize_module(ex; kws...)
     elseif isdef(ex)
         # Avoiding `MacroTools.postwalk` means we don't
         # recursively call this on closures
-        _stable_fnc(ex; kws...)
+        _stabilize_fnc(ex; kws...)
     else
-        Expr(ex.head, map(ex -> _stable_all_fnc(ex; kws...), ex.args)...)
+        Expr(ex.head, map(e -> _stabilize_all(e; kws...), ex.args)...)
     end
 end
 
-function _stable_fnc(fex::Expr; warnonly::Bool)
+function _stabilize_module(ex; kws...)
+    ex = Expr(
+        :module,
+        ex.args[1],
+        ex.args[2],
+        Expr(:block, map(e -> _stabilize_all(e; kws...), ex.args[3].args)...),
+    )
+    module_body = ex.args[3]
+    pushfirst!(
+        module_body.args,
+        :(function include(path::AbstractString)
+            return include(ex -> $(_stabilize_all)(ex; $(kws)...), path)
+        end),
+    )
+    return ex
+end
+
+function _stabilize_fnc(fex::Expr; warnonly::Bool)
     func = splitdef(fex)
 
     arg_symbols = map(extract_symbol, func[:args])
