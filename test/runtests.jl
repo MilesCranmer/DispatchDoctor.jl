@@ -42,7 +42,7 @@ end
 end
 @testitem "Type specialization" begin
     using DispatchDoctor
-    @stable f(a, t::Type{T}) where {T} = sum(a; init=zero(T))
+    @stable f(a, ::Type{T}) where {T} = sum(a; init=zero(T))
     @test f([1.0f0, 1.0f0], Float32) == 2.0f0
 end
 @testitem "args and kwargs" begin
@@ -128,12 +128,13 @@ end
     end
 end
 @testitem "Signature without symbol" begin
-    using DispatchDoctor: DispatchDoctor as DD
-    @stable f(::Type{T}) where {T} = rand(Bool) ? 0.0 : 1
-    @test_throws TypeInstabilityError f(Int)
+    using DispatchDoctor
+    @stable f(x, ::Type{T}) where {T} = rand(Bool) ? T : Float64
+    @test_throws TypeInstabilityError f(1.0, Float32)
     if VERSION >= v"1.9"
-        @test_throws "TypeInstabilityError: Instability detected in function `f` with arguments `([undefined symbol],)`." f(
-            Int
+        @test_throws(
+            "Instability detected in function `f` with arguments `(Float64, \"Type{T}\")`.",
+            f(1.0, Float32)
         )
     end
 end
@@ -333,7 +334,7 @@ end
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
-    @test DD.extract_symbol(:([1, 2])) == DD.Unknown()
+    @test DD.extract_symbol(:([1, 2])) == DD.Unknown(string(:([1, 2])))
 end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor

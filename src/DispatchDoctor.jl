@@ -18,7 +18,7 @@ function extract_symbol(ex::Expr)
     elseif ex.head == :(...)
         return ex
     else
-        return Unknown()
+        return Unknown(string(ex))
     end
 end
 
@@ -214,7 +214,7 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
     print(io, "$(typeof(e)): Instability detected in function `$(e.f)`")
     parts = []
     if !isempty(e.args)
-        push!(parts, "arguments `$(map(typeof, e.args))`")
+        push!(parts, "arguments `$(map(typeinfo, e.args))`")
     end
     if !isempty(e.kwargs)
         push!(parts, "keyword arguments `$(typeof(e.kwargs))`")
@@ -226,11 +226,15 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
     print(io, ". ")
     return print(io, "Inferred to be `$(e.T)`, which is not a concrete type.")
 end
+typeinfo(x) = typeof(x)
 
 Base.showerror(io::IO, e::TypeInstabilityError) = _print_msg(io, e)
 Base.show(io::IO, w::TypeInstabilityWarning) = _print_msg(io, w)
 
-struct Unknown end
-Base.show(io::IO, ::Type{Unknown}) = print(io, "[undefined symbol]")
+struct Unknown
+    msg::String
+end
+Base.show(io::IO, u::Unknown) = print(io, string("[", u.msg, "]"))
+typeinfo(u::Unknown) = u.msg
 
 end
