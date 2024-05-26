@@ -133,7 +133,7 @@ end
     @test_throws TypeInstabilityError f(1.0, Float32)
     if VERSION >= v"1.9"
         @test_throws(
-            "Instability detected in function `f` with arguments `(Float64, \"Type{T}\")`.",
+            "Instability detected in function `f` with arguments `(Float64, [::Type{T}])`.",
             f(1.0, Float32)
         )
     end

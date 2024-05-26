@@ -9,13 +9,10 @@ function extract_symbol(ex::Symbol)
     return ex
 end
 function extract_symbol(ex::Expr)
-    if ex.head == :kw
-        return extract_symbol(ex.args[1])
-    elseif ex.head == :tuple
-        return ex
-    elseif ex.head == :(::)
-        return extract_symbol(ex.args[1])
-    elseif ex.head == :(...)
+    if ex.head in (:kw, :(::))
+        out = extract_symbol(ex.args[1])
+        return out isa Unknown ? Unknown(string(ex)) : out
+    elseif ex.head in (:tuple, :(...))
         return ex
     else
         return Unknown(string(ex))
@@ -235,6 +232,6 @@ struct Unknown
     msg::String
 end
 Base.show(io::IO, u::Unknown) = print(io, string("[", u.msg, "]"))
-typeinfo(u::Unknown) = u.msg
+typeinfo(u::Unknown) = u
 
 end
