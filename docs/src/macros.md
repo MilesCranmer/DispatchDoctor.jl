@@ -1,4 +1,6 @@
-# Macros
+# Reference
+
+## Macros
 
 The two main general utilities for working
 with quantities are `ustrip` and `dimension`:
@@ -9,6 +11,12 @@ with quantities are `ustrip` and `dimension`:
 ```
 
 ## Utilities
+
+```@docs
+allow_unstable
+```
+
+## Internals
 
 ```@docs
 DispatchDoctor.type_instability

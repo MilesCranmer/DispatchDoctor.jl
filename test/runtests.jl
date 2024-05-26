@@ -389,6 +389,54 @@ end
     @stable (::Type{MyStruct})() = MyStruct(1)
     @test MyStruct() == MyStruct(1)
 end
+@testitem "allow unstable" begin
+    using DispatchDoctor
+    @stable f() = rand(Bool) ? 1 : 1.0
+    @test_throws TypeInstabilityError f()
+    @test allow_unstable(f) == 1
+
+    # Should maintain type stability if not present
+    @inferred allow_unstable(@stable () -> 1.0)
+end
+@testitem "nested allow unstable" begin
+    using DispatchDoctor
+    @stable f() = rand(Bool) ? 1 : 1.0
+    g() = allow_unstable(f)
+    h() = allow_unstable(g)
+    @test_throws TypeInstabilityError f()
+    @test g() == 1
+    # Because we use a reentrant lock, nested
+    # calls are allowed:
+    @test h() == 1
+end
+@testitem "error on multiple tasks" begin
+    using DispatchDoctor: DispatchDoctor as DD
+    host_channel = Channel()
+    task_channel = Channel()
+    if islocked(DD.INSTABILITY_CHECK_ENABLED.lock)
+        error("Can't run this test in parallel.")
+    end
+    t = @async begin
+        try
+            lock(DD.INSTABILITY_CHECK_ENABLED.lock)
+            put!(task_channel, 1)
+            take!(host_channel)
+        finally
+            unlock(DD.INSTABILITY_CHECK_ENABLED.lock)
+            put!(task_channel, 1)
+        end
+    end
+    take!(task_channel)    # now locked
+    @test_throws DD.AllowUnstableDataRace DD.allow_unstable(() -> 1)
+    if VERSION >= v"1.9"
+        @test_throws "You cannot call `allow_unstable` from two tasks at once" DD.allow_unstable(
+            () -> 1
+        )
+    end
+    put!(host_channel, 1)  # ready for exit
+    take!(task_channel)    # now unlocked
+    @test DD.allow_unstable(() -> 1) == 1
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
 
