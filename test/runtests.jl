@@ -297,6 +297,14 @@ end
     # TODO: Fragile test of MacroTools internals
     @test_throws AssertionError _stabilize_fnc(:(function donothing end))
 end
+@testitem "underscore argument" begin
+    using DispatchDoctor
+    @stable f(_) = rand(Bool) ? Float32 : Float64
+    @test_throws TypeInstabilityError f(1)
+    if VERSION >= v"1.9"
+        @test_throws "function `f` with arguments `([_],)`" f(1)
+    end
+end
 @testitem "skip closures inside macros" begin
     using DispatchDoctor: DispatchDoctor as DD
 

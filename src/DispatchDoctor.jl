@@ -6,7 +6,11 @@ using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
 
 function extract_symbol(ex::Symbol)
-    return ex
+    if ex == Symbol("_")
+        return Unknown("_")
+    else
+        return ex
+    end
 end
 function extract_symbol(ex::Expr)
     if ex.head in (:kw, :(::), :(<:))
