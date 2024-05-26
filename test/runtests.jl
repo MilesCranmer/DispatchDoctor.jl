@@ -320,6 +320,17 @@ end
     @test f(1.0) == 1.0
     @test_throws TypeInstabilityError f(1)
 end
+@testitem "stabilizing a class instantiation" begin
+    using DispatchDoctor: DispatchDoctor as DD
+
+    struct MyStruct
+        x::Number
+    end
+
+    # (There used to be an issue because the func[:name] is not a symbol)
+    @stable (::Type{MyStruct})() = MyStruct(1)
+    @test MyStruct() == MyStruct(1)
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
     @test DD.extract_symbol(:([1, 2])) == DD.Unknown()

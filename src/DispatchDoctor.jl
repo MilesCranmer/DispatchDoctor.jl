@@ -78,22 +78,23 @@ end
 function _stabilize_fnc(fex::Expr; warnonly::Bool)
     func = splitdef(fex)
 
+    name = string(func[:name])
     arg_symbols = map(extract_symbol, func[:args])
     kwarg_symbols = map(extract_symbol, func[:kwargs])
 
-    closure = gensym(string(func[:name], "_closure"))
-    T = gensym(string(func[:name], "_return_type"))
+    closure = gensym(string(name, "_closure"))
+    T = gensym(string(name, "_return_type"))
 
     err = if !warnonly
         :(throw(
             $(TypeInstabilityError)(
-                $(func[:name]), ($(arg_symbols...),), (; $(kwarg_symbols...)), $T
+                $(name), ($(arg_symbols...),), (; $(kwarg_symbols...)), $T
             ),
         ))
     else
         :(@warn(
             $(TypeInstabilityWarning)(
-                $(func[:name]), ($(arg_symbols...),), (; $(kwarg_symbols...)), $T
+                $(name), ($(arg_symbols...),), (; $(kwarg_symbols...)), $T
             ),
             maxlog = 1
         ))
@@ -198,13 +199,13 @@ macro unstable(fex)
 end
 
 struct TypeInstabilityError <: Exception
-    f::Any
+    f::String
     args::Any
     kwargs::Any
     T::Any
 end
 struct TypeInstabilityWarning
-    f::Any
+    f::String
     args::Any
     kwargs::Any
     T::Any
