@@ -273,6 +273,19 @@ end
 
     @test_throws MethodError my_bad_function(1)
 end
+@testitem "begin block" begin
+    using DispatchDoctor
+
+    @stable begin
+        f(x) = x > 0 ? x : 0.0
+        g(x) = x > 0 ? x : 0.0
+    end
+
+    @test f(1.0) == 1.0
+    @test g(1.0) == 1.0
+    @test_throws TypeInstabilityError f(1)
+    @test_throws TypeInstabilityError g(1)
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
     @test DD.extract_symbol(:([1, 2])) == DD.Unknown()
