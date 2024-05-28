@@ -3,7 +3,6 @@ module EnzymeTest
 
 using DispatchDoctor: @stable, TypeInstabilityError
 using Enzyme: autodiff, Reverse, Active, Duplicated
-using Suppressor: @capture_err
 using Test: @testset, @test, @test_throws
 
 @testset "basic" begin
@@ -23,9 +22,7 @@ end
 @testset "with unstable" begin
     @stable f2(x) = rand(Bool) ? x : 1.0 * x
     @test_throws TypeInstabilityError begin
-        @capture_err begin
-            autodiff(Reverse, f2, Active(1.0f0))
-        end
+        autodiff(Reverse, f2, Active(1.0f0))
     end
 end
 
