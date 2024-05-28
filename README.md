@@ -117,9 +117,8 @@ end
 ```
 
 where you would have `test/runtests.jl` set `ENV["MY_VAR"] = "true"`
-before loading the package. Then, simply call `@unstable` to disable
+before loading the package. Then, simply use `@unstable` to disable
 stability checks for individual functions you wish to permit instability in.
-
 
 You can also disable stability errors for a single scope
 with the `allow_unstable` context:
