@@ -105,7 +105,7 @@ function _stabilize_all(ex::Expr; kws...)
 end
 
 function _stabilizing_include(m::Module, path; kws...)
-    return Base.include(ex -> _stabilize_all(ex; kws...), m, path)
+    return m.include(ex -> _stabilize_all(ex; kws...), path)
 end
 
 function _stabilize_module(ex; kws...)
