@@ -125,7 +125,8 @@ Instability errors are also skipped during precompilation.
 > - Within a `quote` block
 > - If the function name is an expression (such as parameterized functions like `MyType{T}(args...) = ...`)
 >
-> You can safely use `@stable` in all of these cases, it will simply be ignored.
+> You can safely use `@stable` over all of these cases, it will simply be ignored.
+> Although, if you use `@stable` *internally* in any of these cases, (like calling `@stable` *within* a function on a closure), then it might still apply.
 
 ## Credits
 
