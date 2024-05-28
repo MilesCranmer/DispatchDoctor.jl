@@ -90,7 +90,7 @@ function _stable(args...; calling_module, kws...)
     options, ex = args[begin:(end - 1)], args[end]
 
     # Standard defaults:
-    mode = :error
+    mode = "error"
 
     # Deprecated
     warnonly = nothing
@@ -133,20 +133,20 @@ function _stable(args...; calling_module, kws...)
         # https://github.com/JuliaLang/PrecompileTools.jl/blob/a99446373f9a4a46d62a2889b7efb242b4ad7471/src/workloads.jl#L2C10-L11
     end
     if enable !== nothing
-        @warn "The `enable` option is deprecated. Please use `mode` instead, either :error, :warn, or :disable."
+        @warn "The `enable` option is deprecated. Please use `mode` instead, either \"error\", \"warn\", or \"disable\"."
         if warnonly !== nothing
-            @warn "The `warnonly` option is deprecated. Please use `mode` instead, either :error, :warn, or :disable."
-            mode = warnonly ? :warn : (enable ? :error : :disable)
+            @warn "The `warnonly` option is deprecated. Please use `mode` instead, either \"error\", \"warn\", or \"disable\"."
+            mode = warnonly ? "warn" : (enable ? "error" : "disable")
         else
-            mode = enable ? :error : :disable
+            mode = enable ? "error" : "disable"
         end
     end
-    if mode in (:error, :warn)
+    if mode in ("error", "warn")
         return _stabilize_all(ex; kws..., mode)
-    elseif mode == :disable
+    elseif mode == "disable"
         return ex
     else
-        error("Unknown mode: $mode. Please use :error, :warn, or :disable.")
+        error("Unknown mode: $mode. Please use \"error\", \"warn\", or \"disable\".")
     end
 end
 
@@ -202,7 +202,7 @@ function _stabilize_module(ex; kws...)
 end
 
 function _stabilize_fnc(
-    fex::Expr; mode::Symbol=:error, source_info::Union{LineNumberNode,Nothing}=nothing
+    fex::Expr; mode::String="error", source_info::Union{LineNumberNode,Nothing}=nothing
 )
     func = splitdef(fex)
 
@@ -240,7 +240,7 @@ function _stabilize_fnc(
     closure = gensym(string(name, "_closure"))
     T = gensym(string(name, "_return_type"))
 
-    err = if mode == :error
+    err = if mode == "error"
         :(throw(
             $(TypeInstabilityError)(
                 $(print_name),
@@ -251,7 +251,7 @@ function _stabilize_fnc(
                 $T,
             ),
         ))
-    elseif mode == :warn
+    elseif mode == "warn"
         :(@warn(
             $(TypeInstabilityWarning)(
                 $(print_name),
@@ -264,7 +264,7 @@ function _stabilize_fnc(
             maxlog = 1
         ))
     else
-        error("Unknown mode: $mode. Please use :error or :warn.")
+        error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
     end
 
     checker = if isempty(kwarg_symbols)
@@ -382,8 +382,8 @@ If type instability is detected, a `TypeInstabilityError` is thrown.
 
 # Options
 
-- `mode::Symbol=:error`: Set this to `:warn` to only emit a warning, or
-   `:disable` to disable type instability checks altogether.
+- `mode::String="error"`: Set this to `"warn"` to only emit a warning, or
+   `"disable"` to disable type instability checks altogether.
 
 # Example
     

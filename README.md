@@ -110,7 +110,7 @@ default behavior:
 ```julia
 module MyPackage
 using DispatchDoctor
-@stable mode=:disable begin
+@stable mode="disable" begin
 
 # Entire package code
 
@@ -125,10 +125,10 @@ via [Preferences.jl](https://github.com/JuliaPackaging/Preferences.jl):
 using MyPackage
 using Preferences
 
-set_preferences!(MyPackage, "instability_check" => :error)
+set_preferences!(MyPackage, "instability_check" => "error")
 ```
 
-which you can also set to be `:warn` if you would just like warnings.
+which you can also set to be `"warn"` if you would just like warnings.
 You might find it useful to set this during testing.
 
 You can also disable stability errors for a single scope
