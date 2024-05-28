@@ -23,7 +23,7 @@ function extract_symbol(ex::Symbol)
 end
 function extract_symbol(ex::Expr)
     #! format: off
-    if ex.head == :(::) && @capture(ex.args[2], Vararg | Vararg{_} | Vararg{_,_})
+    if ex.head == :(::) && length(ex.args) > 1 && @capture(ex.args[2], Vararg | Vararg{_} | Vararg{_,_})
         return :($(ex.args[1])...)
     elseif ex.head in (:kw, :(::), :(<:))
         out = extract_symbol(ex.args[1])
