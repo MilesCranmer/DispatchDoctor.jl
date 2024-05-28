@@ -4,7 +4,7 @@ export @stable, @unstable, allow_unstable, TypeInstabilityError
 
 using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
-using Preferences: load_preference
+using Preferences: load_preference, get_uuid
 
 const JULIA_OK = let
     JULIA_LOWER_BOUND = v"1.10.0-DEV.0"
@@ -125,7 +125,7 @@ function _stable(args...; calling_module, kws...)
     if calling_module != Core.Main
         # Local setting from Preferences.jl overrides defaults
         mode = try
-            load_preference(calling_module, "instability_check", mode)
+            load_preference(get_uuid(calling_module), "instability_check", mode)
         catch
             mode
         end
