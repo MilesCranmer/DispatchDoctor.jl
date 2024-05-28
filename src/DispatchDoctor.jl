@@ -103,7 +103,7 @@ function _stable(args...; calling_module, kws...)
             elseif option.args[1] == :enable
                 enable = option.args[2]
                 continue
-            elseif option.args[1] == :mode
+            elseif option.args[1] == :default_mode
                 mode = option.args[2]
                 continue
             end
@@ -382,8 +382,10 @@ If type instability is detected, a `TypeInstabilityError` is thrown.
 
 # Options
 
-- `mode::String="error"`: Set this to `"warn"` to only emit a warning, or
-   `"disable"` to disable type instability checks altogether.
+- `default_mode::String="error"`: Change the default mode to `"warn"` to only emit a warning, or
+   `"disable"` to disable type instability checks by default. To locally set the mode for
+   a package that uses DispatchDoctor, you can use the "instability_check" key in your
+   LocalPreferences.toml (typically configured with Preferences.jl)
 
 # Example
     
