@@ -253,7 +253,7 @@ function _stabilize_fnc(
     end
 
     return quote
-        $(combinedef(func_with_body))
+        $(Base).@inline $(combinedef(func_with_body))
         $(Base).@__doc__ $(combinedef(func))
     end
 end
