@@ -387,7 +387,7 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
     print(io, ". ")
     return print(io, "Inferred to be `$(e.return_type)`, which is not a concrete type.")
 end
-typeinfo(x) = typeof(x)
+typeinfo(x) = specializing_typeof(x)
 
 Base.showerror(io::IO, e::TypeInstabilityError) = _print_msg(io, e)
 Base.show(io::IO, w::TypeInstabilityWarning) = _print_msg(io, w)

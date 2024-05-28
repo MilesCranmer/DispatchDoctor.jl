@@ -140,7 +140,7 @@ end
     if VERSION >= v"1.9"
         @test_throws("Instability detected in `f` defined at", f(1.0, Float32))
         @test_throws(
-            "with arguments `(Float64, [::Type{T}])` and parameters `(:T => Float32,)`.",
+            "with arguments `(Float64, Type{Float32})` and parameters `(:T => Float32,)`.",
             f(1.0, Float32)
         )
     end
