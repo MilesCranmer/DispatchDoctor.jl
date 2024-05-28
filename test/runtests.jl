@@ -386,6 +386,16 @@ end
         end
     end
 end
+@testitem "disable @stable using env variable" begin
+    using DispatchDoctor
+    ENV["__DISPATCH_DOCTOR_TESTING_VAR"] = "false"
+
+    @stable enable = parse(Bool, ENV["__DISPATCH_DOCTOR_TESTING_VAR"]) function f(x)
+        return rand(Bool) ? 1 : 1.0
+    end
+
+    @test f(1) == 1
+end
 @testitem "bad macro option" begin
     using DispatchDoctor
     DispatchDoctor.JULIA_OK &&

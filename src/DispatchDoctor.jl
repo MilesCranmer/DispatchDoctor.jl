@@ -65,19 +65,29 @@ specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(::Val{T}) where {T} = Val{T}
 
-function _stable(args...; kws...)
+function _stable(args...; calling_module, kws...)
     options, ex = args[begin:(end - 1)], args[end]
     warnonly = false
+    enable = true
     for option in options
         if option isa Expr && option.head == :(=)
             if option.args[1] == :warnonly
                 warnonly = option.args[2]
                 continue
+            elseif option.args[1] == :enable
+                enable = option.args[2]
+                continue
             end
         end
         error("Unknown macro option: $option")
     end
-    return _stabilize_all(ex; kws..., warnonly)
+    warnonly = warnonly isa Expr ? Core.eval(calling_module, warnonly) : warnonly
+    enable = enable isa Expr ? Core.eval(calling_module, enable) : enable
+    if enable
+        return _stabilize_all(ex; kws..., warnonly)
+    else
+        return ex
+    end
 end
 
 function _stabilize_all(ex; kws...)
@@ -299,14 +309,20 @@ return false for `Union{}`, so that errors can propagate.
 @inline type_instability(::Type{Union{}}) = false
 
 """
-    @stable [warnonly=false] [code_block]
+    @stable [options...] [code_block]
 
 A macro to enforce type stability in functions.
 When applied, it ensures that the return type of the function is concrete.
 If type instability is detected, a `TypeInstabilityError` is thrown.
-You may also pass `warnonly=true` to only emit a warning.
 
-# Usage
+# Options
+
+- `warnonly::Bool=false`: Set this to `true` to only emit a warning.
+- `enable::Bool=true`: Set this to `false` to disable type instability checks
+   altogether. This can be used to only run the stability analysis during
+   unit-testing, but disable otherwise.
+
+# Example
     
 ```julia
 using DispatchDoctor: @stable
@@ -320,7 +336,7 @@ using DispatchDoctor: @stable
 end
 ```
 
-# Example
+which will automatically flag any type instability:
 
 ```julia
 julia> relu(1.0)
@@ -363,7 +379,7 @@ type instability is not detected.
 """
 macro stable(args...)
     if JULIA_OK
-        return esc(_stable(args...; source_info=__source__))
+        return esc(_stable(args...; source_info=__source__, calling_module=__module__))
     else
         return esc(args[end])
     end

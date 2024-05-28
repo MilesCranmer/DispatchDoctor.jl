@@ -102,7 +102,27 @@ Inferred to be `Union{Float64, Int64}`, which is not a concrete type.
 
 (*Tip: in the REPL, you must wrap modules with `@eval`, because the REPL has special handling of the `module` keyword.*)
 
-You can globally disable stability errors with the `allow_unstable` context:
+You might find it useful to only enable `@stable` during unit-testing,
+but have it check every function in a library. For this, you can use the `enable` keyword:
+
+```julia
+module MyPackage
+using DispatchDoctor
+@stable enable=parse(Bool, get(ENV, "MY_VAR", "false")) begin
+
+# Package code
+
+end
+end
+```
+
+where you would have `test/runtests.jl` set `ENV["MY_VAR"] = "true"`
+before loading the package. Then, simply call `@unstable` to disable
+stability checks for individual functions you wish to permit instability in.
+
+
+You can also disable stability errors for a single scope
+with the `allow_unstable` context:
 
 ```julia
 julia> @stable f(x) = x > 0 ? x : 0.0
