@@ -23,6 +23,9 @@ const INCOMPATIBLE_MACROS = [
 function matches_incompatible_macro(ex::Symbol)
     return ex in INCOMPATIBLE_MACROS
 end
+function matches_incompatible_macro(ex)
+    return false
+end
 function matches_incompatible_macro(ex::Expr)
     return any(matches_incompatible_macro, ex.args)
 end
