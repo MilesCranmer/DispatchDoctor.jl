@@ -6,7 +6,7 @@ using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
 
 const JULIA_OK = let
-    JULIA_LOWER_BOUND = v"1.9.0-DEV.0"
+    JULIA_LOWER_BOUND = v"1.10.0-DEV.0"
     JULIA_UPPER_BOUND = v"1.12.0-DEV.0"
 
     VERSION >= JULIA_LOWER_BOUND && VERSION < JULIA_UPPER_BOUND
