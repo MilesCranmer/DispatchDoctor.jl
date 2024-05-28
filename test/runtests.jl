@@ -101,17 +101,18 @@ end
         )
 
         @test_throws(
-            "with keyword arguments `@NamedTuple{a::Int64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
-            f3(a=0)
-        )
-
-        @test_throws(
             "TypeInstabilityError: Instability detected in `f4` defined at ", f4(0; a=0.0)
         )
-        @test_throws(
-            "with arguments `(Int64,)` and keyword arguments `@NamedTuple{a::Float64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
-            f4(0; a=0.0)
-        )
+        if VERSION >= v"1.10.0-DEV.0"
+            @test_throws(
+                "with keyword arguments `@NamedTuple{a::Int64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+                f3(a=0)
+            )
+            @test_throws(
+                "with arguments `(Int64,)` and keyword arguments `@NamedTuple{a::Float64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+                f4(0; a=0.0)
+            )
+        end
     end
 end
 @testitem "Test forwarding documentation" begin
@@ -457,7 +458,7 @@ end
     using DispatchDoctor
     @stable function g(n)
         n = Int(n)::Int
-        n
+        return n
     end
     @test g(1) == 1
 end

@@ -5,6 +5,10 @@ export @stable, @unstable, allow_unstable, TypeInstabilityError
 using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
 
+const JULIA_LOWER_BOUND = v"1.10.0-DEV.0"
+const JULIA_UPPER_BOUND = v"1.12.0-DEV.0"
+# TODO: Get exact lower/upper bounds
+
 function extract_symbol(ex::Symbol)
     if ex == Symbol("_")
         return Unknown("_")
@@ -332,7 +336,11 @@ type instability is not detected.
 
 """
 macro stable(args...)
-    return esc(_stable(args...; source_info=__source__))
+    if VERSION >= JULIA_LOWER_BOUND && VERSION <= JULIA_UPPER_BOUND
+        return esc(_stable(args...; source_info=__source__))
+    else
+        return esc(args[end])
+    end
 end
 
 """
