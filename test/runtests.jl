@@ -528,6 +528,8 @@ end
     @test DD.extract_symbol(:([1, 2])) == DD.Unknown(string(:([1, 2])))
 
     @test DD.is_precompiling() == false
+
+    @test DD.specializing_typeof(Val(1)) <: Val{1}
 end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor
