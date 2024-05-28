@@ -103,14 +103,14 @@ Inferred to be `Union{Float64, Int64}`, which is not a concrete type.
 (*Tip: in the REPL, you must wrap modules with `@eval`, because the REPL has special handling of the `module` keyword.*)
 
 You might find it useful to only enable `@stable` during unit-testing,
-but have it check every function in a library. For this, you can use the `enable` keyword:
+and have it check every function in a library. For this, you can use the `enable` keyword:
 
 ```julia
 module MyPackage
 using DispatchDoctor
 @stable enable=parse(Bool, get(ENV, "MY_VAR", "false")) begin
 
-# Package code
+# Entire package code
 
 end
 end
@@ -133,7 +133,10 @@ julia> allow_unstable() do
 1
 ```
 
-Instability errors are also skipped during precompilation.
+although this will error if you try to use it simultaneously
+from two separate threads.
+
+Note that instability errors are automatically skipped during precompilation.
 
 > [!NOTE]
 > `@stable` will have no effect on code if it is:
