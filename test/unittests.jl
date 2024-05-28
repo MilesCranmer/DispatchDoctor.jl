@@ -368,7 +368,7 @@ end
     using DispatchDoctor
     using Suppressor: @capture_err
     #! format: off
-    @stable mode="warn" function f(x)
+    @stable default_mode="warn" function f(x)
         x > 0 ? x : 0.0
     end
     #! format: on
@@ -390,7 +390,7 @@ end
     using DispatchDoctor
     ENV["__DISPATCH_DOCTOR_TESTING_VAR"] = "disable"
 
-    @stable mode = ENV["__DISPATCH_DOCTOR_TESTING_VAR"] function f(x)
+    @stable default_mode = ENV["__DISPATCH_DOCTOR_TESTING_VAR"] function f(x)
         return rand(Bool) ? 1 : 1.0
     end
 
