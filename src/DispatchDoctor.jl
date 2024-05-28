@@ -14,19 +14,19 @@ const JULIA_OK = let
 end
 # TODO: Get exact lower/upper bounds
 
-function extract_symbol(ex::Symbol)
+function extract_symbol(ex::Symbol, fullex=ex)
     if ex == Symbol("_")
         return Unknown("_")
     else
         return ex
     end
 end
-function extract_symbol(ex::Expr)
+function extract_symbol(ex::Expr, fullex=ex)
     #! format: off
     if ex.head == :(::) && length(ex.args) > 1 && @capture(ex.args[2], Vararg | Vararg{_} | Vararg{_,_})
         return :($(ex.args[1])...)
     elseif ex.head in (:kw, :(::), :(<:))
-        out = extract_symbol(ex.args[1])
+        out = extract_symbol(ex.args[1], ex)
         return out isa Unknown ? Unknown(string(ex)) : out
     elseif ex.head in (:tuple, :(...))
         return ex
@@ -39,19 +39,22 @@ end
 """
 Fix args that do not have a symbol.
 """
-function inject_symbol(ex::Symbol)
+function inject_symbol_to_arg(ex::Symbol)
     return ex
 end
-function inject_symbol(ex::Expr)
-    if ex.head == :(::)
-        if length(ex.args) == 1
-            return Expr(:(::), gensym("arg"), only(ex.args))
+function inject_symbol_to_arg(ex::Expr)
+    if ex.head == :(::) && length(ex.args) == 1
+        return Expr(:(::), gensym("arg"), ex.args[1])
+    elseif ex.head == :(kw) && length(ex.args) == 2
+        if ex.args[1] isa Expr
+            @assert ex.args[1].head == :(::)
+            @assert length(ex.args[1].args) == 1
+            return Expr(:(kw), Expr(:(::), gensym("arg"), ex.args[1].args[1]), ex.args[2])
         else
             return ex
         end
-    else
-        return ex
     end
+    return ex
 end
 
 specializing_typeof(::T) where {T} = T
@@ -134,7 +137,7 @@ function _stabilize_fnc(
         print_name = "anonymous function"
     end
 
-    args = map(inject_symbol, func[:args])
+    args = map(inject_symbol_to_arg, func[:args])
     kwargs = func[:kwargs]
     where_params = func[:whereparams]
 

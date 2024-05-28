@@ -67,6 +67,14 @@ end
     @stable f4(a, args...; d, kwargs...) = sum(args) + sum(values(kwargs)) + a + d
     @test f4(1, 1, 2, 3; d=0, a=1, b=2, c=3) == sum((1, 1, 2, 3, 0, 1, 2, 3))
 end
+@testitem "complex arg without symbol" begin
+    using DispatchDoctor: DispatchDoctor as DD
+    struct Undefined end
+    DD.@stable function f(::Type{T1}=Undefined) where {T1}
+        return T1
+    end
+    @test f() == Undefined
+end
 @testitem "showerror" begin
     using DispatchDoctor
 
