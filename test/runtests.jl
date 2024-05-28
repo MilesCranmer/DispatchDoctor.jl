@@ -514,6 +514,17 @@ end
     end
     @test g(1) == 1
 end
+@testitem "detect closure-induced instability" begin
+    using DispatchDoctor
+    @stable function f(x)
+        function inner()
+            x = x^2
+            return x
+        end
+        return inner()
+    end
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
+end
 @testitem "skip generated" begin
     using DispatchDoctor
 
