@@ -5,6 +5,7 @@ export @stable, @unstable, allow_unstable, TypeInstabilityError
 using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
 
+const INCOMPATIBLE_MACROS = [Symbol("@generated")]
 const JULIA_OK = let
     JULIA_LOWER_BOUND = v"1.10.0-DEV.0"
     JULIA_UPPER_BOUND = v"1.12.0-DEV.0"
@@ -82,6 +83,8 @@ function _stabilize_all(ex::Expr; kws...)
         return ex
     elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
         # Allow disabling
+        return ex
+    elseif ex.head == :macrocall && ex.args[1] in INCOMPATIBLE_MACROS
         return ex
     elseif ex.head == :macro
         # Do nothing inside macros (in case of closure)
