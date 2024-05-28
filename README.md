@@ -104,13 +104,13 @@ Inferred to be `Union{Float64, Int64}`, which is not a concrete type.
 
 You might find it useful to *only* enable `@stable` during unit-testing,
 to have it check every function in a library, but not throw errors for
-downstream users. For this, you can use the `mode` keyword to set the
+downstream users. For this, you can use the `default_mode` keyword to set the
 default behavior:
 
 ```julia
 module MyPackage
 using DispatchDoctor
-@stable mode="disable" begin
+@stable default_mode="disable" begin
 
 # Entire package code
 
@@ -118,7 +118,7 @@ end
 end
 ```
 
-This sets the default, but the mode is configurable
+This sets the default behavior, but the mode is configurable
 via [Preferences.jl](https://github.com/JuliaPackaging/Preferences.jl):
 
 ```julia
