@@ -23,6 +23,28 @@ function extract_symbol(ex::Expr)
     end
 end
 
+"""
+Fix args that do not have a symbol.
+"""
+function inject_symbol(ex::Symbol)
+    return ex
+end
+function inject_symbol(ex::Expr)
+    if ex.head == :(::)
+        if length(ex.args) == 1
+            return Expr(:(::), gensym("arg"), only(ex.args))
+        else
+            return ex
+        end
+    else
+        return ex
+    end
+end
+
+specializing_typeof(::T) where {T} = T
+specializing_typeof(::Type{T}) where {T} = Type{T}
+specializing_typeof(::Val{T}) where {T} = Val{T}
+
 function _stable(args...; kws...)
     options, ex = args[begin:(end - 1)], args[end]
     warnonly = false
@@ -85,6 +107,7 @@ function _stabilize_fnc(
     fex::Expr; warnonly::Bool=false, source_info::Union{LineNumberNode,Nothing}=nothing
 )
     func = splitdef(fex)
+    func_with_body = splitdef(deepcopy(fex))
     source_info =
         source_info === nothing ? nothing : string(source_info.file, ":", source_info.line)
 
@@ -92,12 +115,20 @@ function _stabilize_fnc(
         name = string(func[:name])
         print_name = string("`", name, "`")
     else
-        name = "anonymous function"
-        print_name = name
+        name = "anonymous_function"
+        print_name = "anonymous function"
     end
-    arg_symbols = map(extract_symbol, func[:args])
-    kwarg_symbols = map(extract_symbol, func[:kwargs])
-    where_params = map(extract_symbol, func[:whereparams])
+
+    args = map(inject_symbol, func[:args])
+    kwargs = func[:kwargs]
+    where_params = func[:whereparams]
+
+    func[:args] = args
+    func_with_body[:args] = deepcopy(args)
+
+    arg_symbols = map(extract_symbol, args)
+    kwarg_symbols = map(extract_symbol, kwargs)
+    where_param_symbols = map(extract_symbol, where_params)
 
     closure = gensym(string(name, "_closure"))
     T = gensym(string(name, "_return_type"))
@@ -109,7 +140,7 @@ function _stabilize_fnc(
                 $(source_info),
                 ($(arg_symbols...),),
                 (; $(kwarg_symbols...)),
-                ($(where_params) .=> ($(where_params...),)),
+                ($(where_param_symbols) .=> ($(where_param_symbols...),)),
                 $T,
             ),
         ))
@@ -120,24 +151,44 @@ function _stabilize_fnc(
                 $(source_info),
                 ($(arg_symbols...),),
                 (; $(kwarg_symbols...)),
-                ($(where_params) .=> ($(where_params...),)),
+                ($(where_param_symbols) .=> ($(where_param_symbols...),)),
                 $T,
             ),
             maxlog = 1
         ))
     end
 
-    func[:body] = quote
-        let $closure() = $(func[:body]), $T = $(Base).promote_op($closure)
-            if $(type_instability)($T) && !$(is_precompiling)() && $(checking_enabled)()
-                $err
-            end
-
-            return $closure()::$T
-        end
+    checker = if isempty(kwarg_symbols)
+        :($(Base).promote_op($closure, map($specializing_typeof, ($(arg_symbols...),))...))
+    else
+        :($(Base).promote_op(
+            Core.kwcall,
+            typeof((; $(kwarg_symbols...))),
+            typeof($closure),
+            map($specializing_typeof, ($(arg_symbols...),))...,
+        ))
     end
 
-    return combinedef(func)
+    caller = if isempty(kwarg_symbols)
+        :($closure($(arg_symbols...)))
+    else
+        :($closure($(arg_symbols...); $(kwarg_symbols...)))
+    end
+
+    func_with_body[:name] = closure
+    func[:body] = quote
+        $T = $checker
+        if $(type_instability)($T) && !$(is_precompiling)() && $(checking_enabled)()
+            $err
+        end
+
+        return $caller::$T
+    end
+
+    return quote
+        $(combinedef(func_with_body))
+        $(Base).@__doc__ $(combinedef(func))
+    end
 end
 
 """To avoid errors and warnings during precompilation."""
