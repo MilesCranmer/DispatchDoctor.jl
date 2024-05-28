@@ -102,13 +102,15 @@ Inferred to be `Union{Float64, Int64}`, which is not a concrete type.
 
 (*Tip: in the REPL, you must wrap modules with `@eval`, because the REPL has special handling of the `module` keyword.*)
 
-You might find it useful to only enable `@stable` during unit-testing,
-and have it check every function in a library. For this, you can use the `enable` keyword:
+You might find it useful to *only* enable `@stable` during unit-testing,
+to have it check every function in a library, but not throw errors for
+downstream users. For this, you can use the `mode` keyword to set the
+default behavior:
 
 ```julia
 module MyPackage
 using DispatchDoctor
-@stable enable=parse(Bool, get(ENV, "MY_VAR", "false")) begin
+@stable mode=:disable begin
 
 # Entire package code
 
@@ -116,12 +118,18 @@ end
 end
 ```
 
-where you would have `test/runtests.jl` set `ENV["MY_VAR"] = "true"`
-before loading the package. Then, simply use `@unstable` to disable
-stability checks for individual functions you wish to permit instability in.
+This sets the default, but the mode is configurable
+via [Preferences.jl](https://github.com/JuliaPackaging/Preferences.jl):
 
-I also like to use the `warnonly=true` option in certain contexts so
-it doesn't throw a hard error.
+```julia
+using MyPackage
+using Preferences
+
+set_preferences!(MyPackage, "instability_check" => :error)
+```
+
+which you can also set to be `:warn` if you would just like warnings.
+You might find it useful to set this during testing.
 
 You can also disable stability errors for a single scope
 with the `allow_unstable` context:
