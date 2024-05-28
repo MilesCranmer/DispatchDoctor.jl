@@ -47,9 +47,13 @@ function inject_symbol_to_arg(ex::Expr)
         return Expr(:(::), gensym("arg"), ex.args[1])
     elseif ex.head == :(kw) && length(ex.args) == 2
         if ex.args[1] isa Expr
-            @assert ex.args[1].head == :(::)
-            @assert length(ex.args[1].args) == 1
-            return Expr(:(kw), Expr(:(::), gensym("arg"), ex.args[1].args[1]), ex.args[2])
+            if ex.args[1].head == :(::) && length(ex.args[1].args) == 1
+                return Expr(
+                    :(kw), Expr(:(::), gensym("arg"), ex.args[1].args[1]), ex.args[2]
+                )
+            else
+                return ex
+            end
         else
             return ex
         end
