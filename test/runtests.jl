@@ -467,6 +467,14 @@ end
     end
     @test g(1) == 1
 end
+@testitem "skip generated" begin
+    using DispatchDoctor
+
+    @stable @generated function f(x)
+        return :(rand(Bool) ? x : 0.0)
+    end
+    @test f(0) == 0
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
 
