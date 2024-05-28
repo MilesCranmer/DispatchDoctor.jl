@@ -4,6 +4,7 @@ export @stable, @unstable, allow_unstable, TypeInstabilityError
 
 using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
+using Preferences: load_preference
 
 const JULIA_OK = let
     JULIA_LOWER_BOUND = v"1.10.0-DEV.0"
@@ -87,8 +88,13 @@ specializing_typeof(::Val{T}) where {T} = Val{T}
 
 function _stable(args...; calling_module, kws...)
     options, ex = args[begin:(end - 1)], args[end]
-    warnonly = false
-    enable = true
+
+    # Standard defaults:
+    mode = :error
+
+    # Deprecated
+    warnonly = nothing
+    enable = nothing
     for option in options
         if option isa Expr && option.head == :(=)
             if option.args[1] == :warnonly
@@ -97,16 +103,50 @@ function _stable(args...; calling_module, kws...)
             elseif option.args[1] == :enable
                 enable = option.args[2]
                 continue
+            elseif option.args[1] == :mode
+                mode = option.args[2]
+                continue
             end
         end
         error("Unknown macro option: $option")
     end
+
+    # Load in any expression-based options
+    mode = if mode isa Expr
+        Core.eval(calling_module, mode)
+    else
+        (mode isa QuoteNode ? mode.value : mode)
+    end
+
+    # Deprecated
     warnonly = warnonly isa Expr ? Core.eval(calling_module, warnonly) : warnonly
     enable = enable isa Expr ? Core.eval(calling_module, enable) : enable
-    if enable
-        return _stabilize_all(ex; kws..., warnonly)
-    else
+
+    if calling_module != Core.Main
+        # Local setting from Preferences.jl overrides defaults
+        mode = try
+            load_preference(calling_module, "dispatch_doctor", mode)
+        catch
+            mode
+        end
+        # TODO: Why do we need this try-catch? Seems like its used by e.g.,
+        # https://github.com/JuliaLang/PrecompileTools.jl/blob/a99446373f9a4a46d62a2889b7efb242b4ad7471/src/workloads.jl#L2C10-L11
+    end
+    if enable !== nothing
+        @warn "The `enable` option is deprecated. Please use `mode` instead, either :error, :warn, or :disable."
+        if warnonly !== nothing
+            @warn "The `warnonly` option is deprecated. Please use `mode` instead, either :error, :warn, or :disable."
+            mode = warnonly ? :warn : (enable ? :error : :disable)
+        else
+            mode = enable ? :error : :disable
+        end
+    end
+    if mode in (:error, :warn)
+        return _stabilize_all(ex; kws..., mode)
+    elseif mode == :disable
         return ex
+    else
+        error("Unknown mode: $mode. Please use :error, :warn, or :disable.")
     end
 end
 
@@ -162,7 +202,7 @@ function _stabilize_module(ex; kws...)
 end
 
 function _stabilize_fnc(
-    fex::Expr; warnonly::Bool=false, source_info::Union{LineNumberNode,Nothing}=nothing
+    fex::Expr; mode::Symbol=:error, source_info::Union{LineNumberNode,Nothing}=nothing
 )
     func = splitdef(fex)
 
@@ -200,7 +240,7 @@ function _stabilize_fnc(
     closure = gensym(string(name, "_closure"))
     T = gensym(string(name, "_return_type"))
 
-    err = if !warnonly
+    err = if mode == :error
         :(throw(
             $(TypeInstabilityError)(
                 $(print_name),
@@ -211,7 +251,7 @@ function _stabilize_fnc(
                 $T,
             ),
         ))
-    else
+    elseif mode == :warn
         :(@warn(
             $(TypeInstabilityWarning)(
                 $(print_name),
@@ -223,6 +263,8 @@ function _stabilize_fnc(
             ),
             maxlog = 1
         ))
+    else
+        error("Unknown mode: $mode. Please use :error or :warn.")
     end
 
     checker = if isempty(kwarg_symbols)
@@ -340,10 +382,8 @@ If type instability is detected, a `TypeInstabilityError` is thrown.
 
 # Options
 
-- `warnonly::Bool=false`: Set this to `true` to only emit a warning.
-- `enable::Bool=true`: Set this to `false` to disable type instability checks
-   altogether. This can be used to only run the stability analysis during
-   unit-testing, but disable otherwise.
+- `mode::Symbol=:error`: Set this to `:warn` to only emit a warning, or
+   `:disable` to disable type instability checks altogether.
 
 # Example
     
