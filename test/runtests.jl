@@ -541,6 +541,16 @@ end
     end
     @test f() == 1
 end
+@testitem "step over docstring" begin
+    using DispatchDoctor
+
+    @stable module A
+    """blah"""
+    f() = rand(Bool) ? 1 : 1.0
+    end
+
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError A.f()
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
 
