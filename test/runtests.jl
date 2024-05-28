@@ -522,6 +522,14 @@ end
     end
     @test f(0) == 0
 end
+@testitem "skip @propagate_inbounds" begin
+    using DispatchDoctor
+
+    @stable Base.@propagate_inbounds function f()
+        return rand(Bool) ? 1 : 1.0
+    end
+    @test f() == 1
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
 

@@ -5,7 +5,6 @@ export @stable, @unstable, allow_unstable, TypeInstabilityError
 using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
 
-const INCOMPATIBLE_MACROS = [Symbol("@generated"), Symbol("@eval")]
 const JULIA_OK = let
     JULIA_LOWER_BOUND = v"1.10.0-DEV.0"
     JULIA_UPPER_BOUND = v"1.12.0-DEV.0"
@@ -13,6 +12,23 @@ const JULIA_OK = let
     VERSION >= JULIA_LOWER_BOUND && VERSION < JULIA_UPPER_BOUND
 end
 # TODO: Get exact lower/upper bounds
+
+const INCOMPATIBLE_MACROS = [
+    Symbol("@generated"),          # Base.jl
+    Symbol("@eval"),               # Base.jl
+    Symbol("@propagate_inbounds"), # Base.jl
+    Symbol("@model"),              # Turing.jl
+    Symbol("@capture"),            # MacroTools.jl
+]
+function matches_incompatible_macro(ex::Symbol)
+    return ex in INCOMPATIBLE_MACROS
+end
+function matches_incompatible_macro(ex::Expr)
+    return any(matches_incompatible_macro, ex.args)
+end
+function matches_incompatible_macro(ex::QuoteNode)
+    return matches_incompatible_macro(ex.value)
+end
 
 function extract_symbol(ex::Symbol, fullex=ex)
     if ex == Symbol("_")
@@ -101,7 +117,7 @@ function _stabilize_all(ex::Expr; kws...)
     elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
         # Allow disabling
         return ex
-    elseif ex.head == :macrocall && ex.args[1] in INCOMPATIBLE_MACROS
+    elseif ex.head == :macrocall && matches_incompatible_macro(ex.args[1])
         return ex
     elseif ex.head == :macro
         # Do nothing inside macros (in case of closure)
