@@ -213,7 +213,7 @@ function _stabilize_fnc(
             $err
         end
 
-        return $caller::$T
+        return $caller
     end
 
     return quote
