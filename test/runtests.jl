@@ -166,6 +166,14 @@ end
         )
     end
 end
+@testitem "skip parameterized functions" begin
+    using DispatchDoctor
+    struct MyType{T} end
+    @stable function MyType{T}() where {T}
+        return T
+    end
+    @test MyType{Int}() == Int
+end
 @testitem "modules" begin
     using DispatchDoctor
     @stable module Amodules

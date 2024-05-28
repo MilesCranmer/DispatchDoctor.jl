@@ -125,6 +125,11 @@ function _stabilize_fnc(
     fex::Expr; warnonly::Bool=false, source_info::Union{LineNumberNode,Nothing}=nothing
 )
     func = splitdef(fex)
+    if haskey(func, :params) && length(func[:params]) > 0
+        # Incompatible with parameterized functions
+        return fex
+    end
+
     func_with_body = splitdef(deepcopy(fex))
     source_info =
         source_info === nothing ? nothing : string(source_info.file, ":", source_info.line)
