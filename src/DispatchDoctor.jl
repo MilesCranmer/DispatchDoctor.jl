@@ -17,6 +17,7 @@ const INCOMPATIBLE_MACROS = [
     Symbol("@generated"),          # Base.jl
     Symbol("@eval"),               # Base.jl
     Symbol("@propagate_inbounds"), # Base.jl
+    Symbol("@assume_effects"),     # Base.jl
     Symbol("@model"),              # Turing.jl
     Symbol("@capture"),            # MacroTools.jl
 ]
@@ -127,6 +128,9 @@ function _stabilize_all(ex::Expr; kws...)
         return ex
     elseif ex.head == :quote
         # Do nothing inside of quotes
+        return ex
+    elseif ex.head == :global
+        # Incompatible with two functions
         return ex
     elseif ex.head == :module
         return _stabilize_module(ex; kws...)
