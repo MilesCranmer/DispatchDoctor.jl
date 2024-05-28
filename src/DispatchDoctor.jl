@@ -5,7 +5,7 @@ export @stable, @unstable, allow_unstable, TypeInstabilityError
 using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
 
-const INCOMPATIBLE_MACROS = [Symbol("@generated")]
+const INCOMPATIBLE_MACROS = [Symbol("@generated"), Symbol("@eval")]
 const JULIA_OK = let
     JULIA_LOWER_BOUND = v"1.10.0-DEV.0"
     JULIA_UPPER_BOUND = v"1.12.0-DEV.0"

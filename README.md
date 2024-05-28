@@ -116,8 +116,16 @@ julia> allow_unstable() do
 Instability errors are also skipped during precompilation.
 
 > [!NOTE]
-> `@stable` is a no-op on Julia versions which are known to be
-> incompatible, or which are not yet tested.
+> `@stable` will have no effect on code if it is:
+> - Within an unsupported Julia version
+> - Within a macro
+> - A function inside another function (a closure)
+> - A generated function
+> - Within an `@eval` statement
+> - Within a `quote` block
+> - If the function name is an expression (such as parameterized functions like `MyType{T}(args...) = ...`)
+>
+> You can safely use `@stable` in all of these cases, it will simply be ignored.
 
 ## Credits
 
