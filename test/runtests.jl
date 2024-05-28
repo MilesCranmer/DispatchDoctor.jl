@@ -9,7 +9,7 @@ end
 @testitem "with error" begin
     using DispatchDoctor
     @stable f(x) = x > 0 ? x : 1.0
-    @test_throws TypeInstabilityError f(1)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
     @test f(2.0) == 2.0
 end
 @testitem "with kwargs" begin
@@ -17,7 +17,7 @@ end
     @stable f(x; a=1, b=2) = x + a + b
     @test f(1) == 4
     @stable g(; a=1) = a > 0 ? a : 1.0
-    @test_throws TypeInstabilityError g(a=1)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(a=1)
     @test g(; a=2.0) == 2.0
 end
 @testitem "tuple args" begin
@@ -27,7 +27,7 @@ end
     @test f((1, 2); b=3) == 7
     @stable g((x, y), z=1.0; c=2.0) = x > 0 ? y : c + z
     @test g((1, 2.0)) == 2.0
-    @test_throws TypeInstabilityError g((1, 2))
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g((1, 2))
 end
 @testitem ":: args" begin
     using DispatchDoctor
@@ -38,7 +38,7 @@ end
     @test g(; x=1) == 1
     @stable h(x::Number; y::Number) = x > y ? x : y
     @test h(1; y=2) == 2
-    @test_throws TypeInstabilityError h(1; y=2.0)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(1; y=2.0)
 end
 @testitem "Type specialization" begin
     using DispatchDoctor
@@ -49,6 +49,10 @@ end
     using DispatchDoctor
     # Without the dots
     @stable f1(a, args::Vararg) = sum(args) + a
+    @test f1(1, 1, 2, 3) == 7
+
+    # Without the dots, with curly on Vararg
+    @stable f1(a, args::Vararg{Any,M}) where {M} = sum(args) + a
     @test f1(1, 1, 2, 3) == 7
 
     # With the dots
@@ -82,7 +86,7 @@ end
     @test f2(1.0) == 1.0
     @test f3(; a=1.0) == 1.0
     @test f4(2.0; a=1.0) == 2.0
-    if VERSION >= v"1.9"
+    if DispatchDoctor.JULIA_OK
         @test_throws TypeInstabilityError f1()
         @test_throws TypeInstabilityError f2(0)
         @test_throws TypeInstabilityError f3(a=0)
@@ -97,17 +101,18 @@ end
         )
 
         @test_throws(
-            "with keyword arguments `@NamedTuple{a::Int64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
-            f3(a=0)
-        )
-
-        @test_throws(
             "TypeInstabilityError: Instability detected in `f4` defined at ", f4(0; a=0.0)
         )
-        @test_throws(
-            "with arguments `(Int64,)` and keyword arguments `@NamedTuple{a::Float64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
-            f4(0; a=0.0)
-        )
+        if VERSION >= v"1.10.0-DEV.0"
+            @test_throws(
+                "with keyword arguments `@NamedTuple{a::Int64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+                f3(a=0)
+            )
+            @test_throws(
+                "with arguments `(Int64,)` and keyword arguments `@NamedTuple{a::Float64}`. Inferred to be `Union{Float64, Int64}`, which is not a concrete type.",
+                f4(0; a=0.0)
+            )
+        end
     end
 end
 @testitem "Test forwarding documentation" begin
@@ -132,11 +137,11 @@ end
 @testitem "Signature without symbol" begin
     using DispatchDoctor
     @stable f(x, ::Type{T}) where {T} = rand(Bool) ? T : Float64
-    @test_throws TypeInstabilityError f(1.0, Float32)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1.0, Float32)
     if VERSION >= v"1.9"
         @test_throws("Instability detected in `f` defined at", f(1.0, Float32))
         @test_throws(
-            "with arguments `(Float64, [::Type{T}])` and parameters `(:T => Float32,)`.",
+            "with arguments `(Float64, Type{Float32})` and parameters `(:T => Float32,)`.",
             f(1.0, Float32)
         )
     end
@@ -146,7 +151,7 @@ end
     @stable f(::Type{T}, ::A) where {T,G,A<:AbstractArray{G}} =
         rand(Bool) ? Float32 : Float64
 
-    @test_throws TypeInstabilityError f(Int, [1.0, 2.0])
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(Int, [1.0, 2.0])
     if VERSION >= v"1.9"
         @test_throws "and parameters `(:T => Int64, :G => Float64, :A => Vector{Float64})`" f(
             Int, [1.0, 2.0]
@@ -165,8 +170,8 @@ end
 
     @test Amodules.f1(1) == 1
     @test Amodules.f2(; a=1.0) == 1.0
-    @test_throws TypeInstabilityError Amodules.f2(a=1)
-    @test_throws TypeInstabilityError Amodules.f3()
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Amodules.f2(a=1)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Amodules.f3()
 end
 @testitem "single-line module" begin
     using DispatchDoctor
@@ -175,7 +180,7 @@ end
     end
 
     @test Asingleline.f(1.0) == 1.0
-    @test_throws TypeInstabilityError Asingleline.f(1)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Asingleline.f(1)
 end
 @testitem "module with include" begin
     using DispatchDoctor
@@ -188,7 +193,7 @@ end
     end
 
     @test Amodulewithinclude.f(1.0) == 1.0
-    @test_throws TypeInstabilityError Amodulewithinclude.f(1)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Amodulewithinclude.f(1)
 end
 @testitem "nested modules with include" begin
     using DispatchDoctor
@@ -207,8 +212,10 @@ end
 
     @test Anestedmoduleswithinclude.B.f(1.0) == 1.0
     @test Anestedmoduleswithinclude.B.h(1.0) == 1.0
-    @test_throws TypeInstabilityError Anestedmoduleswithinclude.B.f(1)
-    @test_throws TypeInstabilityError Anestedmoduleswithinclude.B.h(1)
+    DispatchDoctor.JULIA_OK &&
+        @test_throws TypeInstabilityError Anestedmoduleswithinclude.B.f(1)
+    DispatchDoctor.JULIA_OK &&
+        @test_throws TypeInstabilityError Anestedmoduleswithinclude.B.h(1)
 end
 @testitem "closures not wrapped in module version" begin
     using DispatchDoctor: @stable
@@ -259,8 +266,8 @@ end
 
     @test Aavoiddouble.f(1.0) == 1.0
     @test Aavoiddouble.g(1.0, 0.0) == 0.0
-    @test_throws TypeInstabilityError Aavoiddouble.f(0)
-    @test_throws TypeInstabilityError Aavoiddouble.g(1.0, 0)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Aavoiddouble.f(0)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Aavoiddouble.g(1.0, 0)
 end
 @testitem "allow unstable within module" begin
     using DispatchDoctor
@@ -273,21 +280,21 @@ end
     end
 
     @test Aallowunstable.f() in (0, 1.0)
-    @test_throws TypeInstabilityError Aallowunstable.g()
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Aallowunstable.g()
 end
 @testitem "anonymous functions" begin
     using DispatchDoctor
     using DispatchDoctor: _stabilize_fnc
 
     @stable f = () -> rand(Bool) ? Float32 : Float64
-    @test_throws TypeInstabilityError f()
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f()
     if VERSION >= v"1.9"
         @test_throws " anonymous function defined at " f()
     end
 
     # Without source info, we just get "anonymous function"
     f2 = eval(_stabilize_fnc(:(() -> rand(Bool) ? Float32 : Float64)))
-    @test_throws TypeInstabilityError f2()
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f2()
     if VERSION >= v"1.9"
         @test_throws "anonymous function. Inferred" f2()
     end
@@ -303,7 +310,7 @@ end
 @testitem "underscore argument" begin
     using DispatchDoctor
     @stable f(_) = rand(Bool) ? Float32 : Float64
-    @test_throws TypeInstabilityError f(1)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
     if VERSION >= v"1.9"
         @test_throws "with arguments `([_],)`" f(1)
     end
@@ -329,20 +336,23 @@ end
     end
     #! format: on
 
-    msg = @capture_err f(1)
-    @test occursin("TypeInstabilityWarning", msg)
-
-    # The second call will not emit a warning,
-    # as maxlog=1
-    maxlog_available = VERSION >= v"1.9"
-    if maxlog_available
+    if DispatchDoctor.JULIA_OK
         msg = @capture_err f(1)
-        @test !occursin("TypeInstabilityWarning", msg)
+        @test occursin("TypeInstabilityWarning", msg)
+
+        # The second call will not emit a warning,
+        # as maxlog=1
+        maxlog_available = VERSION >= v"1.9"
+        if maxlog_available
+            msg = @capture_err f(1)
+            @test !occursin("TypeInstabilityWarning", msg)
+        end
     end
 end
 @testitem "bad macro option" begin
     using DispatchDoctor
-    @test_throws(LoadError, @eval @stable badoption = true f(x) = x^2)
+    DispatchDoctor.JULIA_OK &&
+        @test_throws(LoadError, @eval @stable badoption = true f(x) = x^2)
     if VERSION >= v"1.9"
         @test_throws("Unknown macro option", @eval @stable badoption = true f(x) = x^2)
     end
@@ -364,8 +374,8 @@ end
 
     @test f(1.0) == 1.0
     @test g(1.0) == 1.0
-    @test_throws TypeInstabilityError f(1)
-    @test_throws TypeInstabilityError g(1)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(1)
 end
 @testitem "include within begin" begin
     using DispatchDoctor
@@ -379,7 +389,7 @@ end
     end
 
     @test f(1.0) == 1.0
-    @test_throws TypeInstabilityError f(1)
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
 end
 @testitem "stabilizing a class instantiation" begin
     using DispatchDoctor: DispatchDoctor as DD
@@ -395,7 +405,7 @@ end
 @testitem "allow unstable" begin
     using DispatchDoctor
     @stable f() = rand(Bool) ? 1 : 1.0
-    @test_throws TypeInstabilityError f()
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f()
     @test allow_unstable(f) == 1
 
     # Should maintain type stability if not present
@@ -415,7 +425,7 @@ end
     @stable f() = rand(Bool) ? 1 : 1.0
     g() = allow_unstable(f)
     h() = allow_unstable(g)
-    @test_throws TypeInstabilityError f()
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f()
     @test g() == 1
     # Because we use a reentrant lock, nested
     # calls are allowed:
@@ -449,6 +459,14 @@ end
     take!(task_channel)    # now unlocked
     @test DD.allow_unstable(() -> 1) == 1
 end
+@testitem "closures preventing specialization" begin
+    using DispatchDoctor
+    @stable function g(n)
+        n = Int(n)::Int
+        return n
+    end
+    @test g(1) == 1
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
 
@@ -471,9 +489,10 @@ end
     end
 end
 @testitem "llvm ir" begin
+    using DispatchDoctor
     using PerformanceTestTools: @include
 
-    @include("llvm_ir_tests.jl")
+    DispatchDoctor.JULIA_OK && @include("llvm_ir_tests.jl")
     # Important to run the LLVM IR tests in a new
     # julia process with things like --code-coverage disabled.
     # See https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697/14?u=milescranmer

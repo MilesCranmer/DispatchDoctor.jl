@@ -115,6 +115,10 @@ julia> allow_unstable() do
 
 Instability errors are also skipped during precompilation.
 
+> [!NOTE]
+> `@stable` is a no-op on Julia versions which are known to be
+> incompatible, or which are not yet tested.
+
 ## Credits
 
 Many thanks to @chriselrod and @thofma for tips on this
