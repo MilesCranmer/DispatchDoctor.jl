@@ -368,7 +368,7 @@ end
     using DispatchDoctor
     using Suppressor: @capture_err
     #! format: off
-    @stable warnonly=true function f(x)
+    @stable default_mode="warn" function f(x)
         x > 0 ? x : 0.0
     end
     #! format: on
@@ -388,9 +388,9 @@ end
 end
 @testitem "disable @stable using env variable" begin
     using DispatchDoctor
-    ENV["__DISPATCH_DOCTOR_TESTING_VAR"] = "false"
+    ENV["__DISPATCH_DOCTOR_TESTING_VAR"] = "disable"
 
-    @stable enable = parse(Bool, ENV["__DISPATCH_DOCTOR_TESTING_VAR"]) function f(x)
+    @stable default_mode = ENV["__DISPATCH_DOCTOR_TESTING_VAR"] function f(x)
         return rand(Bool) ? 1 : 1.0
     end
 
