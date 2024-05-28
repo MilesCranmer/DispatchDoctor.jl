@@ -13,7 +13,10 @@ function extract_symbol(ex::Symbol)
     end
 end
 function extract_symbol(ex::Expr)
-    if ex.head in (:kw, :(::), :(<:))
+    #! format: off
+    if ex.head == :(::) && @capture(ex.args[2], Vararg | Vararg{_} | Vararg{_,_})
+        return :($(ex.args[1])...)
+    elseif ex.head in (:kw, :(::), :(<:))
         out = extract_symbol(ex.args[1])
         return out isa Unknown ? Unknown(string(ex)) : out
     elseif ex.head in (:tuple, :(...))
@@ -21,6 +24,7 @@ function extract_symbol(ex::Expr)
     else
         return Unknown(string(ex))
     end
+    #! format: on
 end
 
 """

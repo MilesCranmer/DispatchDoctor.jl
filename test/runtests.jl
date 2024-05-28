@@ -51,6 +51,10 @@ end
     @stable f1(a, args::Vararg) = sum(args) + a
     @test f1(1, 1, 2, 3) == 7
 
+    # Without the dots, with curly on Vararg
+    @stable f1(a, args::Vararg{Any,M}) where {M} = sum(args) + a
+    @test f1(1, 1, 2, 3) == 7
+
     # With the dots
     @stable f2(a, args...) = sum(args) + a
     @test f2(1, 1, 2, 3) == 7
