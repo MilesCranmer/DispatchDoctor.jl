@@ -353,6 +353,17 @@ end
     # Should skip the internal function
     @test !occursin("f_closure", string(stabilized))
 end
+@testitem "skip quoted code" begin
+    using DispatchDoctor
+    @stable eval(
+        quote
+            function f(x)
+                return rand(Bool) ? 1 : 1.0
+            end
+        end,
+    )
+    @test f(1) == 1
+end
 @testitem "warnings" begin
     using DispatchDoctor
     using Suppressor: @capture_err
