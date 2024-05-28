@@ -125,7 +125,7 @@ function _stable(args...; calling_module, kws...)
     if calling_module != Core.Main
         # Local setting from Preferences.jl overrides defaults
         mode = try
-            load_preference(get_uuid(calling_module), "instability_check", mode)
+            load_preference(get_uuid(calling_module)::Base.UUID, "instability_check", mode)
         catch
             mode
         end
