@@ -453,6 +453,14 @@ end
     take!(task_channel)    # now unlocked
     @test DD.allow_unstable(() -> 1) == 1
 end
+@testitem "closures preventing specialization" begin
+    using DispatchDoctor
+    @stable function g(n)
+        n = Int(n)::Int
+        n
+    end
+    @test g(1) == 1
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
 
