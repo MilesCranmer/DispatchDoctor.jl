@@ -129,8 +129,12 @@ function _stabilize_fnc(
     fex::Expr; warnonly::Bool=false, source_info::Union{LineNumberNode,Nothing}=nothing
 )
     func = splitdef(fex)
+
     if haskey(func, :params) && length(func[:params]) > 0
         # Incompatible with parameterized functions
+        return fex
+    elseif haskey(func, :name) && func[:name] isa Expr
+        # Incompatible with expression-based function names
         return fex
     end
 

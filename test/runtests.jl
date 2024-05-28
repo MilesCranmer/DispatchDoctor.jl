@@ -170,9 +170,19 @@ end
     using DispatchDoctor
     struct MyType{T} end
     @stable function MyType{T}() where {T}
-        return T
+        return rand(Bool) ? T : one(T)
     end
-    @test MyType{Int}() == Int
+    @test MyType{Int}() in (Int, 1)
+end
+@testitem "skip expression-based function names" begin
+    using DispatchDoctor
+    using MacroTools: splitdef, @expand
+    abstract type AbstractMyType{T} end
+    struct MyType2{T} <: AbstractMyType{T} end
+    @stable function (::Type{A})() where {A<:AbstractMyType}
+        return rand(Bool) ? "blah" : 1
+    end
+    @test MyType2() in ("blah", 1)
 end
 @testitem "modules" begin
     using DispatchDoctor
