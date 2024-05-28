@@ -117,7 +117,7 @@ Instability errors are also skipped during precompilation.
 
 > [!NOTE]
 > `@stable` will have no effect on code if it is:
-> - Within an unsupported Julia version
+> - Within an `@unstable` block
 > - Within a macro
 > - A function inside another function (a closure)
 > - A generated function
@@ -127,6 +127,8 @@ Instability errors are also skipped during precompilation.
 >
 > You can safely use `@stable` over all of these cases, it will simply be ignored.
 > Although, if you use `@stable` *internally* in any of these cases, (like calling `@stable` *within* a function on a closure), then it might still apply.
+>
+> Also, `@stable` has no effect on code in supported Julia versions.
 
 ## Credits
 
