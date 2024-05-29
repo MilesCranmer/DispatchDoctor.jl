@@ -398,10 +398,16 @@ end
 end
 @testitem "bad macro option" begin
     using DispatchDoctor
-    DispatchDoctor.JULIA_OK &&
+    if DispatchDoctor.JULIA_OK
         @test_throws(LoadError, @eval @stable badoption = true f(x) = x^2)
-    if VERSION >= v"1.9"
         @test_throws("Unknown macro option", @eval @stable badoption = true f(x) = x^2)
+    end
+end
+@testitem "bad choice of mode" begin
+    using DispatchDoctor
+    if DispatchDoctor.JULIA_OK
+        @test_throws(LoadError, @eval @stable default_mode = "bad" f(x) = x^2)
+        @test_throws("Unknown mode", @eval @stable default_mode = "bad" f(x) = x^2)
     end
 end
 @testitem "allow errors through" begin
