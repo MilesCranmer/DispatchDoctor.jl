@@ -568,13 +568,15 @@ end
 @testitem "warn on no matches" begin
     using DispatchDoctor
     using Suppressor: @capture_err
-    msg = @capture_err @eval @stable @generated function f(x)
-        return :(x)
+    if DispatchDoctor.JULIA_OK
+        msg = @capture_err @eval @stable @generated function f(x)
+            return :(x)
+        end
+
+        @test occursin("`@stable` found no compatible functions to stabilize", msg)
+        @test occursin("source_info =", msg)
+        @test occursin("calling_module =", msg)
     end
-    # @warn "`@stable` found no compatible functions to stabilize" source_info=source_info calling_module=calling_module
-    @test occursin("`@stable` found no compatible functions to stabilize", msg)
-    @test occursin("source_info =", msg)
-    @test occursin("calling_module =", msg)
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
