@@ -279,7 +279,6 @@ function _stabilize_fnc(
                 ($(where_param_symbols) .=> ($(where_param_symbols...),)),
                 $T,
             ),
-            maxlog = 1
         ))
     else
         error("Unknown mode: $mode. Please use \"error\" or \"warn\".")

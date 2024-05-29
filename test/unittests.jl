@@ -376,14 +376,6 @@ end
     if DispatchDoctor.JULIA_OK
         msg = @capture_err f(1)
         @test occursin("TypeInstabilityWarning", msg)
-
-        # The second call will not emit a warning,
-        # as maxlog=1
-        maxlog_available = VERSION >= v"1.9"
-        if maxlog_available
-            msg = @capture_err f(1)
-            @test !occursin("TypeInstabilityWarning", msg)
-        end
     end
 end
 @testitem "disable @stable using env variable" begin
