@@ -564,6 +564,15 @@ end
     end
     @test f() == 1
 end
+@testitem "skip global" begin
+    using DispatchDoctor
+    @stable struct A
+        x::Int
+
+        global _A(x::Int) = new(x)
+    end
+    @test _A(1).x == 1
+end
 @testitem "step over docstring" begin
     using DispatchDoctor
 
