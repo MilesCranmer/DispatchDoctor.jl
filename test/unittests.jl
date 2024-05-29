@@ -581,6 +581,26 @@ end
         @test occursin("calling_module =", msg)
     end
 end
+@testitem "deprecated options" begin
+    using DispatchDoctor
+    using Suppressor: @capture_err
+    if DispatchDoctor.JULIA_OK
+        msg = @capture_err @eval @stable warnonly = true enable = true function f(x)
+            return x > 0 ? x : 0.0
+        end
+
+        @test occursin("The `enable` option is deprecated", msg)
+        @test occursin("The `warnonly` option is deprecated", msg)
+        msg2 = @capture_err f(1)
+
+        @test occursin("TypeInstabilityWarning", msg2)
+
+        @stable enable = false function f(x)
+            return x > 0 ? x : 0.0
+        end
+        @test f(0) == 0.0
+    end
+end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
 
