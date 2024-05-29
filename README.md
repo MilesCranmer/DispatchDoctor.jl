@@ -124,14 +124,13 @@ This sets the default behavior, but the mode is configurable
 via [Preferences.jl](https://github.com/JuliaPackaging/Preferences.jl):
 
 ```julia
-using MyPackage
-using Preferences
+using Preferences: set_preferences!
 
-set_preferences!(MyPackage, "instability_check" => "error")
+set_preferences!("MyPackage", "instability_check" => "error")
 ```
 
-which you can also set to be `"warn"` if you would just like warnings.
-You might find it useful to set this during testing.
+which you might like to add at the beginning of your `test/runtests.jl`.
+You can also set to be `"warn"` if you would just like warnings.
 
 You can also disable stability errors for a single scope
 with the `allow_unstable` context:
