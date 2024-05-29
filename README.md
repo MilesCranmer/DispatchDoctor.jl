@@ -100,7 +100,9 @@ ERROR: TypeInstabilityError: Instability detected in function `f`.
 Inferred to be `Union{Float64, Int64}`, which is not a concrete type.
 ```
 
-(*Tip: in the REPL, you must wrap modules with `@eval`, because the REPL has special handling of the `module` keyword.*)
+(*Tip: you cannot import or define macros within a `begin...end` block, unless it is at the "top level" of a submodule. So, if you are wrapping the contents of a package, you should either import any macros outside of `@stable begin...end`, or put them into a submodule.*)
+
+(*Tip 2: in the REPL, you must wrap modules with `@eval`, because the REPL has special handling of the `module` keyword.*)
 
 You might find it useful to *only* enable `@stable` during unit-testing,
 to have it check every function in a library, but not throw errors for
