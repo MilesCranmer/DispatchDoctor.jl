@@ -34,6 +34,12 @@ end
 function matches_incompatible_macro(ex::QuoteNode)
     return matches_incompatible_macro(ex.value)
 end
+is_name_compatible(ex) = false
+is_name_compatible(ex::Symbol) = true
+is_name_compatible(ex::Expr) = ex.head == :(.) && all(is_symbol_like, ex.args)
+is_symbol_like(ex) = false
+is_symbol_like(ex::QuoteNode) = is_symbol_like(ex.value)
+is_symbol_like(ex::Symbol) = true
 
 function extract_symbol(ex::Symbol, fullex=ex)
     if ex == Symbol("_")
@@ -209,8 +215,7 @@ function _stabilize_fnc(
     if haskey(func, :params) && length(func[:params]) > 0
         # Incompatible with parameterized functions
         return fex
-    elseif haskey(func, :name) && func[:name] isa Expr
-        # Incompatible with expression-based function names
+    elseif haskey(func, :name) && !is_name_compatible(func[:name])
         return fex
     end
 

@@ -525,6 +525,20 @@ end
     end
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
 end
+@testitem "compat with simple expression-based function names" begin
+    using DispatchDoctor
+    using MacroTools: @expand, splitdef
+    MyType = gensym()
+    @eval struct $MyType end
+    @eval @stable function Base.count(x::$MyType)
+        return rand(Bool) ? 1 : 1.0
+    end
+    DispatchDoctor.JULIA_OK && @eval @test_throws TypeInstabilityError Base.count($MyType())
+    @eval @stable function Base.:+(x::$MyType, y::$MyType)
+        return rand(Bool) ? 1 : 1.0
+    end
+    DispatchDoctor.JULIA_OK && @eval @test_throws TypeInstabilityError $MyType() + $MyType()
+end
 @testitem "skip generated" begin
     using DispatchDoctor
 
