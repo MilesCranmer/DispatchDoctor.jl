@@ -133,9 +133,9 @@ function _stable(args...; calling_module, kws...)
         # https://github.com/JuliaLang/PrecompileTools.jl/blob/a99446373f9a4a46d62a2889b7efb242b4ad7471/src/workloads.jl#L2C10-L11
     end
     if enable !== nothing
-        @warn "The `enable` option is deprecated. Please use `mode` instead, either \"error\", \"warn\", or \"disable\"."
+        @warn "The `enable` option is deprecated. Please use `default_mode` instead, either \"error\", \"warn\", or \"disable\"."
         if warnonly !== nothing
-            @warn "The `warnonly` option is deprecated. Please use `mode` instead, either \"error\", \"warn\", or \"disable\"."
+            @warn "The `warnonly` option is deprecated. Please use `default_mode` instead, either \"error\", \"warn\", or \"disable\"."
             mode = warnonly ? "warn" : (enable ? "error" : "disable")
         else
             mode = enable ? "error" : "disable"
