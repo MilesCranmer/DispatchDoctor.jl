@@ -426,17 +426,20 @@ end
 end
 @testitem "include within begin" begin
     using DispatchDoctor
+    using Suppressor: @capture_err
 
     (path, io) = mktemp()
     println(io, "f(x) = x > 0 ? x : 0.0")
     close(io)
 
-    @stable begin
+    msg = @capture_err @eval @stable begin
         include(path)
     end
 
     @test f(1.0) == 1.0
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
+
+    @test !occursin("`@stable` found no compatible functions to stabilize", msg)
 end
 @testitem "stabilizing a class instantiation" begin
     using DispatchDoctor: DispatchDoctor as DD

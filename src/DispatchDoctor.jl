@@ -190,6 +190,9 @@ function _stabilize_all(ex::Expr, num_matches::Ref{Int}; kws...)
     elseif ex.head == :module
         return _stabilize_module(ex, num_matches; kws...)
     elseif ex.head == :call && ex.args[1] == Symbol("include") && length(ex.args) == 2
+        # We can't track the matches in includes, so just assume
+        # there are some matches. TODO: However, this is not a great solution.
+        num_matches[] += 1
         # Replace include with DispatchDoctor version
         return :($(_stabilizing_include)(@__MODULE__, $(ex.args[2]), $num_matches; $(kws)...))
     elseif isdef(ex) && @capture(longdef(ex), function (fcall_ | fcall_) body_ end)
