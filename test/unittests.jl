@@ -266,7 +266,7 @@ end
 
         @stable f(x) = x > 0 ? x : 0.0
         g(x, y) = x > 0 ? y : 0.0
-    end))
+    end), Ref(0))
     #! format: on
 
     # First, we capture `f` using postwalk and `@capture`
@@ -319,7 +319,7 @@ end
     end
 
     # Without source info, we just get "anonymous function"
-    f2 = eval(_stabilize_fnc(:(() -> rand(Bool) ? Float32 : Float64)))
+    f2 = eval(_stabilize_fnc(:(() -> rand(Bool) ? Float32 : Float64), Ref(0)))
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f2()
     if VERSION >= v"1.9"
         @test_throws "anonymous function. Inferred" f2()
@@ -328,10 +328,10 @@ end
 @testitem "skip empty functions" begin
     using DispatchDoctor: _stabilize_fnc, _stabilize_all
 
-    @test _stabilize_all(:(function donothing end)) == :(function donothing end)
+    @test _stabilize_all(:(function donothing end), Ref(0)) == :(function donothing end)
 
     # TODO: Fragile test of MacroTools internals
-    @test_throws AssertionError _stabilize_fnc(:(function donothing end))
+    @test_throws AssertionError _stabilize_fnc(:(function donothing end), Ref(0))
 end
 @testitem "underscore argument" begin
     using DispatchDoctor
@@ -348,7 +348,7 @@ end
         f() = rand(Bool) ? Float32 : Float64
         f()
         return ex
-    end))
+    end), Ref(0))
 
     # Should skip the internal function
     @test !occursin("f_closure", string(stabilized))
@@ -564,6 +564,17 @@ end
     end
 
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError A.f()
+end
+@testitem "warn on no matches" begin
+    using DispatchDoctor
+    using Suppressor: @capture_err
+    msg = @capture_err @eval @stable @generated function f(x)
+        return :(x)
+    end
+    # @warn "`@stable` found no compatible functions to stabilize" source_info=source_info calling_module=calling_module
+    @test occursin("`@stable` found no compatible functions to stabilize", msg)
+    @test occursin("source_info =", msg)
+    @test occursin("calling_module =", msg)
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD

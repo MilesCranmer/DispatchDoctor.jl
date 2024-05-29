@@ -92,7 +92,7 @@ specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(::Val{T}) where {T} = Val{T}
 
-function _stable(args...; calling_module, kws...)
+function _stable(args...; calling_module, source_info, kws...)
     options, ex = args[begin:(end - 1)], args[end]
 
     # Standard defaults:
@@ -148,7 +148,16 @@ function _stable(args...; calling_module, kws...)
         end
     end
     if mode in ("error", "warn")
-        return _stabilize_all(ex; kws..., mode)
+        num_matches = Ref(0)
+        out = _stabilize_all(ex, num_matches; source_info, kws..., mode)
+        if num_matches[] == 0
+            @warn(
+                "`@stable` found no compatible functions to stabilize",
+                source_info = source_info,
+                calling_module = calling_module,
+            )
+        end
+        return out
     elseif mode == "disable"
         return ex
     else
@@ -156,10 +165,10 @@ function _stable(args...; calling_module, kws...)
     end
 end
 
-function _stabilize_all(ex; kws...)
+function _stabilize_all(ex, num_matches::Ref{Int}; kws...)
     return ex
 end
-function _stabilize_all(ex::Expr; kws...)
+function _stabilize_all(ex::Expr, num_matches::Ref{Int}; kws...)
     #! format: off
     if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
         # Avoid recursive tags
@@ -179,36 +188,39 @@ function _stabilize_all(ex::Expr; kws...)
         # Incompatible with two functions
         return ex
     elseif ex.head == :module
-        return _stabilize_module(ex; kws...)
+        return _stabilize_module(ex, num_matches; kws...)
     elseif ex.head == :call && ex.args[1] == Symbol("include") && length(ex.args) == 2
         # Replace include with DispatchDoctor version
-        return :($(_stabilizing_include)(@__MODULE__, $(ex.args[2]); $(kws)...))
+        return :($(_stabilizing_include)(@__MODULE__, $(ex.args[2]), $num_matches; $(kws)...))
     elseif isdef(ex) && @capture(longdef(ex), function (fcall_ | fcall_) body_ end)
         #               ^ This is the same check done by `splitdef`
         # TODO: Should report `isdef` to MacroTools as not capturing all cases
-        return _stabilize_fnc(ex; kws...)
+        return _stabilize_fnc(ex, num_matches; kws...)
     else
-        return Expr(ex.head, map(e -> _stabilize_all(e; kws...), ex.args)...)
+        return Expr(ex.head, map(e -> _stabilize_all(e, num_matches; kws...), ex.args)...)
     end
     #! format: on
 end
 
-function _stabilizing_include(m::Module, path; kws...)
-    return m.include(ex -> _stabilize_all(ex; kws...), path)
+function _stabilizing_include(m::Module, path, num_matches::Ref{Int}; kws...)
+    return m.include(ex -> _stabilize_all(ex, num_matches; kws...), path)
 end
 
-function _stabilize_module(ex; kws...)
+function _stabilize_module(ex, num_matches::Ref{Int}; kws...)
     ex = Expr(
         :module,
         ex.args[1],
         ex.args[2],
-        Expr(:block, map(e -> _stabilize_all(e; kws...), ex.args[3].args)...),
+        Expr(:block, map(e -> _stabilize_all(e, num_matches; kws...), ex.args[3].args)...),
     )
     return ex
 end
 
 function _stabilize_fnc(
-    fex::Expr; mode::String="error", source_info::Union{LineNumberNode,Nothing}=nothing
+    fex::Expr,
+    num_matches::Ref{Int};
+    mode::String="error",
+    source_info::Union{LineNumberNode,Nothing}=nothing,
 )
     func = splitdef(fex)
 
@@ -218,6 +230,9 @@ function _stabilize_fnc(
     elseif haskey(func, :name) && !is_name_compatible(func[:name])
         return fex
     end
+
+    # It's a match, so increment the number of matches
+    num_matches[] += 1
 
     func_with_body = splitdef(deepcopy(fex))
     source_info =
