@@ -385,7 +385,7 @@ function _stabilize_fnc(
     where_param_symbols = map(extract_symbol, where_params)
 
     simulator = gensym(string(name, "_simulator"))
-    T = gensym(string(name, "_return_type"))
+    T = :return_type
 
     err = if mode == "error"
         :(throw(
