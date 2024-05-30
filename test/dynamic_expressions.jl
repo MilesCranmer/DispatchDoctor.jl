@@ -43,12 +43,10 @@ end
 let
     dispatch_doctor_dir = dirname(dirname(@__FILE__))
     julia_command_develop = Cmd([
-        "julia",
-        "--project=$destination_folder",
         "-e",
-        "using Pkg; Pkg.develop(PackageSpec(path=\"$dispatch_doctor_dir\"))",
+        "using Pkg; Pkg.activate(\"$destination_folder\"); Pkg.develop(PackageSpec(path=\"$dispatch_doctor_dir\"))",
     ])
-    run(julia_command_develop)
+    run(`$(Base.julia_cmd()) $julia_command_develop`)
 
     # Now, tweak the Project.toml to set the compat to 0.0.0-999.999.999:
     project_toml_path = joinpath(destination_folder, "Project.toml")
@@ -62,10 +60,8 @@ end
 # Finally, run the test:
 let
     julia_command_test = Cmd([
-        "julia",
-        "--project=$destination_folder",
         "-e",
-        "using Pkg; Pkg.test(\"DynamicExpressions\")",
+        "using Pkg; Pkg.activate(\"$destination_folder\"); Pkg.test(\"DynamicExpressions\")",
     ])
-    run(julia_command_test)
+    run(`$(Base.julia_cmd()) $julia_command_test`)
 end
