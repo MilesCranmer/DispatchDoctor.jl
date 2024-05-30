@@ -36,16 +36,17 @@ let
     lines = split(contents, "\n")
 
     # Comment out the line that includes "test_deprecations.jl"
-    index_deprecations = findfirst(occursin("include(\"test_deprecations.jl\")"), lines)::Integer
+    index_deprecations =
+        findfirst(occursin("include(\"test_deprecations.jl\")"), lines)::Integer
     lines[index_deprecations] = "# " * lines[index_deprecations]
     # And test_evaluation.jl (weirdness in log test)
-    index_evaluation = findfirst(occursin("include(\"test_evaluation.jl\")"), lines)::Integer
+    index_evaluation =
+        findfirst(occursin("include(\"test_evaluation.jl\")"), lines)::Integer
     lines[index_evaluation] = "# " * lines[index_evaluation]
 
     new_contents = join(lines, "\n")
     write(test_path, new_contents)
 end
-
 
 # Add the current package
 let
