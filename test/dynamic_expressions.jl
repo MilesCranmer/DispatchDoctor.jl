@@ -15,7 +15,6 @@ run(`$(git()) clone --depth=1 "$repo_url" "$destination_folder"`)
 # Make edits to use DispatchDoctor:
 let
     dynamic_expressions_path = joinpath(destination_folder, "src", "DynamicExpressions.jl")
-
     contents = read(dynamic_expressions_path, String)
     lines = split(contents, "\n")
 
@@ -23,20 +22,30 @@ let
     insert!(lines, 3, "@stable default_mode=\"warn\" begin")
 
     # Find the index of the line to insert 'end' after 'include("Random.jl")'
-    index = findfirst(isequal("include(\"Random.jl\")"), lines)
+    index = findfirst(isequal("include(\"Random.jl\")"), lines)::Integer
     insert!(lines, index + 1, "end")
 
+    new_contents = join(lines, "\n")
+    write(dynamic_expressions_path, new_contents)
+end
+
+# Make edits to tests
+let
+    test_path = joinpath(destination_folder, "test", "unittest.jl")
+    contents = read(test_path, String)
+    lines = split(contents, "\n")
+
     # Comment out the line that includes "test_deprecations.jl"
-    index_deprecations = findfirst(isequal("include(\"test_deprecations.jl\")"), lines)
+    index_deprecations = findfirst(occursin("include(\"test_deprecations.jl\")"), lines)::Integer
     lines[index_deprecations] = "# " * lines[index_deprecations]
     # And test_evaluation.jl (weirdness in log test)
-    index_evaluation = findfirst(isequal("include(\"test_evaluation.jl\")"), lines)
+    index_evaluation = findfirst(occursin("include(\"test_evaluation.jl\")"), lines)::Integer
     lines[index_evaluation] = "# " * lines[index_evaluation]
 
     new_contents = join(lines, "\n")
-
-    write(dynamic_expressions_path, new_contents)
+    write(test_path, new_contents)
 end
+
 
 # Add the current package
 let
