@@ -179,6 +179,18 @@ function inject_symbol_to_arg(ex::Expr)
     end
 end
 
+get_first_source_info(ex) = nothing
+get_first_source_info(l::LineNumberNode) = l
+function get_first_source_info(s::Expr)
+    for arg in s.args
+        extracted_arg = get_first_source_info(arg)
+        if extracted_arg isa LineNumberNode
+            return extracted_arg
+        end
+    end
+    return nothing
+end
+
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(::Val{T}) where {T} = Val{T}
@@ -320,18 +332,6 @@ function _stabilize_module(ex, num_matches::Ref{Int}; kws...)
         Expr(:block, map(e -> _stabilize_all(e, num_matches; kws...), ex.args[3].args)...),
     )
     return ex
-end
-
-get_first_source_info(ex) = nothing
-get_first_source_info(l::LineNumberNode) = l
-function get_first_source_info(s::Expr)
-    for arg in s.args
-        extracted_arg = get_first_source_info(arg)
-        if extracted_arg isa LineNumberNode
-            return extracted_arg
-        end
-    end
-    return nothing
 end
 
 function _stabilize_fnc(
