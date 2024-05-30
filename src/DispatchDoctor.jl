@@ -36,15 +36,19 @@ const MACRO_BEHAVIOR = (;
         # ^ Some effects are incompatible, like
         #   :nothrow, so this requires much more
         #   work to get working. TODO.
+        Symbol("@enum") => IncompatibleMacro,               # Base
+        # ^ TODO. Seems to interact.
         Symbol("@eval") => IncompatibleMacro,               # Base
         # ^ Too much flexibility to apply,
         #   and user could always use `@eval`
         #   inside function.
+        Symbol("@deprecate") => IncompatibleMacro,          # Base
+        # ^ TODO. Seems to interact.
         Symbol("@generated") => IncompatibleMacro,          # Base
         # ^ In principle this is compatible but
         #   needs additional logic to work.
         Symbol("@kwdef") => IncompatibleMacro,              # Base
-        # ^ TODO. Seems to interact in strange way.
+        # ^ TODO. Seems to interact.
         Symbol("@pure") => IncompatibleMacro,               # Base
         # ^ See `@assume_effects`.
         Symbol("@everywhere") => DontPropagateMacro,        # Distributed
