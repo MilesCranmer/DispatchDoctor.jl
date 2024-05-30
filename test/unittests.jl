@@ -280,13 +280,13 @@ end
     end
     #! format: on
 
-    # We should be able to find a g_closure, but NOT
-    # an f_closure (indicating the `@stable` has not
+    # We should be able to find a g_simulator, but NOT
+    # an f_simulator (indicating the `@stable` has not
     # been expanded yet)
     @test length(f_defs) == 3
 
-    @test any(e -> occursin("g_closure", string(e)), f_defs)
-    @test !any(e -> occursin("f_closure", string(e)), f_defs)
+    @test any(e -> occursin("g_simulator", string(e)), f_defs)
+    @test !any(e -> occursin("f_simulator", string(e)), f_defs)
 
     eval(ex)
 
@@ -574,6 +574,18 @@ end
     end
 
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError A.f()
+end
+@testitem "code_warntype compat" begin
+    using DispatchDoctor
+    using InteractiveUtils: code_warntype
+    @stable function f(x)
+        y = Tuple(x)
+        sum(y[1:2])
+    end
+    @test f([1, 2, 3]) == 3
+    msg = sprint(code_warntype, f, typeof(([1, 2, 3],)))
+    msg = lowercase(msg)
+    DispatchDoctor.JULIA_OK && @test occursin("tuple{vararg{int64}}", msg)
 end
 @testitem "warn on no matches" begin
     using DispatchDoctor

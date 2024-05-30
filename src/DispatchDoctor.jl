@@ -232,7 +232,7 @@ function _stabilize_fnc(
     # It's a match, so increment the number of matches
     num_matches[] += 1
 
-    func_with_body = splitdef(deepcopy(fex))
+    func_simulator = splitdef(deepcopy(fex))
     source_info =
         source_info === nothing ? nothing : string(source_info.file, ":", source_info.line)
 
@@ -249,13 +249,13 @@ function _stabilize_fnc(
     where_params = func[:whereparams]
 
     func[:args] = args
-    func_with_body[:args] = deepcopy(args)
+    func_simulator[:args] = deepcopy(args)
 
     arg_symbols = map(extract_symbol, args)
     kwarg_symbols = map(extract_symbol, kwargs)
     where_param_symbols = map(extract_symbol, where_params)
 
-    closure = gensym(string(name, "_closure"))
+    simulator = gensym(string(name, "_simulator"))
     T = gensym(string(name, "_return_type"))
 
     err = if mode == "error"
@@ -285,34 +285,28 @@ function _stabilize_fnc(
     end
 
     checker = if isempty(kwarg_symbols)
-        :($(Base).promote_op($closure, map($specializing_typeof, ($(arg_symbols...),))...))
+        :($(Base).promote_op($simulator, map($specializing_typeof, ($(arg_symbols...),))...))
     else
         :($(Base).promote_op(
             Core.kwcall,
             typeof((; $(kwarg_symbols...))),
-            typeof($closure),
+            typeof($simulator),
             map($specializing_typeof, ($(arg_symbols...),))...,
         ))
     end
 
-    caller = if isempty(kwarg_symbols)
-        :($closure($(arg_symbols...)))
-    else
-        :($closure($(arg_symbols...); $(kwarg_symbols...)))
-    end
-
-    func_with_body[:name] = closure
+    func_simulator[:name] = simulator
     func[:body] = quote
         $T = $checker
         if $(type_instability)($T) && !$(is_precompiling)() && $(checking_enabled)()
             $err
         end
 
-        return $caller
+        $(func[:body])
     end
 
     return quote
-        $(Base).@inline $(combinedef(func_with_body))
+        $(combinedef(func_simulator))
         $(Base).@__doc__ $(combinedef(func))
     end
 end
