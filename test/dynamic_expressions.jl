@@ -37,11 +37,11 @@ let
 
     # Comment out the line that includes "test_deprecations.jl"
     index_deprecations =
-        findfirst(occursin("include(\"test_deprecations.jl\")"), lines)::Integer
+        findfirst(h -> occursin("include(\"test_deprecations.jl\")", h), lines)::Integer
     lines[index_deprecations] = "# " * lines[index_deprecations]
     # And test_evaluation.jl (weirdness in log test)
     index_evaluation =
-        findfirst(occursin("include(\"test_evaluation.jl\")"), lines)::Integer
+        findfirst(h -> occursin("include(\"test_evaluation.jl\")", h), lines)::Integer
     lines[index_evaluation] = "# " * lines[index_evaluation]
 
     new_contents = join(lines, "\n")
