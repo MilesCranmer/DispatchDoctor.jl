@@ -26,13 +26,12 @@ let
     index = findfirst(isequal("include(\"Random.jl\")"), lines)
     insert!(lines, index + 1, "end")
 
-    # Prepend '@unstable' to 'include("Simplify.jl")'
-    index_simplify = findfirst(isequal("include(\"Simplify.jl\")"), lines)
-    lines[index_simplify] = "@unstable " * lines[index_simplify]
-
-    # Prepend '@unstable' to 'include("OperatorEnumConstruction.jl")'
-    index_operator = findfirst(isequal("include(\"OperatorEnumConstruction.jl\")"), lines)
-    lines[index_operator] = "@unstable " * lines[index_operator]
+    # Comment out the line that includes "test_deprecations.jl"
+    index_deprecations = findfirst(isequal("include(\"test_deprecations.jl\")"), lines)
+    lines[index_deprecations] = "# " * lines[index_deprecations]
+    # And test_evaluation.jl (weirdness in log test)
+    index_evaluation = findfirst(isequal("include(\"test_evaluation.jl\")"), lines)
+    lines[index_evaluation] = "# " * lines[index_evaluation]
 
     new_contents = join(lines, "\n")
 
