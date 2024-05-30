@@ -75,6 +75,23 @@ end
     end
     @test f() == Undefined
 end
+@testitem "vararg with type" begin
+    using DispatchDoctor
+
+    @stable f(::Int...) = rand(Bool) ? 0 : 0.0
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1, 2, 3)
+
+    @stable f2(a::Int...) = rand(Bool) ? 0 : 0.0
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f2(1, 2, 3)
+
+    @stable f3(a, ::Int...) = rand(Bool) ? 0 : 0.0
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f3(1, 2, 3)
+
+    # With expression-based type
+    @stable g(::typeof(*)...) = rand(Bool) ? 0 : 0.0
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(*, *)
+end
+
 @testitem "showerror" begin
     using DispatchDoctor
 
