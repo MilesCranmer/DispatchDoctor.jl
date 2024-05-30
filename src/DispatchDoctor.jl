@@ -31,13 +31,31 @@ end
 const MACRO_BEHAVIOR = (;
     table=Dict([
         Symbol("@doc") => DontPropagateMacro,               # Core
+        # ^ Base.@__doc__ takes care of this.
         Symbol("@assume_effects") => IncompatibleMacro,     # Base
+        # ^ Some effects are incompatible, like
+        #   :nothrow, so this requires much more
+        #   work to get working. TODO.
         Symbol("@eval") => IncompatibleMacro,               # Base
+        # ^ Too much flexibility to apply,
+        #   and user could always use `@eval`
+        #   inside function.
         Symbol("@generated") => IncompatibleMacro,          # Base
+        # ^ In principle this is compatible but
+        #   needs additional logic to work.
         Symbol("@pure") => IncompatibleMacro,               # Base
+        # ^ See `@assume_effects`.
         Symbol("@everywhere") => DontPropagateMacro,        # Distributed
+        # ^ Prefer to have block passed to workers
+        #   only a single time. And `@everywhere`
+        #   works with blocks of code, so it is
+        #   fine.
         Symbol("@model") => IncompatibleMacro,              # Turing
+        # ^ Fairly common macro used to define
+        #   probabilistic models. The syntax is
+        #   incompatible with `@stable`.
         Symbol("@capture") => IncompatibleMacro,            # MacroTools
+        # ^ Similar to `@model`.
     ]),
     lock=Threads.SpinLock(),
 )
