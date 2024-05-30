@@ -334,13 +334,6 @@ end
     if VERSION >= v"1.9"
         @test_throws " anonymous function defined at " f()
     end
-
-    # Without source info, we just get "anonymous function"
-    f2 = eval(_stabilize_fnc(:(() -> rand(Bool) ? Float32 : Float64), Ref(0)))
-    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f2()
-    if VERSION >= v"1.9"
-        @test_throws "anonymous function. Inferred" f2()
-    end
 end
 @testitem "skip empty functions" begin
     using DispatchDoctor: _stabilize_fnc, _stabilize_all

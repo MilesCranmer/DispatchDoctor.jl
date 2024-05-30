@@ -179,6 +179,18 @@ function inject_symbol_to_arg(ex::Expr)
     end
 end
 
+get_first_source_info(ex) = nothing
+get_first_source_info(l::LineNumberNode) = l
+function get_first_source_info(s::Expr)
+    for arg in s.args
+        extracted_arg = get_first_source_info(arg)
+        if extracted_arg isa LineNumberNode
+            return extracted_arg
+        end
+    end
+    return nothing
+end
+
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(::Val{T}) where {T} = Val{T}
@@ -342,8 +354,16 @@ function _stabilize_fnc(
     num_matches[] += 1
 
     func_simulator = splitdef(deepcopy(fex))
-    source_info =
-        source_info === nothing ? nothing : string(source_info.file, ":", source_info.line)
+
+    # Load any information about the source
+    searched_source_info = get_first_source_info(fex)
+    source_info = if searched_source_info isa LineNumberNode
+        string(searched_source_info.file, ":", searched_source_info.line)
+    elseif source_info isa LineNumberNode
+        string(source_info.file, ":", source_info.line)
+    else
+        nothing
+    end
 
     if haskey(func, :name)
         name = string(func[:name])
