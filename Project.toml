@@ -5,11 +5,13 @@ version = "0.4.0"
 
 [deps]
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Preferences = "21216c6a-2e73-6563-6e65-726566657250"
 TestItems = "1c621080-faea-4a02-84b6-bbd5e436b8fe"
 
 [compat]
 MacroTools = "0.5"
+PrecompileTools = "1"
 Preferences = "1"
 TestItems = "0.1"
 julia = "1.6.7"

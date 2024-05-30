@@ -662,4 +662,36 @@ end
 Base.show(io::IO, u::Unknown) = print(io, string("[", u.msg, "]"))
 typeinfo(u::Unknown) = u
 
+##########################################################################################
+### Precompilation #######################################################################
+##########################################################################################
+using PrecompileTools: @compile_workload, @setup_workload
+
+@setup_workload begin
+    big_example_expression = quote
+        module A
+            macro my_macro(ex)
+                return esc(ex)
+            end
+            @my_macro function f(x)
+                return x^2
+            end
+            module B
+                using DispatchDoctor: @unstable
+                g(a, b, c::Int...; a, d=1, kws...) = a
+                h(x::Vararg{Any,3}) = x
+
+                @unstable begin
+                    g(x) = x
+                end
+            end
+        end
+    end
+    @compile_workload begin
+        _stable(big_example_expression; source_info=nothing, calling_module=@__MODULE__)
+    end
+end
+##########################################################################################
+##########################################################################################
+
 end
