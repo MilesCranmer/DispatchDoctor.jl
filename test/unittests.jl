@@ -280,13 +280,13 @@ end
     end
     #! format: on
 
-    # We should be able to find a g_closure, but NOT
-    # an f_closure (indicating the `@stable` has not
+    # We should be able to find a g_simulator, but NOT
+    # an f_simulator (indicating the `@stable` has not
     # been expanded yet)
     @test length(f_defs) == 3
 
-    @test any(e -> occursin("g_closure", string(e)), f_defs)
-    @test !any(e -> occursin("f_closure", string(e)), f_defs)
+    @test any(e -> occursin("g_simulator", string(e)), f_defs)
+    @test !any(e -> occursin("f_simulator", string(e)), f_defs)
 
     eval(ex)
 
