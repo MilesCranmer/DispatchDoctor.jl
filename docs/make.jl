@@ -36,7 +36,7 @@ makedocs(;
         edit_link="main",
         assets=String[],
     ),
-    pages=["Home" => "index.md", "Macros" => "macros.md"],
+    pages=["Home" => "index.md", "Reference" => "reference.md"],
     warnonly=[:missing_docs],
 )
 
