@@ -548,13 +548,49 @@ end
     end
     @test f(0) == 0
 end
-@testitem "skip @propagate_inbounds" begin
+@testitem "propagate macros" begin
+    using DispatchDoctor: _stabilize_all, JULIA_OK
+    ex = _stabilize_all(:(Base.@propagate_inbounds function f(x)
+        return x > 0 ? x : 0.0
+    end), Ref(0))
+    JULIA_OK && @test occursin("propagate_inbounds", string(ex))
+end
+@testitem "register custom macros" begin
     using DispatchDoctor
 
-    @stable Base.@propagate_inbounds function f()
-        return rand(Bool) ? 1 : 1.0
+    macro mymacro(ex)
+        return esc(ex)
     end
-    @test f() == 1
+    if !haskey(DispatchDoctor.MACRO_BEHAVIOR.table, Symbol("@mymacro"))
+        register_macro!(Symbol("@mymacro"), DispatchDoctor.IncompatibleMacro)
+    end
+    @test DispatchDoctor.get_macro_behavior(:(@mymacro x = 1)) ==
+        DispatchDoctor.IncompatibleMacro
+
+    if DispatchDoctor.JULIA_OK
+        @stable @mymacro function f(x)
+            return x > 0 ? x : 0.0
+        end
+        @test f(0) == 0
+    end
+end
+@testitem "multiple macro chaining takes least compatible" begin
+    using DispatchDoctor
+    @stable @inline @generated function f(x)
+        return :(x > 0 ? x : 0.0)
+    end
+    @test f(0) == 0
+end
+@testitem "skip assume effects" begin
+    using DispatchDoctor
+    if DispatchDoctor.JULIA_OK && VERSION >= v"1.8.0-DEV.0"
+        @eval begin
+            @stable Base.@assume_effects :nothrow function f(x)
+                return x > 0 ? x : 0.0
+            end
+            @test f(0) == 0
+        end
+    end
 end
 @testitem "skip global" begin
     using DispatchDoctor
@@ -580,7 +616,7 @@ end
     using InteractiveUtils: code_warntype
     @stable function f(x)
         y = Tuple(x)
-        sum(y[1:2])
+        return sum(y[1:2])
     end
     @test f([1, 2, 3]) == 3
     msg = sprint(code_warntype, f, typeof(([1, 2, 3],)))

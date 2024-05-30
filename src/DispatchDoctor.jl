@@ -1,6 +1,6 @@
 module DispatchDoctor
 
-export @stable, @unstable, allow_unstable, TypeInstabilityError
+export @stable, @unstable, allow_unstable, TypeInstabilityError, register_macro!
 
 using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
@@ -14,29 +14,108 @@ const JULIA_OK = let
 end
 # TODO: Get exact lower/upper bounds
 
-const INCOMPATIBLE_MACROS = [
-    Symbol("@generated"),          # Base.jl
-    Symbol("@eval"),               # Base.jl
-    Symbol("@propagate_inbounds"), # Base.jl
-    Symbol("@assume_effects"),     # Base.jl
-    Symbol("@model"),              # Turing.jl
-    Symbol("@capture"),            # MacroTools.jl
-]
-function matches_incompatible_macro(ex::Symbol)
-    return ex in INCOMPATIBLE_MACROS
+"""
+An enum to describe the behavior of macros when interacting with `@stable`.
+
+- `CompatibleMacro`: Propagate macro through to both function and simulator.
+- `DontPropagateMacro`: Do not propagate macro; leave it at the outer block.
+- `IncompatibleMacro`: Do not propagate macro through to the function or simulator.
+"""
+@enum MacroBehavior begin
+    CompatibleMacro
+    DontPropagateMacro
+    IncompatibleMacro
 end
-function matches_incompatible_macro(ex)
-    return false
+
+# Macros we dont want to propagate
+const MACRO_BEHAVIOR = (;
+    table=Dict([
+        Symbol("@doc") => DontPropagateMacro,               # Core
+        # ^ Base.@__doc__ takes care of this.
+        Symbol("@assume_effects") => IncompatibleMacro,     # Base
+        # ^ Some effects are incompatible, like
+        #   :nothrow, so this requires much more
+        #   work to get working. TODO.
+        Symbol("@eval") => IncompatibleMacro,               # Base
+        # ^ Too much flexibility to apply,
+        #   and user could always use `@eval`
+        #   inside function.
+        Symbol("@generated") => IncompatibleMacro,          # Base
+        # ^ In principle this is compatible but
+        #   needs additional logic to work.
+        Symbol("@kwdef") => IncompatibleMacro,              # Base
+        # ^ TODO. Seems to interact in strange way.
+        Symbol("@pure") => IncompatibleMacro,               # Base
+        # ^ See `@assume_effects`.
+        Symbol("@everywhere") => DontPropagateMacro,        # Distributed
+        # ^ Prefer to have block passed to workers
+        #   only a single time. And `@everywhere`
+        #   works with blocks of code, so it is
+        #   fine.
+        Symbol("@model") => IncompatibleMacro,              # Turing
+        # ^ Fairly common macro used to define
+        #   probabilistic models. The syntax is
+        #   incompatible with `@stable`.
+        Symbol("@capture") => IncompatibleMacro,            # MacroTools
+        # ^ Similar to `@model`.
+    ]),
+    lock=Threads.SpinLock(),
+)
+#! format: off
+get_macro_behavior(_) = CompatibleMacro
+get_macro_behavior(ex::Symbol) = get(MACRO_BEHAVIOR.table, ex, CompatibleMacro)
+get_macro_behavior(ex::QuoteNode) = get_macro_behavior(ex.value)
+get_macro_behavior(ex::Expr) = reduce(combine_behavior, map(get_macro_behavior, ex.args); init=CompatibleMacro)
+#! format: on
+
+function combine_behavior(a::MacroBehavior, b::MacroBehavior)
+    if a == CompatibleMacro && b == CompatibleMacro
+        return CompatibleMacro
+    elseif a == IncompatibleMacro || b == IncompatibleMacro
+        return IncompatibleMacro
+    else
+        return DontPropagateMacro
+    end
 end
-function matches_incompatible_macro(ex::Expr)
-    return any(matches_incompatible_macro, ex.args)
+
+"""
+    register_macro!(macro_name::Symbol, behavior::MacroBehavior)
+
+Register a macro with a specified behavior in the `MACRO_BEHAVIOR` list.
+
+This function adds a new macro and its associated behavior to the global list that
+tracks how macros should be treated when encountered during the stabilization
+process. The behavior can be one of `CompatibleMacro`, `IncompatibleMacro`, or `DontPropagateMacro`,
+which influences how the `@stable` macro interacts with the registered macro.
+
+The default behavior for `@stable` is to assume `CompatibleMacro` unless explicitly declared.
+
+# Arguments
+- `macro_name::Symbol`: The symbol representing the macro to register.
+- `behavior::MacroBehavior`: The behavior to associate with the macro, which dictates how it should be handled.
+
+# Examples
+```julia
+using DispatchDoctor: register_macro!, IncompatibleMacro
+
+register_macro!(Symbol("@mymacro"), IncompatibleMacro)
+```
+"""
+function register_macro!(macro_name::Symbol, behavior::MacroBehavior)
+    lock(MACRO_BEHAVIOR.lock) do
+        if haskey(MACRO_BEHAVIOR.table, macro_name)
+            error(
+                "Macro $macro_name already registered with behavior $(MACRO_BEHAVIOR.table[macro_name]).",
+            )
+        end
+        MACRO_BEHAVIOR.table[macro_name] = behavior
+        MACRO_BEHAVIOR.table[macro_name]
+    end
 end
-function matches_incompatible_macro(ex::QuoteNode)
-    return matches_incompatible_macro(ex.value)
-end
-is_name_compatible(ex) = false
-is_name_compatible(ex::Symbol) = true
-is_name_compatible(ex::Expr) = ex.head == :(.) && all(is_symbol_like, ex.args)
+
+is_function_name_compatible(ex) = false
+is_function_name_compatible(ex::Symbol) = true
+is_function_name_compatible(ex::Expr) = ex.head == :(.) && all(is_symbol_like, ex.args)
 is_symbol_like(ex) = false
 is_symbol_like(ex::QuoteNode) = is_symbol_like(ex.value)
 is_symbol_like(ex::Symbol) = true
@@ -160,10 +239,12 @@ function _stable(args...; calling_module, source_info, kws...)
     end
 end
 
-function _stabilize_all(ex, num_matches::Ref{Int}; kws...)
+function _stabilize_all(ex, num_matches::Ref{Int}, macro_stack::Vector{Any}=Any[]; kws...)
     return ex
 end
-function _stabilize_all(ex::Expr, num_matches::Ref{Int}; kws...)
+function _stabilize_all(
+    ex::Expr, num_matches::Ref{Int}, macro_stack::Vector{Any}=Any[]; kws...
+)
     #! format: off
     if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
         # Avoid recursive tags
@@ -171,8 +252,18 @@ function _stabilize_all(ex::Expr, num_matches::Ref{Int}; kws...)
     elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
         # Allow disabling
         return ex
-    elseif ex.head == :macrocall && matches_incompatible_macro(ex.args[1])
-        return ex
+    elseif ex.head == :macrocall
+        macro_behavior = get_macro_behavior(ex.args[1])
+        if macro_behavior == IncompatibleMacro
+            return ex
+        elseif macro_behavior == CompatibleMacro
+            # We build up a stack of macros to propagate to the function call
+            push!(macro_stack, ex.args[1:end-1])
+            return _stabilize_all(ex.args[end], num_matches, macro_stack; kws...)
+        else
+            @assert macro_behavior == DontPropagateMacro
+            return Expr(:macrocall, ex.args[1], map(e -> _stabilize_all(e, num_matches; kws...), ex.args[2:end])...)
+        end
     elseif ex.head == :macro
         # Do nothing inside macros (in case of closure)
         return ex
@@ -193,7 +284,7 @@ function _stabilize_all(ex::Expr, num_matches::Ref{Int}; kws...)
     elseif isdef(ex) && @capture(longdef(ex), function (fcall_ | fcall_) body_ end)
         #               ^ This is the same check done by `splitdef`
         # TODO: Should report `isdef` to MacroTools as not capturing all cases
-        return _stabilize_fnc(ex, num_matches; kws...)
+        return _stabilize_fnc(ex, num_matches, macro_stack; kws...)
     else
         return Expr(ex.head, map(e -> _stabilize_all(e, num_matches; kws...), ex.args)...)
     end
@@ -216,7 +307,8 @@ end
 
 function _stabilize_fnc(
     fex::Expr,
-    num_matches::Ref{Int};
+    num_matches::Ref{Int},
+    macro_stack::Vector{Any}=Any[];
     mode::String="error",
     source_info::Union{LineNumberNode,Nothing}=nothing,
 )
@@ -225,7 +317,7 @@ function _stabilize_fnc(
     if haskey(func, :params) && length(func[:params]) > 0
         # Incompatible with parameterized functions
         return fex
-    elseif haskey(func, :name) && !is_name_compatible(func[:name])
+    elseif haskey(func, :name) && !is_function_name_compatible(func[:name])
         return fex
     end
 
@@ -305,9 +397,18 @@ function _stabilize_fnc(
         $(func[:body])
     end
 
+    func_simulator_ex = combinedef(func_simulator)
+    func_ex = combinedef(func)
+
+    # We apply other macros to both the function and the simulator
+    for macro_element in macro_stack
+        func_ex = Expr(:macrocall, macro_element..., func_ex)
+        func_simulator_ex = Expr(:macrocall, macro_element..., func_simulator_ex)
+    end
+
     return quote
-        $(combinedef(func_simulator))
-        $(Base).@__doc__ $(combinedef(func))
+        $(func_simulator_ex)
+        $(Base).@__doc__ $(func_ex)
     end
 end
 
