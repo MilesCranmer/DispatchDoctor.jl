@@ -43,6 +43,8 @@ const MACRO_BEHAVIOR = (;
         Symbol("@generated") => IncompatibleMacro,          # Base
         # ^ In principle this is compatible but
         #   needs additional logic to work.
+        Symbol("@kwdef") => IncompatibleMacro,              # Base
+        # ^ TODO. Seems to interact in strange way.
         Symbol("@pure") => IncompatibleMacro,               # Base
         # ^ See `@assume_effects`.
         Symbol("@everywhere") => DontPropagateMacro,        # Distributed
