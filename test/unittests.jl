@@ -548,13 +548,12 @@ end
     end
     @test f(0) == 0
 end
-@testitem "skip @propagate_inbounds" begin
-    using DispatchDoctor
-
-    @stable Base.@propagate_inbounds function f()
-        return rand(Bool) ? 1 : 1.0
-    end
-    @test f() == 1
+@testitem "propagate macros" begin
+    using DispatchDoctor: _stabilize_all, JULIA_OK
+    ex = _stabilize_all(:(Base.@propagate_inbounds function f(x)
+        return x > 0 ? x : 0.0
+    end), Ref(0))
+    JULIA_OK && @test occursin("propagate_inbounds", string(ex))
 end
 @testitem "skip global" begin
     using DispatchDoctor
@@ -580,7 +579,7 @@ end
     using InteractiveUtils: code_warntype
     @stable function f(x)
         y = Tuple(x)
-        sum(y[1:2])
+        return sum(y[1:2])
     end
     @test f([1, 2, 3]) == 3
     msg = sprint(code_warntype, f, typeof(([1, 2, 3],)))

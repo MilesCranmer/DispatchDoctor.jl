@@ -14,29 +14,26 @@ const JULIA_OK = let
 end
 # TODO: Get exact lower/upper bounds
 
+# Macros we dont want to propagate
+const DONT_PROPAGATE_MACROS = [Symbol("@doc")]
+# Macros we want to skip completely
 const INCOMPATIBLE_MACROS = [
     Symbol("@generated"),          # Base.jl
     Symbol("@eval"),               # Base.jl
-    Symbol("@propagate_inbounds"), # Base.jl
-    Symbol("@assume_effects"),     # Base.jl
     Symbol("@model"),              # Turing.jl
     Symbol("@capture"),            # MacroTools.jl
 ]
-function matches_incompatible_macro(ex::Symbol)
-    return ex in INCOMPATIBLE_MACROS
-end
-function matches_incompatible_macro(ex)
-    return false
-end
-function matches_incompatible_macro(ex::Expr)
-    return any(matches_incompatible_macro, ex.args)
-end
-function matches_incompatible_macro(ex::QuoteNode)
-    return matches_incompatible_macro(ex.value)
-end
-is_name_compatible(ex) = false
-is_name_compatible(ex::Symbol) = true
-is_name_compatible(ex::Expr) = ex.head == :(.) && all(is_symbol_like, ex.args)
+matches_macro(ex, symbols) = false
+matches_macro(ex::Symbol, symbols) = ex in symbols
+matches_macro(ex::Expr, symbols) = any(a -> matches_macro(a, symbols), ex.args)
+matches_macro(ex::QuoteNode, symbols) = matches_macro(ex.value, symbols)
+
+matches_incompatible_macro(ex) = matches_macro(ex, INCOMPATIBLE_MACROS)
+matches_dont_propagate_macro(ex) = matches_macro(ex, DONT_PROPAGATE_MACROS)
+
+is_function_name_compatible(ex) = false
+is_function_name_compatible(ex::Symbol) = true
+is_function_name_compatible(ex::Expr) = ex.head == :(.) && all(is_symbol_like, ex.args)
 is_symbol_like(ex) = false
 is_symbol_like(ex::QuoteNode) = is_symbol_like(ex.value)
 is_symbol_like(ex::Symbol) = true
@@ -160,10 +157,12 @@ function _stable(args...; calling_module, source_info, kws...)
     end
 end
 
-function _stabilize_all(ex, num_matches::Ref{Int}; kws...)
+function _stabilize_all(ex, num_matches::Ref{Int}, macro_stack::Vector{Any}=Any[]; kws...)
     return ex
 end
-function _stabilize_all(ex::Expr, num_matches::Ref{Int}; kws...)
+function _stabilize_all(
+    ex::Expr, num_matches::Ref{Int}, macro_stack::Vector{Any}=Any[]; kws...
+)
     #! format: off
     if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
         # Avoid recursive tags
@@ -173,6 +172,10 @@ function _stabilize_all(ex::Expr, num_matches::Ref{Int}; kws...)
         return ex
     elseif ex.head == :macrocall && matches_incompatible_macro(ex.args[1])
         return ex
+    elseif ex.head == :macrocall && !matches_dont_propagate_macro(ex.args[1])
+        # We build up a stack of macros to propagate to the function call
+        push!(macro_stack, ex.args[1:end-1])
+        return _stabilize_all(ex.args[end], num_matches, macro_stack; kws...)
     elseif ex.head == :macro
         # Do nothing inside macros (in case of closure)
         return ex
@@ -193,7 +196,7 @@ function _stabilize_all(ex::Expr, num_matches::Ref{Int}; kws...)
     elseif isdef(ex) && @capture(longdef(ex), function (fcall_ | fcall_) body_ end)
         #               ^ This is the same check done by `splitdef`
         # TODO: Should report `isdef` to MacroTools as not capturing all cases
-        return _stabilize_fnc(ex, num_matches; kws...)
+        return _stabilize_fnc(ex, num_matches, macro_stack; kws...)
     else
         return Expr(ex.head, map(e -> _stabilize_all(e, num_matches; kws...), ex.args)...)
     end
@@ -216,7 +219,8 @@ end
 
 function _stabilize_fnc(
     fex::Expr,
-    num_matches::Ref{Int};
+    num_matches::Ref{Int},
+    macro_stack::Vector{Any}=Any[];
     mode::String="error",
     source_info::Union{LineNumberNode,Nothing}=nothing,
 )
@@ -225,7 +229,7 @@ function _stabilize_fnc(
     if haskey(func, :params) && length(func[:params]) > 0
         # Incompatible with parameterized functions
         return fex
-    elseif haskey(func, :name) && !is_name_compatible(func[:name])
+    elseif haskey(func, :name) && !is_function_name_compatible(func[:name])
         return fex
     end
 
@@ -305,9 +309,18 @@ function _stabilize_fnc(
         $(func[:body])
     end
 
+    func_simulator_ex = combinedef(func_simulator)
+    func_ex = combinedef(func)
+
+    # We apply other macros to both the function and the simulator
+    for macro_element in macro_stack
+        func_ex = Expr(:macrocall, macro_element..., func_ex)
+        func_simulator_ex = Expr(:macrocall, macro_element..., func_simulator_ex)
+    end
+
     return quote
-        $(combinedef(func_simulator))
-        $(Base).@__doc__ $(combinedef(func))
+        $(func_simulator_ex)
+        $(Base).@__doc__ $(func_ex)
     end
 end
 
