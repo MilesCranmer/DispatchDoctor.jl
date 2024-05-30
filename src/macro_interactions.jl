@@ -1,5 +1,5 @@
 """This module describes interactions between `@stable` and other macros"""
-module _MacroBehavior
+module _MacroInteractions
 
 """
 An enum to describe the behavior of macros when interacting with `@stable`.
@@ -8,7 +8,7 @@ An enum to describe the behavior of macros when interacting with `@stable`.
 - `DontPropagateMacro`: Do not propagate macro; leave it at the outer block.
 - `IncompatibleMacro`: Do not propagate macro through to the function or simulator.
 """
-@enum MacroBehavior begin
+@enum MacroInteractions begin
     CompatibleMacro
     DontPropagateMacro
     IncompatibleMacro
@@ -59,7 +59,7 @@ get_macro_behavior(ex::QuoteNode) = get_macro_behavior(ex.value)
 get_macro_behavior(ex::Expr) = reduce(combine_behavior, map(get_macro_behavior, ex.args); init=CompatibleMacro)
 #! format: on
 
-function combine_behavior(a::MacroBehavior, b::MacroBehavior)
+function combine_behavior(a::MacroInteractions, b::MacroInteractions)
     if a == CompatibleMacro && b == CompatibleMacro
         return CompatibleMacro
     elseif a == IncompatibleMacro || b == IncompatibleMacro
@@ -70,7 +70,7 @@ function combine_behavior(a::MacroBehavior, b::MacroBehavior)
 end
 
 """
-    register_macro!(macro_name::Symbol, behavior::MacroBehavior)
+    register_macro!(macro_name::Symbol, behavior::MacroInteractions)
 
 Register a macro with a specified behavior in the `MACRO_BEHAVIOR` list.
 
@@ -83,7 +83,7 @@ The default behavior for `@stable` is to assume `CompatibleMacro` unless explici
 
 # Arguments
 - `macro_name::Symbol`: The symbol representing the macro to register.
-- `behavior::MacroBehavior`: The behavior to associate with the macro, which dictates how it should be handled.
+- `behavior::MacroInteractions`: The behavior to associate with the macro, which dictates how it should be handled.
 
 # Examples
 ```julia
@@ -92,7 +92,7 @@ using DispatchDoctor: register_macro!, IncompatibleMacro
 register_macro!(Symbol("@mymacro"), IncompatibleMacro)
 ```
 """
-function register_macro!(macro_name::Symbol, behavior::MacroBehavior)
+function register_macro!(macro_name::Symbol, behavior::MacroInteractions)
     lock(MACRO_BEHAVIOR.lock) do
         if haskey(MACRO_BEHAVIOR.table, macro_name)
             error(

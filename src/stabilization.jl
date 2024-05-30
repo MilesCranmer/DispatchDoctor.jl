@@ -12,7 +12,7 @@ using .._Utils:
     type_instability
 using .._Errors: TypeInstabilityError, TypeInstabilityWarning
 using .._Preferences: get_preferred_mode
-using .._MacroBehavior:
+using .._MacroInteractions:
     get_macro_behavior, IncompatibleMacro, CompatibleMacro, DontPropagateMacro
 using .._RuntimeChecks: is_precompiling, checking_enabled
 
