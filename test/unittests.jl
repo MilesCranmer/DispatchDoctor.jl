@@ -575,6 +575,18 @@ end
 
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError A.f()
 end
+@testitem "code_warntype compat" begin
+    using DispatchDoctor
+    using InteractiveUtils: code_warntype
+    @stable function f(x)
+        y = Tuple(x)
+        sum(y[1:2])
+    end
+    @test f([1, 2, 3]) == 3
+    msg = sprint(code_warntype, f, typeof(([1, 2, 3],)))
+    msg = lowercase(msg)
+    @test occursin("tuple{vararg{int64}}", msg)
+end
 @testitem "warn on no matches" begin
     using DispatchDoctor
     using Suppressor: @capture_err
