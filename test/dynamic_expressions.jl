@@ -69,8 +69,7 @@ end
 # Finally, run the test:
 let
     julia_command_test = Cmd([
-        "-e",
-        "using Pkg; Pkg.activate(\"$destination_folder\"); Pkg.test(\"DynamicExpressions\")",
+        "-e", "using Pkg; Pkg.activate(\"$destination_folder\"); Pkg.test()"
     ])
     run(`$(Base.julia_cmd()) $julia_command_test`)
 end
