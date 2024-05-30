@@ -55,7 +55,7 @@ jobs:
           flag-name: julia-${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}-${{ github.event_name }}
 
   integration_test:
-    name: integration-jl${{ matrix.version }}-${{ github.event_name }}-
+    name: integration-jl${{ matrix.version }}-${{ github.event_name }}-${{ matrix.test }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -66,8 +66,11 @@ jobs:
       matrix:
         version: ['1']
         os: ['ubuntu-latest']
+        test:
+          - "enzyme"
+          - "dynamic-expressions"
     env:
-      DISPATCH_DOCTOR_TEST: "enzyme,dynamic-expressions"
+      DISPATCH_DOCTOR_TEST: ${{ matrix.test }}
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
