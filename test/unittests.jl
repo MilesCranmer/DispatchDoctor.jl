@@ -555,6 +555,32 @@ end
     end), Ref(0))
     JULIA_OK && @test occursin("propagate_inbounds", string(ex))
 end
+@testitem "register custom macros" begin
+    using DispatchDoctor
+
+    macro mymacro(ex)
+        return esc(ex)
+    end
+    if !haskey(DispatchDoctor.MACRO_BEHAVIOR.table, Symbol("@mymacro"))
+        register_macro!(Symbol("@mymacro"), DispatchDoctor.IncompatibleMacro)
+    end
+    @test DispatchDoctor.get_macro_behavior(:(@mymacro x = 1)) ==
+        DispatchDoctor.IncompatibleMacro
+
+    if DispatchDoctor.JULIA_OK
+        @stable @mymacro function f(x)
+            return x > 0 ? x : 0.0
+        end
+        @test f(0) == 0
+    end
+end
+@testitem "compat and incompatible macros" begin
+    using DispatchDoctor
+    @stable @inline @generated function f(x)
+        return :(x > 0 ? x : 0.0)
+    end
+    @test f(0) == 0
+end
 @testitem "skip global" begin
     using DispatchDoctor
     @stable struct A

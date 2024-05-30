@@ -1,6 +1,6 @@
 module DispatchDoctor
 
-export @stable, @unstable, allow_unstable, TypeInstabilityError
+export @stable, @unstable, allow_unstable, TypeInstabilityError, register_macro!
 
 using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 using TestItems: @testitem
@@ -14,22 +14,81 @@ const JULIA_OK = let
 end
 # TODO: Get exact lower/upper bounds
 
-# Macros we dont want to propagate
-const DONT_PROPAGATE_MACROS = [Symbol("@doc")]
-# Macros we want to skip completely
-const INCOMPATIBLE_MACROS = [
-    Symbol("@generated"),          # Base.jl
-    Symbol("@eval"),               # Base.jl
-    Symbol("@model"),              # Turing.jl
-    Symbol("@capture"),            # MacroTools.jl
-]
-matches_macro(ex, symbols) = false
-matches_macro(ex::Symbol, symbols) = ex in symbols
-matches_macro(ex::Expr, symbols) = any(a -> matches_macro(a, symbols), ex.args)
-matches_macro(ex::QuoteNode, symbols) = matches_macro(ex.value, symbols)
+"""
+An enum to describe the behavior of macros when interacting with `@stable`.
 
-matches_incompatible_macro(ex) = matches_macro(ex, INCOMPATIBLE_MACROS)
-matches_dont_propagate_macro(ex) = matches_macro(ex, DONT_PROPAGATE_MACROS)
+- `CompatibleMacro`: Propagate macro through to both function and simulator.
+- `DontPropagateMacro`: Do not propagate macro; leave it at the outer block.
+- `IncompatibleMacro`: Do not propagate macro through to the function or simulator.
+"""
+@enum MacroBehavior begin
+    CompatibleMacro
+    DontPropagateMacro
+    IncompatibleMacro
+end
+
+# Macros we dont want to propagate
+const MACRO_BEHAVIOR = (;
+    table=Dict([
+        Symbol("@doc") => DontPropagateMacro,               # Core.jl
+        Symbol("@generated") => IncompatibleMacro,          # Base.jl
+        Symbol("@eval") => IncompatibleMacro,               # Base.jl
+        Symbol("@model") => IncompatibleMacro,              # Turing.jl
+        Symbol("@capture") => IncompatibleMacro,            # MacroTools.jl
+    ]),
+    lock=Threads.SpinLock(),
+)
+#! format: off
+get_macro_behavior(_) = CompatibleMacro
+get_macro_behavior(ex::Symbol) = get(MACRO_BEHAVIOR.table, ex, CompatibleMacro)
+get_macro_behavior(ex::QuoteNode) = get_macro_behavior(ex.value)
+get_macro_behavior(ex::Expr) = reduce(combine_behavior, map(get_macro_behavior, ex.args); init=CompatibleMacro)
+#! format: on
+
+function combine_behavior(a::MacroBehavior, b::MacroBehavior)
+    if a == CompatibleMacro && b == CompatibleMacro
+        return CompatibleMacro
+    elseif a == IncompatibleMacro || b == IncompatibleMacro
+        return IncompatibleMacro
+    else
+        return DontPropagateMacro
+    end
+end
+
+"""
+    register_macro!(macro_name::Symbol, behavior::MacroBehavior)
+
+Register a macro with a specified behavior in the `MACRO_BEHAVIOR` list.
+
+This function adds a new macro and its associated behavior to the global list that
+tracks how macros should be treated when encountered during the stabilization
+process. The behavior can be one of `CompatibleMacro`, `IncompatibleMacro`, or `DontPropagateMacro`,
+which influences how the `@stable` macro interacts with the registered macro.
+
+The default behavior for `@stable` is to assume `CompatibleMacro` unless explicitly declared.
+
+# Arguments
+- `macro_name::Symbol`: The symbol representing the macro to register.
+- `behavior::MacroBehavior`: The behavior to associate with the macro, which dictates how it should be handled.
+
+# Examples
+```julia
+using DispatchDoctor: register_macro!, IncompatibleMacro
+
+register_macro!(Symbol("@mymacro"), IncompatibleMacro)
+```
+"""
+function register_macro!(macro_name::Symbol, behavior::MacroBehavior)
+    lock(MACRO_BEHAVIOR.lock) do
+        if haskey(MACRO_BEHAVIOR.table, macro_name)
+            error(
+                "Macro $macro_name already registered with behavior $(MACRO_BEHAVIOR.table[macro_name]).",
+            )
+        end
+        MACRO_BEHAVIOR.table[macro_name] = behavior
+        MACRO_BEHAVIOR.table[macro_name]
+    end
+end
 
 is_function_name_compatible(ex) = false
 is_function_name_compatible(ex::Symbol) = true
@@ -170,12 +229,17 @@ function _stabilize_all(
     elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
         # Allow disabling
         return ex
-    elseif ex.head == :macrocall && matches_incompatible_macro(ex.args[1])
-        return ex
-    elseif ex.head == :macrocall && !matches_dont_propagate_macro(ex.args[1])
-        # We build up a stack of macros to propagate to the function call
-        push!(macro_stack, ex.args[1:end-1])
-        return _stabilize_all(ex.args[end], num_matches, macro_stack; kws...)
+    elseif ex.head == :macrocall
+        macro_behavior = get_macro_behavior(ex.args[1])
+        if macro_behavior == IncompatibleMacro
+            return ex
+        elseif macro_behavior == CompatibleMacro
+            # We build up a stack of macros to propagate to the function call
+            push!(macro_stack, ex.args[1:end-1])
+            return _stabilize_all(ex.args[end], num_matches, macro_stack; kws...)
+        else  # DontPropagate
+            return Expr(:macrocall, ex.args[1], map(e -> _stabilize_all(e, num_matches; kws...), ex.args[2:end])...)
+        end
     elseif ex.head == :macro
         # Do nothing inside macros (in case of closure)
         return ex
