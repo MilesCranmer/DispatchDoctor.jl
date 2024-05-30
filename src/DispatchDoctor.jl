@@ -134,6 +134,9 @@ function extract_symbol(ex::Expr, fullex=ex)
     elseif ex.head in (:kw, :(::), :(<:))
         out = extract_symbol(ex.args[1], ex)
         return out isa Unknown ? Unknown(string(ex)) : out
+    elseif ex.head == :(...) && ex.args[1] isa Expr && ex.args[1].head == :(::)
+        # Such as `a::Int...`
+        return :($(ex.args[1].args[1])...)
     elseif ex.head in (:tuple, :(...))
         return ex
     else
@@ -155,8 +158,18 @@ function inject_symbol_to_arg(ex::Expr)
         length(ex.args) == 2 &&
         ex.args[1] isa Expr &&
         ex.args[1].head == :(::) &&
-        length(ex.args[1].args) == 1 # Matches things like `::Type{T}=MyType`
+        length(ex.args[1].args) == 1
+
+        # Matches things like `::Type{T}=MyType`
         return Expr(:(kw), Expr(:(::), gensym("arg"), ex.args[1].args[1]), ex.args[2])
+    elseif ex.head == :(...) &&
+        length(ex.args) == 1 &&
+        ex.args[1] isa Expr &&
+        ex.args[1].head == :(::) &&
+        length(ex.args[1].args) == 1
+
+        # Matches things like `::Int...`
+        return Expr(:(...), Expr(:(::), gensym("arg"), ex.args[1].args[1]))
     else
         return ex
     end
