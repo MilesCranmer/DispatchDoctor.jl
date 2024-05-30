@@ -19,12 +19,20 @@ let
     contents = read(dynamic_expressions_path, String)
     lines = split(contents, "\n")
 
-    insert!(lines, 2, "using DispatchDoctor: @stable")
+    insert!(lines, 2, "using DispatchDoctor: @stable, @unstable")
     insert!(lines, 3, "@stable default_mode=\"warn\" begin")
 
     # Find the index of the line to insert 'end' after 'include("Random.jl")'
     index = findfirst(isequal("include(\"Random.jl\")"), lines)
     insert!(lines, index + 1, "end")
+
+    # Prepend '@unstable' to 'include("Simplify.jl")'
+    index_simplify = findfirst(isequal("include(\"Simplify.jl\")"), lines)
+    lines[index_simplify] = "@unstable " * lines[index_simplify]
+
+    # Prepend '@unstable' to 'include("OperatorEnumConstruction.jl")'
+    index_operator = findfirst(isequal("include(\"OperatorEnumConstruction.jl\")"), lines)
+    lines[index_operator] = "@unstable " * lines[index_operator]
 
     new_contents = join(lines, "\n")
 
