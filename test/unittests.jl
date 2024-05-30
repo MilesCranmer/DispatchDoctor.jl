@@ -585,7 +585,7 @@ end
     @test f([1, 2, 3]) == 3
     msg = sprint(code_warntype, f, typeof(([1, 2, 3],)))
     msg = lowercase(msg)
-    @test occursin("tuple{vararg{int64}}", msg)
+    DispatchDoctor.JULIA_OK && @test occursin("tuple{vararg{int64}}", msg)
 end
 @testitem "warn on no matches" begin
     using DispatchDoctor
