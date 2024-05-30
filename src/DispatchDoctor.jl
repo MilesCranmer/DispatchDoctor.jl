@@ -258,7 +258,8 @@ function _stabilize_all(
             # We build up a stack of macros to propagate to the function call
             push!(macro_stack, ex.args[1:end-1])
             return _stabilize_all(ex.args[end], num_matches, macro_stack; kws...)
-        else  # DontPropagate
+        else
+            @assert macro_behavior == DontPropagateMacro
             return Expr(:macrocall, ex.args[1], map(e -> _stabilize_all(e, num_matches; kws...), ex.args[2:end])...)
         end
     elseif ex.head == :macro
