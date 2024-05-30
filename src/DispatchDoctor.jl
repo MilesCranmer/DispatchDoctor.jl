@@ -30,11 +30,14 @@ end
 # Macros we dont want to propagate
 const MACRO_BEHAVIOR = (;
     table=Dict([
-        Symbol("@doc") => DontPropagateMacro,               # Core.jl
-        Symbol("@generated") => IncompatibleMacro,          # Base.jl
-        Symbol("@eval") => IncompatibleMacro,               # Base.jl
-        Symbol("@model") => IncompatibleMacro,              # Turing.jl
-        Symbol("@capture") => IncompatibleMacro,            # MacroTools.jl
+        Symbol("@doc") => DontPropagateMacro,               # Core
+        Symbol("@assume_effects") => IncompatibleMacro,     # Base
+        Symbol("@eval") => IncompatibleMacro,               # Base
+        Symbol("@generated") => IncompatibleMacro,          # Base
+        Symbol("@pure") => IncompatibleMacro,               # Base
+        Symbol("@everywhere") => DontPropagateMacro,        # Distributed
+        Symbol("@model") => IncompatibleMacro,              # Turing
+        Symbol("@capture") => IncompatibleMacro,            # MacroTools
     ]),
     lock=Threads.SpinLock(),
 )
