@@ -574,12 +574,21 @@ end
         @test f(0) == 0
     end
 end
-@testitem "compat and incompatible macros" begin
+@testitem "multiple macro chaining takes least compatible" begin
     using DispatchDoctor
     @stable @inline @generated function f(x)
         return :(x > 0 ? x : 0.0)
     end
     @test f(0) == 0
+end
+@testitem "skip assume effects" begin
+    using DispatchDoctor
+    if DispatchDoctor.JULIA_OK && VERSION >= v"1.10.0-DEV.0"
+        @stable Base.@assume_effects :nothrow function f(x)
+            return x > 0 ? x : 0.0
+        end
+        @test f(0) == 0
+    end
 end
 @testitem "skip global" begin
     using DispatchDoctor
