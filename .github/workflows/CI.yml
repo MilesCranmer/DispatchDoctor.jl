@@ -67,7 +67,7 @@ jobs:
         version: ['1']
         os: ['ubuntu-latest']
     env:
-      DISPATCH_DOCTOR_TEST: "enzyme"
+      DISPATCH_DOCTOR_TEST: "enzyme,dynamic-expressions"
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
