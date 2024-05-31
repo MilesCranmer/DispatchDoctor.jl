@@ -6,7 +6,7 @@ An enum to describe the behavior of macros when interacting with `@stable`.
 
 - `CompatibleMacro`: Propagate macro through to both function and simulator.
 - `DontPropagateMacro`: Do not propagate macro; leave it at the outer block.
-- `IncompatibleMacro`: Do not propagate macro through to the function or simulator.
+- `IncompatibleMacro`: Skip the contents of this macro completely.
 """
 @enum MacroInteractions begin
     CompatibleMacro
