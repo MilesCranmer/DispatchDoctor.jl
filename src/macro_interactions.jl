@@ -52,12 +52,13 @@ const MACRO_BEHAVIOR = (;
     ]),
     lock=Threads.SpinLock(),
 )
-#! format: off
 get_macro_behavior(_) = CompatibleMacro
 get_macro_behavior(ex::Symbol) = get(MACRO_BEHAVIOR.table, ex, CompatibleMacro)
 get_macro_behavior(ex::QuoteNode) = get_macro_behavior(ex.value)
-get_macro_behavior(ex::Expr) = reduce(combine_behavior, map(get_macro_behavior, ex.args); init=CompatibleMacro)
-#! format: on
+function get_macro_behavior(ex::Expr)
+    parts = map(get_macro_behavior, ex.args)
+    return reduce(combine_behavior, parts; init=CompatibleMacro)
+end
 
 function combine_behavior(a::MacroInteractions, b::MacroInteractions)
     if a == CompatibleMacro && b == CompatibleMacro

@@ -68,9 +68,8 @@ function _stable(args...; calling_module, source_info, kws...)
         end
     end
     if mode in ("error", "warn")
-        num_matches = Ref(0)
-        out = _stabilize_all(ex, num_matches; source_info, kws..., mode)
-        if num_matches[] == 0
+        out, metadata = _stabilize_all(ex, DownwardMetadata(); source_info, kws..., mode)
+        if metadata.matching_function == 0
             @warn(
                 "`@stable` found no compatible functions to stabilize",
                 source_info = source_info,
@@ -85,76 +84,145 @@ function _stable(args...; calling_module, source_info, kws...)
     end
 end
 
-function _stabilize_all(ex, num_matches::Ref{Int}, macro_stack::Vector{Any}=Any[]; kws...)
-    return ex
+"""To communicate to the parent of the recursion."""
+Base.@kwdef struct UpwardMetadata
+    matching_function::Bool = false
+    unused_macros::Vector{Any} = Any[]
+    macro_keys::Vector{Symbol} = Symbol[]
 end
-function _stabilize_all(
-    ex::Expr, num_matches::Ref{Int}, macro_stack::Vector{Any}=Any[]; kws...
-)
+
+function merge(a::UpwardMetadata, b::UpwardMetadata)
+    @assert isempty(a.unused_macros) &&
+        isempty(b.unused_macros) &&
+        isempty(a.macro_keys) &&
+        isempty(b.macro_keys)
+    return UpwardMetadata(; matching_function=a.matching_function || b.matching_function)
+end
+
+"""To communicate to the leafs of the recursion."""
+Base.@kwdef struct DownwardMetadata
+    macros_to_use::Vector{Any} = Any[]
+    macro_keys::Vector{Symbol} = Symbol[]
+end
+
+function UpwardMetadata(downward_metadata::DownwardMetadata; matching_function::Bool=false)
+    return UpwardMetadata(;
+        unused_macros=deepcopy(downward_metadata.macros_to_use),
+        macro_keys=deepcopy(downward_metadata.macro_keys),
+        matching_function,
+    )
+end
+
+function _stabilize_all(ex, downward_metadata::DownwardMetadata; kws...)
+    return ex, UpwardMetadata(downward_metadata)
+end
+function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
     #! format: off
     if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
         # Avoid recursive tags
-        return ex
+        return ex, UpwardMetadata(downward_metadata)
     elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
         # Allow disabling
-        return ex
+        return ex, UpwardMetadata(downward_metadata)
     elseif ex.head == :macrocall
         macro_behavior = get_macro_behavior(ex.args[1])
         if macro_behavior == IncompatibleMacro
-            return ex
+            return ex, UpwardMetadata(downward_metadata)
         elseif macro_behavior == CompatibleMacro
             # We build up a stack of macros to propagate to the function call
-            push!(macro_stack, ex.args[1:end-1])
-            return _stabilize_all(ex.args[end], num_matches, macro_stack; kws...)
+            # push!(macro_stack, ex.args[1:end-1])
+            my_key = gensym()
+            macros_to_use = deepcopy(downward_metadata.macros_to_use)
+            macro_keys = deepcopy(downward_metadata.macro_keys)
+            push!(macros_to_use, ex.args[1:end-1])
+            push!(macro_keys, my_key)
+
+            new_downward_metadata = DownwardMetadata(; macros_to_use, macro_keys)
+            inner_ex, upward_metadata = _stabilize_all(ex.args[end], new_downward_metadata; kws...)
+
+            if isempty(upward_metadata.unused_macros)
+                # It has been applied! So we just return the inner part
+                return inner_ex, upward_metadata
+            else
+                # Not applied, so we have to paste the macro back on
+                @assert upward_metadata.macro_keys[end] == my_key
+                @assert length(upward_metadata.unused_macros) == length(upward_metadata.macro_keys)
+
+                new_ex = Expr(:macrocall, upward_metadata.unused_macros[end]..., inner_ex)
+                new_upward_metadata = UpwardMetadata(; 
+                    matching_function = upward_metadata.matching_function,
+                    unused_macros = upward_metadata.unused_macros[1:end-1],
+                    macro_keys = upward_metadata.macro_keys[1:end-1],
+                )
+                return new_ex, new_upward_metadata
+            end
         else
             @assert macro_behavior == DontPropagateMacro
-            return Expr(:macrocall, ex.args[1], map(e -> _stabilize_all(e, num_matches; kws...), ex.args[2:end])...)
+
+            # Apply to last argument only
+            inner_ex, upward_metadata = _stabilize_all(ex.args[end], downward_metadata; kws...)
+            new_ex = Expr(:macrocall, ex.args[1:end-1]..., inner_ex)
+            return new_ex, upward_metadata
         end
     elseif ex.head == :macro
         # Do nothing inside macros (in case of closure)
-        return ex
+        return ex, UpwardMetadata(downward_metadata)
     elseif ex.head == :quote
         # Do nothing inside of quotes
-        return ex
+        return ex, UpwardMetadata(downward_metadata)
     elseif ex.head == :global
         # Incompatible with two functions
-        return ex
+        return ex, UpwardMetadata(downward_metadata)
     elseif ex.head == :module
-        return _stabilize_module(ex, num_matches; kws...)
+        return _stabilize_module(ex, downward_metadata; kws...)
     elseif ex.head == :call && ex.args[1] == Symbol("include") && length(ex.args) == 2
         # We can't track the matches in includes, so just assume
         # there are some matches. TODO: However, this is not a great solution.
-        num_matches[] += 1
         # Replace include with DispatchDoctor version
-        return :($(_stabilizing_include)(@__MODULE__, $(ex.args[2]), $num_matches; $(kws)...))
+        return :($(_stabilizing_include)(@__MODULE__, $(ex.args[2]); $(kws)...)), UpwardMetadata(downward_metadata; matching_function=true)
     elseif isdef(ex) && @capture(longdef(ex), function (fcall_ | fcall_) body_ end)
         #               ^ This is the same check done by `splitdef`
         # TODO: Should report `isdef` to MacroTools as not capturing all cases
-        return _stabilize_fnc(ex, num_matches, macro_stack; kws...)
+        return _stabilize_fnc(ex, downward_metadata; kws...)
     else
-        return Expr(ex.head, map(e -> _stabilize_all(e, num_matches; kws...), ex.args)...)
+        stabilized_args = map(e -> _stabilize_all(e, DownwardMetadata(); kws...), ex.args)
+        merged_upward_metadata = reduce(merge, map(last, stabilized_args); init=UpwardMetadata())
+        new_ex = Expr(ex.head, map(first, stabilized_args)...)
+        return new_ex, UpwardMetadata(downward_metadata; matching_function=merged_upward_metadata.matching_function)
     end
     #! format: on
 end
 
-function _stabilizing_include(m::Module, path, num_matches::Ref{Int}; kws...)
-    return m.include(ex -> _stabilize_all(ex, num_matches; kws...), path)
+function _stabilizing_include(m::Module, path; kws...)
+    let kws = kws
+        function inner(ex)
+            new_ex, upward_metadata = _stabilize_all(ex, DownwardMetadata(); kws...)
+            @assert isempty(upward_metadata.unused_macros)
+            return new_ex
+        end
+        return m.include(inner, path)
+    end
 end
 
-function _stabilize_module(ex, num_matches::Ref{Int}; kws...)
-    ex = Expr(
-        :module,
-        ex.args[1],
-        ex.args[2],
-        Expr(:block, map(e -> _stabilize_all(e, num_matches; kws...), ex.args[3].args)...),
+function _stabilize_module(ex, downward_metadata; kws...)
+    stabilized_args = map(
+        e -> _stabilize_all(e, DownwardMetadata(); kws...), ex.args[3].args
     )
-    return ex
+    merged_upward_metadata = reduce(
+        merge, map(last, stabilized_args); init=UpwardMetadata()
+    )
+    new_ex = Expr(
+        :module, ex.args[1], ex.args[2], Expr(:block, map(first, stabilized_args)...)
+    )
+    return new_ex,
+    UpwardMetadata(
+        downward_metadata; matching_function=merged_upward_metadata.matching_function
+    )
 end
 
 function _stabilize_fnc(
     fex::Expr,
-    num_matches::Ref{Int},
-    macro_stack::Vector{Any}=Any[];
+    downward_metadata::DownwardMetadata;
     mode::String="error",
     source_info::Union{LineNumberNode,Nothing}=nothing,
 )
@@ -162,13 +230,10 @@ function _stabilize_fnc(
 
     if haskey(func, :params) && length(func[:params]) > 0
         # Incompatible with parameterized functions
-        return fex
+        return fex, UpwardMetadata(downward_metadata)
     elseif haskey(func, :name) && !is_function_name_compatible(func[:name])
-        return fex
+        return fex, UpwardMetadata(downward_metadata)
     end
-
-    # It's a match, so increment the number of matches
-    num_matches[] += 1
 
     func_simulator = splitdef(deepcopy(fex))
 
@@ -255,15 +320,16 @@ function _stabilize_fnc(
     func_ex = combinedef(func)
 
     # We apply other macros to both the function and the simulator
-    for macro_element in macro_stack
+    for macro_element in Iterators.reverse(downward_metadata.macros_to_use)
         func_ex = Expr(:macrocall, macro_element..., func_ex)
         func_simulator_ex = Expr(:macrocall, macro_element..., func_simulator_ex)
     end
 
-    return quote
+    final_ex = quote
         $(func_simulator_ex)
         $(Base).@__doc__ $(func_ex)
     end
+    return final_ex, UpwardMetadata(; matching_function=true)  # Clean metadata – all macros were consumed
 end
 
 end
