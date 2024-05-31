@@ -67,6 +67,11 @@ end
     @stable f4(a, args...; d, kwargs...) = sum(args) + sum(values(kwargs)) + a + d
     @test f4(1, 1, 2, 3; d=0, a=1, b=2, c=3) == sum((1, 1, 2, 3, 0, 1, 2, 3))
 end
+@testitem "string macro" begin
+    using DispatchDoctor
+
+    @test @stable(v"1.10.0") == v"1.10.0"
+end
 @testitem "complex arg without symbol" begin
     using DispatchDoctor: DispatchDoctor as DD
     struct Undefined end
@@ -277,14 +282,17 @@ end
     using DispatchDoctor: _stabilize_module
     using MacroTools: postwalk, @capture
 
-    #! format: off
-    ex = _stabilize_module(:(module Aavoiddouble
-        using DispatchDoctor: @stable
+    ex = first(
+        _stabilize_module(
+            :(module Aavoiddouble
+            using DispatchDoctor: @stable
 
-        @stable f(x) = x > 0 ? x : 0.0
-        g(x, y) = x > 0 ? y : 0.0
-    end), Ref(0))
-    #! format: on
+            @stable f(x) = x > 0 ? x : 0.0
+            g(x, y) = x > 0 ? y : 0.0
+            end),
+            DispatchDoctor._Stabilization.DownwardMetadata(),
+        ),
+    )
 
     # First, we capture `f` using postwalk and `@capture`
     f_defs = []
@@ -338,10 +346,15 @@ end
 @testitem "skip empty functions" begin
     using DispatchDoctor: _stabilize_fnc, _stabilize_all
 
-    @test _stabilize_all(:(function donothing end), Ref(0)) == :(function donothing end)
+    ex = _stabilize_all(
+        :(function donothing end), DispatchDoctor._Stabilization.DownwardMetadata()
+    )[1]
+    @test ex == :(function donothing end)
 
     # TODO: Fragile test of MacroTools internals
-    @test_throws AssertionError _stabilize_fnc(:(function donothing end), Ref(0))
+    @test_throws AssertionError _stabilize_fnc(
+        :(function donothing end), DispatchDoctor._Stabilization.DownwardMetadata()
+    )
 end
 @testitem "underscore argument" begin
     using DispatchDoctor
@@ -354,11 +367,14 @@ end
 @testitem "skip closures inside macros" begin
     using DispatchDoctor: DispatchDoctor as DD
 
-    stabilized = DD._stabilize_all(:(macro m(ex)
-        f() = rand(Bool) ? Float32 : Float64
-        f()
-        return ex
-    end), Ref(0))
+    stabilized = DD._stabilize_all(
+        :(macro m(ex)
+            f() = rand(Bool) ? Float32 : Float64
+            f()
+            return ex
+        end),
+        DispatchDoctor._Stabilization.DownwardMetadata(),
+    )
 
     # Should skip the internal function
     @test !occursin("f_closure", string(stabilized))
@@ -560,9 +576,12 @@ end
 end
 @testitem "propagate macros" begin
     using DispatchDoctor: _stabilize_all, JULIA_OK
-    ex = _stabilize_all(:(Base.@propagate_inbounds function f(x)
-        return x > 0 ? x : 0.0
-    end), Ref(0))
+    ex = _stabilize_all(
+        :(Base.@propagate_inbounds function f(x)
+            return x > 0 ? x : 0.0
+        end),
+        DispatchDoctor._Stabilization.DownwardMetadata(),
+    )
     JULIA_OK && @test occursin("propagate_inbounds", string(ex))
 end
 @testitem "register custom macros" begin
@@ -583,6 +602,48 @@ end
         end
         @test f(0) == 0
     end
+end
+@testitem "stack multiple complex macros" begin
+    using DispatchDoctor
+    using MacroTools
+
+    macro mymacro1(ex)
+        return esc(ex)
+    end
+    macro mymacro2(ex)
+        return esc(ex)
+    end
+    macro mymacro3(option1, option2, ex)
+        return esc(ex)
+    end
+
+    l = LineNumberNode(1, @__FILE__)
+    downward_metadata = DispatchDoctor._Stabilization.DownwardMetadata(;
+        macros_to_use=[[Symbol("@mymacro4"), l]], macro_keys=[gensym()]
+    )
+    ex, upward_metadata = DispatchDoctor._stabilize_all(
+        :(@mymacro3 true false @mymacro2 @mymacro1 function foobar(x)
+            return x > 0 ? x : 0.0
+        end),
+        downward_metadata,
+    )
+    @test upward_metadata.matching_function
+    @test isempty(upward_metadata.unused_macros)
+    @test isempty(upward_metadata.macro_keys)
+
+    s = string(ex)
+    s = replace(s, "\n" => "")
+
+    # Applied once to the simulator:
+    @test occursin(
+        r"@mymacro4.*@mymacro3\(true, false.*@mymacro2.*@mymacro1.*foobar_simulator", s
+    )
+
+    # And again to the regular foobar, with the docs added:
+    @test occursin(
+        r"foobar_simulator.*\(Base\).@__doc__.*.*@mymacro4.*@mymacro3\(true, false.*@mymacro2.*@mymacro1.*foobar",
+        s,
+    )
 end
 @testitem "multiple macro chaining takes least compatible" begin
     using DispatchDoctor
