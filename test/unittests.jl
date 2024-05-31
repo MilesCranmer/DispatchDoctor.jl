@@ -435,6 +435,23 @@ end
 
     @test_throws MethodError my_bad_function(1)
 end
+@testitem "dont flag Type{T} as not concrete" begin
+    using DispatchDoctor
+
+    @stable function f(t)
+        return t
+    end
+
+    @test f(Float32) == Float32
+
+    @test !Base.isconcretetype(Type{Float32})
+
+    # We have a special method to fix this:
+    @test !DispatchDoctor.type_instability(Type{Float32})
+
+    # Will work recursively
+    @test !DispatchDoctor.type_instability(Type{Type{Float32}})
+end
 @testitem "begin block" begin
     using DispatchDoctor
 
