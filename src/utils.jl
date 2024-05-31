@@ -105,4 +105,8 @@ return false for `Union{}`, so that errors can propagate.
 @inline type_instability(::Type{T}) where {T} = !Base.isconcretetype(T)
 @inline type_instability(::Type{Union{}}) = false
 
+# Weirdly, Base.isconcretetype flags Type{T} itself as not concrete,
+# so we implement a workaround.
+@inline type_instability(::Type{Type{T}}) where {T} = type_instability(T)
+
 end
