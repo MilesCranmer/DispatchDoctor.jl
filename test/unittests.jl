@@ -502,6 +502,13 @@ end
     # Should maintain type stability if not present
     @inferred allow_unstable(@stable () -> 1.0)
 end
+@testitem "allow unstable preserves stability" begin
+    using DispatchDoctor
+    f(x) = sum(x)
+    g(x) = allow_unstable(() -> f(x))
+    @inferred g([1, 2, 3])
+    @test g([1, 2, 3]) == 6
+end
 @testitem "allow unstable with error" begin
     using DispatchDoctor
     @stable f() = 1 / "blah"
