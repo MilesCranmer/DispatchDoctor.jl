@@ -11,7 +11,7 @@ using .._Utils:
     extract_symbol,
     type_instability
 using .._Errors: TypeInstabilityError, TypeInstabilityWarning
-using .._Preferences: get_preferred_mode
+using .._Preferences: get_preferred, GLOBAL_DEFAULT_MODE, GLOBAL_DEFAULT_CODEGEN_LEVEL
 using .._Interactions:
     ignore_function,
     get_macro_behavior,
@@ -24,7 +24,8 @@ function _stable(args...; calling_module, source_info, kws...)
     options, ex = args[begin:(end - 1)], args[end]
 
     # Standard defaults:
-    mode = "error"
+    mode = GLOBAL_DEFAULT_MODE
+    codegen_level = GLOBAL_DEFAULT_CODEGEN_LEVEL
 
     # Deprecated
     warnonly = nothing
@@ -40,6 +41,9 @@ function _stable(args...; calling_module, source_info, kws...)
             elseif option.args[1] == :default_mode
                 mode = option.args[2]
                 continue
+            elseif option.args[1] == :default_codegen_level
+                codegen_level = option.args[2]
+                continue
             end
         end
         error("Unknown macro option: $option")
@@ -51,6 +55,18 @@ function _stable(args...; calling_module, source_info, kws...)
     else
         (mode isa QuoteNode ? mode.value : mode)
     end
+    # TODO: Deprecate passing expression here.
+    codegen_level = codegen_level isa QuoteNode ? codegen_level.value : codegen_level
+
+    if mode ∉ ("error", "warn", "disable")
+        error("Unknown mode: $mode. Please use \"error\", \"warn\", or \"disable\".")
+    end
+    if codegen_level ∉ ("debug", "min")
+        error("Unknown codegen level: $codegen_level. Please use \"debug\" or \"min\".")
+    end
+
+    mode::String
+    codegen_level::String
 
     # Deprecated
     warnonly = warnonly isa Expr ? Core.eval(calling_module, warnonly) : warnonly
@@ -58,7 +74,10 @@ function _stable(args...; calling_module, source_info, kws...)
 
     if calling_module != Core.Main
         # Local setting from Preferences.jl overrides defaults
-        mode = get_preferred_mode(mode, calling_module)
+        mode = get_preferred(mode, calling_module, "instability_check")
+        codegen_level = get_preferred(
+            codegen_level, calling_module, "instability_check_codegen"
+        )
         # TODO: Why do we need this try-catch? Seems like its used by e.g.,
         # https://github.com/JuliaLang/PrecompileTools.jl/blob/a99446373f9a4a46d62a2889b7efb242b4ad7471/src/workloads.jl#L2C10-L11
     end
@@ -72,7 +91,9 @@ function _stable(args...; calling_module, source_info, kws...)
         end
     end
     if mode in ("error", "warn")
-        out, metadata = _stabilize_all(ex, DownwardMetadata(); source_info, kws..., mode)
+        out, metadata = _stabilize_all(
+            ex, DownwardMetadata(); source_info, kws..., mode, codegen_level
+        )
         if metadata.matching_function == 0
             @warn(
                 "`@stable` found no compatible functions to stabilize",
@@ -81,10 +102,8 @@ function _stable(args...; calling_module, source_info, kws...)
             )
         end
         return out
-    elseif mode == "disable"
+    else # if mode == "disable"
         return ex
-    else
-        error("Unknown mode: $mode. Please use \"error\", \"warn\", or \"disable\".")
     end
 end
 
@@ -229,6 +248,7 @@ function _stabilize_fnc(
     fex::Expr,
     downward_metadata::DownwardMetadata;
     mode::String="error",
+    codegen_level::String="debug",
     source_info::Union{LineNumberNode,Nothing}=nothing,
 )
     func = splitdef(fex)
@@ -311,6 +331,15 @@ function _stabilize_fnc(
         ))
     end
 
+    caller = if codegen_level == "debug"
+        # Duplicate entire body, so `@code_warntype` works
+        func[:body]
+    elseif isempty(kwarg_symbols)
+        :($simulator($(arg_symbols...)))
+    else
+        :($simulator($(arg_symbols...); $(kwarg_symbols...)))
+    end
+
     ignore = haskey(func, :name) ? :($(ignore_function)($(func[:name]))) : :(false)
 
     func_simulator[:name] = simulator
@@ -320,7 +349,7 @@ function _stabilize_fnc(
             $err
         end
 
-        $(func[:body])
+        $caller
     end
 
     func_simulator_ex = combinedef(func_simulator)
