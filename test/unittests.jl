@@ -620,6 +620,51 @@ end
         @test f(0) == 0
     end
 end
+@testitem "merging behavior of registered macros" begin
+    using DispatchDoctor
+    using DispatchDoctor: _Interactions as DDI
+
+    macro compatiblemacro(ex)
+        return esc(ex)
+    end
+    macro incompatiblemacro(ex)
+        return esc(ex)
+    end
+    macro dontpropagate(ex)
+        return esc(ex)
+    end
+    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@compatiblemacro"))
+        register_macro!(Symbol("@compatiblemacro"), DDI.CompatibleMacro)
+    end
+    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@incompatiblemacro"))
+        register_macro!(Symbol("@incompatiblemacro"), DDI.IncompatibleMacro)
+    end
+    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@dontpropagate"))
+        register_macro!(Symbol("@dontpropagate"), DDI.DontPropagateMacro)
+    end
+    @test DDI.get_macro_behavior(:(@compatiblemacro x = 1)) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(:(@incompatiblemacro x = 1)) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(:(@dontpropagate x = 1)) == DDI.DontPropagateMacro
+
+    @test DDI.combine_behavior(DDI.CompatibleMacro, DDI.CompatibleMacro) ==
+        DDI.CompatibleMacro
+    @test DDI.combine_behavior(DDI.CompatibleMacro, DDI.IncompatibleMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.CompatibleMacro, DDI.DontPropagateMacro) ==
+        DDI.DontPropagateMacro
+    @test DDI.combine_behavior(DDI.IncompatibleMacro, DDI.CompatibleMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.IncompatibleMacro, DDI.IncompatibleMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.IncompatibleMacro, DDI.DontPropagateMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.DontPropagateMacro, DDI.CompatibleMacro) ==
+        DDI.DontPropagateMacro
+    @test DDI.combine_behavior(DDI.DontPropagateMacro, DDI.IncompatibleMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.DontPropagateMacro, DDI.DontPropagateMacro) ==
+        DDI.DontPropagateMacro
+end
 @testitem "stack multiple complex macros" begin
     using DispatchDoctor
     using MacroTools
