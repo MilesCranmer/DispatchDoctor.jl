@@ -57,10 +57,9 @@ will be thrown if you try to do so.
             ),
         )
     end
-    local out
-    try
-        INSTABILITY_CHECK_ENABLED.value[] = false
-        out = f()
+    INSTABILITY_CHECK_ENABLED.value[] = false
+    out = try
+        f()
     finally
         INSTABILITY_CHECK_ENABLED.value[] = true
         unlock(INSTABILITY_CHECK_ENABLED.lock)

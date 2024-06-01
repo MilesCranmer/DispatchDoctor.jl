@@ -502,6 +502,13 @@ end
     # Should maintain type stability if not present
     @inferred allow_unstable(@stable () -> 1.0)
 end
+@testitem "allow unstable preserves stability" begin
+    using DispatchDoctor
+    f(x) = sum(x)
+    g(x) = allow_unstable(() -> f(x))
+    @inferred g([1, 2, 3])
+    @test g([1, 2, 3]) == 6
+end
 @testitem "allow unstable with error" begin
     using DispatchDoctor
     @stable f() = 1 / "blah"
@@ -613,11 +620,100 @@ end
     @test DispatchDoctor.get_macro_behavior(:(@mymacro x = 1)) ==
         DispatchDoctor.IncompatibleMacro
 
+    # Trying to register again should fail with a useful error
+    if VERSION >= v"1.9"
+        @test_throws "Macro `@mymacro` already registered" register_macro!(
+            Symbol("@mymacro"), DispatchDoctor.IncompatibleMacro
+        )
+    end
+
     if DispatchDoctor.JULIA_OK
-        @stable @mymacro function f(x)
+        @eval @stable @mymacro function f(x)
             return x > 0 ? x : 0.0
         end
         @test f(0) == 0
+    end
+end
+@testitem "merging behavior of registered macros" begin
+    using DispatchDoctor
+    using DispatchDoctor: _Interactions as DDI
+
+    macro compatiblemacro(ex, option)
+        return esc(ex)
+    end
+    macro incompatiblemacro(ex)
+        return esc(ex)
+    end
+    macro dontpropagatemacro(ex)
+        return esc(ex)
+    end
+    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@compatiblemacro"))
+        register_macro!(Symbol("@compatiblemacro"), DDI.CompatibleMacro)
+    end
+    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@incompatiblemacro"))
+        register_macro!(Symbol("@incompatiblemacro"), DDI.IncompatibleMacro)
+    end
+    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@dontpropagatemacro"))
+        register_macro!(Symbol("@dontpropagatemacro"), DDI.DontPropagateMacro)
+    end
+    @test DDI.get_macro_behavior(:(@compatiblemacro true x = 1)) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(:(@incompatiblemacro x = 1)) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(:(@dontpropagatemacro x = 1)) == DDI.DontPropagateMacro
+
+    @test DDI.combine_behavior(DDI.CompatibleMacro, DDI.CompatibleMacro) ==
+        DDI.CompatibleMacro
+    @test DDI.combine_behavior(DDI.CompatibleMacro, DDI.IncompatibleMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.CompatibleMacro, DDI.DontPropagateMacro) ==
+        DDI.DontPropagateMacro
+    @test DDI.combine_behavior(DDI.IncompatibleMacro, DDI.CompatibleMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.IncompatibleMacro, DDI.IncompatibleMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.IncompatibleMacro, DDI.DontPropagateMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.DontPropagateMacro, DDI.CompatibleMacro) ==
+        DDI.DontPropagateMacro
+    @test DDI.combine_behavior(DDI.DontPropagateMacro, DDI.IncompatibleMacro) ==
+        DDI.IncompatibleMacro
+    @test DDI.combine_behavior(DDI.DontPropagateMacro, DDI.DontPropagateMacro) ==
+        DDI.DontPropagateMacro
+
+    ex = quote
+        @compatiblemacro(
+            false,
+            @dontpropagatemacro(
+                @dontpropagatemacro(
+                    @compatiblemacro(
+                        @incompatiblemacro(true),
+                        @dontpropagatemacro(komodo(x) = x)  # Will only take last arg
+                    )
+                )
+            )
+        )
+    end
+    if DispatchDoctor.JULIA_OK
+        new_ex, upward_metadata = DispatchDoctor._stabilize_all(
+            ex, DispatchDoctor._Stabilization.DownwardMetadata()
+        )
+        # We should expect:
+        #   1. All of the `@dontpropagatemacro`'s to be on the outside of the block.
+        #   2. The `@compatiblemacro`'s to be duplicated on both the simulator function,
+        #      as well as the regular function.
+        #   3. The `@incompatiblemacro` will be unaffected, as it is operating on
+        #      the first argument of a multi-arg macro.
+        # Note that this changes the order of the macros.
+        s = replace(string(new_ex), "\n" => "")
+        @test count("@dontpropagatemacro", s) == 3
+        @test count("@compatiblemacro", s) == 4
+        @test count("@incompatiblemacro", s) == 2
+
+        # We test the exact sequence of macros
+        outer = r"@dontpropagatemacro.*@dontpropagatemacro.*@dontpropagatemacro.*begin"
+        function_def = r"@compatiblemacro.*false.*@compatiblemacro.*@incompatiblemacro.*true.*komodo"
+        simulator = function_def * r"_simulator.*end"
+
+        @test occursin(outer * r".*" * simulator * r".*" * function_def, s)
     end
 end
 @testitem "stack multiple complex macros" begin
@@ -678,6 +774,23 @@ end
             end
             @test f(0) == 0
         end
+    end
+end
+@testitem "skip Base.iterate" begin
+    using DispatchDoctor
+    using DispatchDoctor: _Interactions as DDI
+
+    @test DDI.ignore_function(+) == false
+    @test DDI.ignore_function(iterate) == true
+
+    struct MyTypeIterate end
+    @stable begin
+        f(x) = x > 0 ? x : 0.0
+        Base.iterate(::MyTypeIterate) = (1, 1)
+    end
+    if DispatchDoctor.JULIA_OK
+        @test_throws TypeInstabilityError f(0)
+        @test iterate(MyTypeIterate()) == (1, 1)
     end
 end
 @testitem "skip global" begin
@@ -746,12 +859,16 @@ end
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
+    using DispatchDoctor: _Utils as DDU
 
     @test DD.extract_symbol(:([1, 2])) == DD.Unknown(string(:([1, 2])))
 
     @test DD.is_precompiling() == false
 
     @test DD.specializing_typeof(Val(1)) <: Val{1}
+
+    @test DDU.is_function_name_compatible(1.0) == false
+    @test DDU.is_symbol_like(1.0) == false
 end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor

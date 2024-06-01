@@ -1,5 +1,5 @@
-"""This module describes interactions between `@stable` and other macros"""
-module _MacroInteractions
+"""This module describes interactions between `@stable` and other macros and functions"""
+module _Interactions
 
 """
 An enum to describe the behavior of macros when interacting with `@stable`.
@@ -97,12 +97,21 @@ function register_macro!(macro_name::Symbol, behavior::MacroInteractions)
     lock(MACRO_BEHAVIOR.lock) do
         if haskey(MACRO_BEHAVIOR.table, macro_name)
             error(
-                "Macro $macro_name already registered with behavior $(MACRO_BEHAVIOR.table[macro_name]).",
+                "Macro `$macro_name` already registered with behavior $(MACRO_BEHAVIOR.table[macro_name]).",
             )
         end
         MACRO_BEHAVIOR.table[macro_name] = behavior
         MACRO_BEHAVIOR.table[macro_name]
     end
 end
+
+"""
+    ignore_function(f)
+
+Globally ignore certain functions when stabilizing.
+By default, `Base.iterate` is ignored, as it is meant to be unstable.
+"""
+@inline ignore_function(f) = false
+@inline ignore_function(::typeof(iterate)) = true
 
 end
