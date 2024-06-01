@@ -183,7 +183,8 @@ function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
         # We can't track the matches in includes, so just assume
         # there are some matches. TODO: However, this is not a great solution.
         # Replace include with DispatchDoctor version
-        return :($(_stabilizing_include)(@__MODULE__, $(ex.args[2]); $(kws)...)), UpwardMetadata(downward_metadata; matching_function=true)
+        matching_function = true
+        return :($(_stabilizing_include)(@__MODULE__, $(ex.args[2]); $(kws)...)), UpwardMetadata(downward_metadata; matching_function)
     elseif isdef(ex) && @capture(longdef(ex), function (fcall_ | fcall_) body_ end)
         #               ^ This is the same check done by `splitdef`
         # TODO: Should report `isdef` to MacroTools as not capturing all cases
@@ -198,14 +199,14 @@ function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
 end
 
 function _stabilizing_include(m::Module, path; kws...)
-    let kws = kws
-        function inner(ex)
+    inner = let kws=kws
+        (ex,) -> let
             new_ex, upward_metadata = _stabilize_all(ex, DownwardMetadata(); kws...)
             @assert isempty(upward_metadata.unused_macros)
-            return new_ex
+            new_ex
         end
-        return m.include(inner, path)
     end
+    return m.include(inner, path)
 end
 
 function _stabilize_module(ex, downward_metadata; kws...)
