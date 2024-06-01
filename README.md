@@ -104,6 +104,21 @@ Inferred to be `Union{Float64, Int64}`, which is not a concrete type.
 
 (*Tip 2: in the REPL, you must wrap modules with `@eval`, because the REPL has special handling of the `module` keyword.*)
 
+You can disable stability errors for a single scope
+with the `allow_unstable` context:
+
+```julia
+julia> @stable f(x) = x > 0 ? x : 0.0
+
+julia> allow_unstable() do
+           f(1)
+       end
+1
+```
+
+although this will error if you try to use it simultaneously
+from two separate threads.
+
 ### Usage in packages
 
 You might find it useful to *only* enable `@stable` during unit-testing,
@@ -139,34 +154,13 @@ set_preferences!("MyPackage", "instability_check" => "error")
 
 You can also set to be `"warn"` if you would just like warnings.
 
-You might find that `@stable` doubles the precompilation time of
-your library, as it duplicates each function body for simulation.
-The duplication is not necessary, however, its main purpose is to
-make `@code_warntype` and other static analysis tools print information
-about the original function.
-
-If you have no need for these utilities, or only want them for testing but not production,
-you can set the `default_codegen_level` parameter to `"min"` instead of
-the default `"debug"`. This will result in no code duplication.
-
+You might also find it useful to set
+the `default_codegen_level` parameter to `"min"` instead of
+the default `"debug"`. This will result in no code duplication,
+improving precompilation time (although `@code_warntype` and error
+messages will be less useful).
 As with the `default_mode`, you can configure the codegen level with Preferences.jl
 by using the `"instability_check_codegen"` key.
-
-
-You can also disable stability errors for a single scope
-with the `allow_unstable` context:
-
-```julia
-julia> @stable f(x) = x > 0 ? x : 0.0
-
-julia> allow_unstable() do
-           f(1)
-       end
-1
-```
-
-although this will error if you try to use it simultaneously
-from two separate threads.
 
 ### Additional notes
 
