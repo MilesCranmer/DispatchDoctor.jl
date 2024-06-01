@@ -859,12 +859,16 @@ end
 end
 @testitem "Miscellaneous" begin
     using DispatchDoctor: DispatchDoctor as DD
+    using DispatchDoctor: _Utils as DDU
 
     @test DD.extract_symbol(:([1, 2])) == DD.Unknown(string(:([1, 2])))
 
     @test DD.is_precompiling() == false
 
     @test DD.specializing_typeof(Val(1)) <: Val{1}
+
+    @test DDU.is_function_name_compatible(1.0) == false
+    @test DDU.is_symbol_like(1.0) == false
 end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor
