@@ -624,13 +624,13 @@ end
     using DispatchDoctor
     using DispatchDoctor: _Interactions as DDI
 
-    macro compatiblemacro(ex)
+    macro compatiblemacro(ex, option)
         return esc(ex)
     end
     macro incompatiblemacro(ex)
         return esc(ex)
     end
-    macro dontpropagate(ex)
+    macro dontpropagatemacro(ex)
         return esc(ex)
     end
     if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@compatiblemacro"))
@@ -639,12 +639,12 @@ end
     if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@incompatiblemacro"))
         register_macro!(Symbol("@incompatiblemacro"), DDI.IncompatibleMacro)
     end
-    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@dontpropagate"))
-        register_macro!(Symbol("@dontpropagate"), DDI.DontPropagateMacro)
+    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@dontpropagatemacro"))
+        register_macro!(Symbol("@dontpropagatemacro"), DDI.DontPropagateMacro)
     end
-    @test DDI.get_macro_behavior(:(@compatiblemacro x = 1)) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(:(@compatiblemacro true x = 1)) == DDI.CompatibleMacro
     @test DDI.get_macro_behavior(:(@incompatiblemacro x = 1)) == DDI.IncompatibleMacro
-    @test DDI.get_macro_behavior(:(@dontpropagate x = 1)) == DDI.DontPropagateMacro
+    @test DDI.get_macro_behavior(:(@dontpropagatemacro x = 1)) == DDI.DontPropagateMacro
 
     @test DDI.combine_behavior(DDI.CompatibleMacro, DDI.CompatibleMacro) ==
         DDI.CompatibleMacro
@@ -664,6 +664,43 @@ end
         DDI.IncompatibleMacro
     @test DDI.combine_behavior(DDI.DontPropagateMacro, DDI.DontPropagateMacro) ==
         DDI.DontPropagateMacro
+
+    ex = quote
+        @compatiblemacro(
+            false,
+            @dontpropagatemacro(
+                @dontpropagatemacro(
+                    @compatiblemacro(
+                        @incompatiblemacro(true),
+                        @dontpropagatemacro(komodo(x) = x)  # Will only take last arg
+                    )
+                )
+            )
+        )
+    end
+    if DispatchDoctor.JULIA_OK
+        new_ex, upward_metadata = DispatchDoctor._stabilize_all(
+            ex, DispatchDoctor._Stabilization.DownwardMetadata()
+        )
+        # We should expect:
+        #   1. All of the `@dontpropagatemacro`'s to be on the outside of the block.
+        #   2. The `@compatiblemacro`'s to be duplicated on both the simulator function,
+        #      as well as the regular function.
+        #   3. The `@incompatiblemacro` will be unaffected, as it is operating on
+        #      the first argument of a multi-arg macro.
+        # Note that this changes the order of the macros.
+        s = replace(string(new_ex), "\n" => "")
+        @test count("@dontpropagatemacro", s) == 3
+        @test count("@compatiblemacro", s) == 4
+        @test count("@incompatiblemacro", s) == 2
+
+        # We test the exact sequence of macros
+        outer = r"@dontpropagatemacro.*@dontpropagatemacro.*@dontpropagatemacro.*begin"
+        function_def = r"@compatiblemacro.*false.*@compatiblemacro.*@incompatiblemacro.*true.*komodo"
+        simulator = function_def * r"_simulator.*end"
+
+        @test occursin(outer * r".*" * simulator * r".*" * function_def, s)
+    end
 end
 @testitem "stack multiple complex macros" begin
     using DispatchDoctor
