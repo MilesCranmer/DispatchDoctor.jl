@@ -3,69 +3,91 @@ using TestItemRunner
 
 @testitem "smoke test" begin
     using DispatchDoctor
-    @stable f(x) = x
-    @test f(1) == 1
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level f(x) = x
+        @test f(1) == 1
+    end
 end
 @testitem "with error" begin
     using DispatchDoctor
-    @stable f(x) = x > 0 ? x : 1.0
-    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
-    @test f(2.0) == 2.0
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level f(x) = x > 0 ? x : 1.0
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
+        @test f(2.0) == 2.0
+    end
 end
 @testitem "with kwargs" begin
     using DispatchDoctor
-    @stable f(x; a=1, b=2) = x + a + b
-    @test f(1) == 4
-    @stable g(; a=1) = a > 0 ? a : 1.0
-    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(a=1)
-    @test g(; a=2.0) == 2.0
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level f(x; a=1, b=2) = x + a + b
+        @test f(1) == 4
+        @eval @stable default_codegen_level = $codegen_level g(; a=1) = a > 0 ? a : 1.0
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(a=1)
+        @test g(; a=2.0) == 2.0
+    end
 end
 @testitem "tuple args" begin
     using DispatchDoctor
-    @stable f((x, y); a=1, b=2) = x + y + a + b
-    @test f((1, 2)) == 6
-    @test f((1, 2); b=3) == 7
-    @stable g((x, y), z=1.0; c=2.0) = x > 0 ? y : c + z
-    @test g((1, 2.0)) == 2.0
-    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g((1, 2))
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level f((x, y); a=1, b=2) =
+            x + y + a + b
+        @test f((1, 2)) == 6
+        @test f((1, 2); b=3) == 7
+        @eval @stable default_codegen_level = $codegen_level g((x, y), z=1.0; c=2.0) =
+            x > 0 ? y : c + z
+        @test g((1, 2.0)) == 2.0
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g((1, 2))
+    end
 end
 @testitem ":: args" begin
     using DispatchDoctor
-
-    @stable f(x::Int) = x
-    @test f(1) == 1
-    @stable g(; x::Int) = x
-    @test g(; x=1) == 1
-    @stable h(x::Number; y::Number) = x > y ? x : y
-    @test h(1; y=2) == 2
-    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(1; y=2.0)
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level f(x::Int) = x
+        @test f(1) == 1
+        @eval @stable default_codegen_level = $codegen_level g(; x::Int) = x
+        @test g(; x=1) == 1
+        @eval @stable default_codegen_level = $codegen_level h(x::Number; y::Number) =
+            x > y ? x : y
+        @test h(1; y=2) == 2
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(1; y=2.0)
+    end
 end
 @testitem "Type specialization" begin
     using DispatchDoctor
-    @stable f(a, ::Type{T}) where {T} = sum(a; init=zero(T))
-    @test f([1.0f0, 1.0f0], Float32) == 2.0f0
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level f(a, ::Type{T}) where {T} =
+            sum(a; init=zero(T))
+        @test f([1.0f0, 1.0f0], Float32) == 2.0f0
+    end
 end
 @testitem "args and kwargs" begin
     using DispatchDoctor
-    # Without the dots
-    @stable f1(a, args::Vararg) = sum(args) + a
-    @test f1(1, 1, 2, 3) == 7
+    for codegen_level in ("debug", "min")
+        # Without the dots
+        @eval @stable default_codegen_level = $codegen_level f1(a, args::Vararg) =
+            sum(args) + a
+        @test f1(1, 1, 2, 3) == 7
 
-    # Without the dots, with curly on Vararg
-    @stable f1(a, args::Vararg{Any,M}) where {M} = sum(args) + a
-    @test f1(1, 1, 2, 3) == 7
+        # Without the dots, with curly on Vararg
+        @eval @stable default_codegen_level = $codegen_level f1(
+            a, args::Vararg{Any,M}
+        ) where {M} = sum(args) + a
+        @test f1(1, 1, 2, 3) == 7
 
-    # With the dots
-    @stable f2(a, args...) = sum(args) + a
-    @test f2(1, 1, 2, 3) == 7
+        # With the dots
+        @eval @stable default_codegen_level = $codegen_level f2(a, args...) = sum(args) + a
+        @test f2(1, 1, 2, 3) == 7
 
-    # With kwargs
-    @stable f3(c; kwargs...) = sum(values(kwargs)) + c
-    @test f3(1; a=1, b=2, c=3) == 7
+        # With kwargs
+        @eval @stable default_codegen_level = $codegen_level f3(c; kwargs...) =
+            sum(values(kwargs)) + c
+        @test f3(1; a=1, b=2, c=3) == 7
 
-    # With both
-    @stable f4(a, args...; d, kwargs...) = sum(args) + sum(values(kwargs)) + a + d
-    @test f4(1, 1, 2, 3; d=0, a=1, b=2, c=3) == sum((1, 1, 2, 3, 0, 1, 2, 3))
+        # With both
+        @eval @stable default_codegen_level = $codegen_level f4(a, args...; d, kwargs...) =
+            sum(args) + sum(values(kwargs)) + a + d
+        @test f4(1, 1, 2, 3; d=0, a=1, b=2, c=3) == sum((1, 1, 2, 3, 0, 1, 2, 3))
+    end
 end
 @testitem "string macro" begin
     using DispatchDoctor
@@ -75,26 +97,39 @@ end
 @testitem "complex arg without symbol" begin
     using DispatchDoctor: DispatchDoctor as DD
     struct Undefined end
-    DD.@stable function f(::Type{T1}=Undefined) where {T1}
-        return T1
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level function f(
+            ::Type{T1}=Undefined
+        ) where {T1}
+            return T1
+        end
+        @test f() == Undefined
     end
-    @test f() == Undefined
 end
 @testitem "vararg with type" begin
     using DispatchDoctor
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level function f(::Int...)
+            return rand(Bool) ? 0 : 0.0
+        end
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1, 2, 3)
 
-    @stable f(::Int...) = rand(Bool) ? 0 : 0.0
-    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1, 2, 3)
+        @eval @stable default_codegen_level = $codegen_level function f2(a::Int...)
+            return rand(Bool) ? 0 : 0.0
+        end
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f2(1, 2, 3)
 
-    @stable f2(a::Int...) = rand(Bool) ? 0 : 0.0
-    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f2(1, 2, 3)
+        @eval @stable default_codegen_level = $codegen_level function f3(a, ::Int...)
+            return rand(Bool) ? 0 : 0.0
+        end
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f3(1, 2, 3)
 
-    @stable f3(a, ::Int...) = rand(Bool) ? 0 : 0.0
-    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f3(1, 2, 3)
-
-    # With expression-based type
-    @stable g(::typeof(*)...) = rand(Bool) ? 0 : 0.0
-    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(*, *)
+        # With expression-based type
+        @eval @stable default_codegen_level = $codegen_level function g(::typeof(*)...)
+            return rand(Bool) ? 0 : 0.0
+        end
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(*, *)
+    end
 end
 
 @testitem "showerror" begin
@@ -426,6 +461,15 @@ end
     if DispatchDoctor.JULIA_OK
         @test_throws(LoadError, @eval @stable default_mode = "bad" f(x) = x^2)
         @test_throws("Unknown mode", @eval @stable default_mode = "bad" f(x) = x^2)
+    end
+end
+@testitem "bad choice of codegen level" begin
+    using DispatchDoctor
+    if DispatchDoctor.JULIA_OK
+        @test_throws(LoadError, @eval @stable default_codegen_level = "bad" f(x) = x^2)
+        @test_throws(
+            "Unknown codegen level", @eval @stable default_codegen_level = "bad" f(x) = x^2
+        )
     end
 end
 @testitem "allow errors through" begin
@@ -815,14 +859,24 @@ end
 @testitem "code_warntype compat" begin
     using DispatchDoctor
     using InteractiveUtils: code_warntype
-    @stable function f(x)
-        y = Tuple(x)
-        return sum(y[1:2])
+    # if we use `default_codegen_level="min"`, this won't work!
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level function f(x)
+            y = Tuple(x)
+            return sum(y[1:2])
+        end
+        @test f([1, 2, 3]) == 3
+        msg = sprint(code_warntype, f, typeof(([1, 2, 3],)))
+        msg = lowercase(msg)
+        if DispatchDoctor.JULIA_OK
+            if codegen_level == "min"
+                @test !occursin("tuple{vararg{int64}}", msg)
+            else
+                # No longer has the body!
+                @test occursin("tuple{vararg{int64}}", msg)
+            end
+        end
     end
-    @test f([1, 2, 3]) == 3
-    msg = sprint(code_warntype, f, typeof(([1, 2, 3],)))
-    msg = lowercase(msg)
-    DispatchDoctor.JULIA_OK && @test occursin("tuple{vararg{int64}}", msg)
 end
 @testitem "warn on no matches" begin
     using DispatchDoctor

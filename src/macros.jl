@@ -13,10 +13,16 @@ If type instability is detected, a `TypeInstabilityError` is thrown.
 
 # Options
 
-- `default_mode::String="error"`: Change the default mode to `"warn"` to only emit a warning, or
+- `default_mode::String="error"`: Change the default mode from `"error"` to `"warn"` to only emit a warning, or
    `"disable"` to disable type instability checks by default. To locally set the mode for
-   a package that uses DispatchDoctor, you can use the "instability_check" key in your
-   LocalPreferences.toml (typically configured with Preferences.jl)
+   a package that uses DispatchDoctor, you can use the `"instability_check"`` key in your
+   LocalPreferences.toml (typically configured with Preferences.jl).
+- `default_codegen_level::String="debug"`: Set the code generation level to `"min"` to only generate
+   a single function body for each stabilized function. The default, `"debug"`, generates an
+   entire duplicate function so that `@code_warntype` can be used. To locally set the code generation
+   level for a package that uses DispatchDoctor, you can use the "instability_check_codegen" key in your
+   LocalPreferences.toml.
+
 
 # Example
     
