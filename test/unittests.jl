@@ -620,6 +620,13 @@ end
     @test DispatchDoctor.get_macro_behavior(:(@mymacro x = 1)) ==
         DispatchDoctor.IncompatibleMacro
 
+    # Trying to register again should fail with a useful error
+    if VERSION >= v"1.9"
+        @test_throws "Macro `@mymacro` already registered" register_macro!(
+            Symbol("@mymacro"), DispatchDoctor.IncompatibleMacro
+        )
+    end
+
     if DispatchDoctor.JULIA_OK
         @eval @stable @mymacro function f(x)
             return x > 0 ? x : 0.0

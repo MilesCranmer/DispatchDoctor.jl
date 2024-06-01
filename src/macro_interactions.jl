@@ -97,7 +97,7 @@ function register_macro!(macro_name::Symbol, behavior::MacroInteractions)
     lock(MACRO_BEHAVIOR.lock) do
         if haskey(MACRO_BEHAVIOR.table, macro_name)
             error(
-                "Macro $macro_name already registered with behavior $(MACRO_BEHAVIOR.table[macro_name]).",
+                "Macro `$macro_name` already registered with behavior $(MACRO_BEHAVIOR.table[macro_name]).",
             )
         end
         MACRO_BEHAVIOR.table[macro_name] = behavior
