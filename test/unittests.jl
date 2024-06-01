@@ -614,7 +614,7 @@ end
         DispatchDoctor.IncompatibleMacro
 
     if DispatchDoctor.JULIA_OK
-        @stable @mymacro function f(x)
+        @eval @stable @mymacro function f(x)
             return x > 0 ? x : 0.0
         end
         @test f(0) == 0
@@ -682,6 +682,11 @@ end
 end
 @testitem "skip Base.iterate" begin
     using DispatchDoctor
+    using DispatchDoctor: _Interactions as DDI
+
+    @test DDI.ignore_function(+) == false
+    @test DDI.ignore_function(iterate) == true
+
     struct MyTypeIterate end
     @stable begin
         f(x) = x > 0 ? x : 0.0
