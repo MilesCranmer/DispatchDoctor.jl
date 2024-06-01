@@ -199,7 +199,7 @@ function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
 end
 
 function _stabilizing_include(m::Module, path; kws...)
-    inner = let kws=kws
+    inner = let kws = kws
         (ex,) -> let
             new_ex, upward_metadata = _stabilize_all(ex, DownwardMetadata(); kws...)
             @assert isempty(upward_metadata.unused_macros)
@@ -311,15 +311,12 @@ function _stabilize_fnc(
         ))
     end
 
-    ignore_func = haskey(func, :name) ? :($(ignore_function)($(func[:name]))) : :(false)
+    ignore = haskey(func, :name) ? :($(ignore_function)($(func[:name]))) : :(false)
 
     func_simulator[:name] = simulator
     func[:body] = quote
         $T = $checker
-        if $(type_instability)($T) &&
-            !$ignore_func &&
-            !$(is_precompiling)() &&
-            $(checking_enabled)()
+        if $(type_instability)($T) && !$ignore && $(checking_enabled)()
             $err
         end
 

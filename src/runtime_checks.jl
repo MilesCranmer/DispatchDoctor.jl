@@ -8,7 +8,7 @@ using .._Errors: AllowUnstableDataRace
 
 """To locally enable/disable instability checks."""
 @inline function checking_enabled()
-    return INSTABILITY_CHECK_ENABLED.value[]
+    return !is_precompiling() && INSTABILITY_CHECK_ENABLED.value[]
 end
 
 const INSTABILITY_CHECK_ENABLED = (; value=Ref(true), lock=ReentrantLock())
