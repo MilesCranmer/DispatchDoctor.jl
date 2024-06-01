@@ -680,6 +680,18 @@ end
         end
     end
 end
+@testitem "skip Base.iterate" begin
+    using DispatchDoctor
+    struct MyTypeIterate end
+    @stable begin
+        f(x) = x > 0 ? x : 0.0
+        Base.iterate(::MyTypeIterate) = (1, 1)
+    end
+    if DispatchDoctor.JULIA_OK
+        @test_throws TypeInstabilityError f(0)
+        @test iterate(MyTypeIterate()) == (1, 1)
+    end
+end
 @testitem "skip global" begin
     using DispatchDoctor
     @stable struct A

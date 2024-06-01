@@ -12,8 +12,12 @@ using .._Utils:
     type_instability
 using .._Errors: TypeInstabilityError, TypeInstabilityWarning
 using .._Preferences: get_preferred_mode
-using .._MacroInteractions:
-    get_macro_behavior, IncompatibleMacro, CompatibleMacro, DontPropagateMacro
+using .._Interactions:
+    ignore_function,
+    get_macro_behavior,
+    IncompatibleMacro,
+    CompatibleMacro,
+    DontPropagateMacro
 using .._RuntimeChecks: is_precompiling, checking_enabled
 
 function _stable(args...; calling_module, source_info, kws...)
@@ -306,10 +310,15 @@ function _stabilize_fnc(
         ))
     end
 
+    ignore_func = haskey(func, :name) ? :($(ignore_function)($(func[:name]))) : :(false)
+
     func_simulator[:name] = simulator
     func[:body] = quote
         $T = $checker
-        if $(type_instability)($T) && !$(is_precompiling)() && $(checking_enabled)()
+        if $(type_instability)($T) &&
+            !$ignore_func &&
+            !$(is_precompiling)() &&
+            $(checking_enabled)()
             $err
         end
 
