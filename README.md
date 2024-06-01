@@ -164,6 +164,27 @@ Note that instability errors are automatically skipped during precompilation.
 >
 > Also, `@stable` has no effect on code in unsupported Julia versions.
 
+## Eliminating Type Instabilities
+
+Say that you start using `@stable` and you run into a type instability error.
+What then? How should you fix it?
+
+The first thing you can try is using `@code_warntype` on the
+function in question, which will highlight each individual variable's
+type with a special color for any instabilities.
+
+Note that some of the lines you will see are from DispatchDoctor's inserted
+code. If those are bothersome, you can disable the checking with
+`Preferences.set_preferences!("MyPackage", "instability_check" => "disable")`
+followed by restarting Julia.
+
+Other, much more powerful options to try include
+[Cthulhu.jl](https://github.com/JuliaDebug/Cthulhu.jl) and
+[JET.jl](https://github.com/aviatesk/JET.jl/), which can
+provide more detailed type instability reports in an easier-to-read
+format than `@code_warntype`. Both packages can also descend into
+your function calls to help you locate the source of the instability.
+
 ## Credits
 
 Many thanks to @chriselrod and @thofma for tips on this
