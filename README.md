@@ -202,6 +202,11 @@ provide more detailed type instability reports in an easier-to-read
 format than `@code_warntype`. Both packages can also descend into
 your function calls to help you locate the source of the instability.
 
+## Caveats
+
+- Using `@stable` is likely to increase precompilation time. (To reduce this effect, try the `default_codegen_level` above)
+- Using `@stable` over an entire package may result in flagging type instabilities on small functions that act as aliases and may otherwise be inlined by the Julia compiler. Try putting `@unstable` on any suspected such functions if needed.
+
 ## Credits
 
 Many thanks to @chriselrod and @thofma for tips on this
