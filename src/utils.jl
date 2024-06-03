@@ -110,12 +110,13 @@ return false for `Union{}`, so that errors can propagate.
 @inline type_instability(::Type{Type{T}}) where {T} = type_instability(T)
 
 # Ignore unions to allow for union splitting
-@inline function type_instability_no_union(::Type{T}) where {T}
-    if T isa Union
-        return type_instability_no_union(T.a) || type_instability_no_union(T.b)
+@generated function type_instability_no_union(::Type{T}) where {T}
+    result = if T isa Union
+        type_instability_no_union(T.a) || type_instability_no_union(T.b)
     else
-        return type_instability(T)
+        type_instability(T)
     end
+    return :($result)
 end
 
 end
