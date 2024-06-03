@@ -848,6 +848,21 @@ end
     @test f(0) == 0
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g()
 end
+@testitem "disallow union if any element is unstable" begin
+    using DispatchDoctor
+    @stable default_ignore_union = true function f(x)
+        return x > 0 ? Val(rand()) : x
+    end
+    # This should still fail because one of the elements is unstable!
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(0)
+end
+@testitem "unionall within union" begin
+    using DispatchDoctor
+    @stable default_ignore_union = true function f(x)
+        return [x > 0 ? Val(rand()) : x]
+    end
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(0)
+end
 @testitem "skip global" begin
     using DispatchDoctor
     @stable struct A
