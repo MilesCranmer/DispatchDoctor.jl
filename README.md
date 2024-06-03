@@ -169,7 +169,7 @@ Note that instability errors are automatically skipped during precompilation.
 > [!NOTE]
 > `@stable` will have no effect on code if it is:
 > - Within an `@unstable` block
-> - Within a macro
+> - Within a macro definition
 > - A generated function
 > - Within a `quote` block
 > - Within an incompatible macro, such as
