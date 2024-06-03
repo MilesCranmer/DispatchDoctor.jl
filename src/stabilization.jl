@@ -9,7 +9,8 @@ using .._Utils:
     get_first_source_info,
     inject_symbol_to_arg,
     extract_symbol,
-    type_instability
+    type_instability,
+    type_instability_no_union
 using .._Errors: TypeInstabilityError, TypeInstabilityWarning
 using .._Interactions:
     ignore_function,
@@ -26,7 +27,13 @@ function _stable(args...; calling_module, source_info, kws...)
 
     if options.mode in ("error", "warn")
         out, metadata = _stabilize_all(
-            ex, DownwardMetadata(); source_info, kws..., options.mode, options.codegen_level
+            ex,
+            DownwardMetadata();
+            source_info,
+            kws...,
+            options.mode,
+            options.codegen_level,
+            options.ignore_union,
         )
         if metadata.matching_function == 0
             @warn(
@@ -183,6 +190,7 @@ function _stabilize_fnc(
     downward_metadata::DownwardMetadata;
     mode::String="error",
     codegen_level::String="debug",
+    ignore_union::Bool=false,
     source_info::Union{LineNumberNode,Nothing}=nothing,
 )
     func = splitdef(fex)
@@ -254,7 +262,7 @@ function _stabilize_fnc(
         error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
     end
 
-    checker = if isempty(kwarg_symbols)
+    infer = if isempty(kwarg_symbols)
         :($(Base).promote_op($simulator, map($specializing_typeof, ($(arg_symbols...),))...))
     else
         :($(Base).promote_op(
@@ -263,6 +271,12 @@ function _stabilize_fnc(
             typeof($simulator),
             map($specializing_typeof, ($(arg_symbols...),))...,
         ))
+    end
+
+    checker = if ignore_union
+        type_instability_no_union
+    else
+        type_instability
     end
 
     caller = if codegen_level == "debug"
@@ -278,8 +292,8 @@ function _stabilize_fnc(
 
     func_simulator[:name] = simulator
     func[:body] = quote
-        $T = $checker
-        if $(type_instability)($T) && !$ignore && $(checking_enabled)()
+        $T = $infer
+        if $(checker)($T) && !$ignore && $(checking_enabled)()
             $err
         end
 

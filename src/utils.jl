@@ -109,4 +109,9 @@ return false for `Union{}`, so that errors can propagate.
 # so we implement a workaround.
 @inline type_instability(::Type{Type{T}}) where {T} = type_instability(T)
 
+# Ignore unions to allow for union splitting
+@inline function type_instability_no_union(::Type{T}) where {T}
+    return T isa Union ? false : type_instability(T)
+end
+
 end

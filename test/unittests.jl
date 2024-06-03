@@ -837,6 +837,17 @@ end
         @test iterate(MyTypeIterate()) == (1, 1)
     end
 end
+@testitem "conditionally allow union instabilities" begin
+    using DispatchDoctor
+    @stable default_ignore_union = true begin
+        # Just a union:
+        f(x) = x > 0 ? x : 0.0
+        # Full-blown type instability:
+        g() = Val(rand())
+    end
+    @test f(0) == 0
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g()
+end
 @testitem "skip global" begin
     using DispatchDoctor
     @stable struct A
