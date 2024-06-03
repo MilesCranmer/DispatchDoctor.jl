@@ -162,6 +162,9 @@ messages will be less useful).
 As with the `default_mode`, you can configure the codegen level with Preferences.jl
 by using the `"instability_check_codegen"` key.
 
+Note that for code coverage to work as expected over stabilized code,
+you will also need to use `default_codegen_level="min"`.
+
 ### Additional notes
 
 Note that instability errors are automatically skipped during precompilation.
