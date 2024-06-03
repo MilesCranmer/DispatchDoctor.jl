@@ -171,8 +171,13 @@ Note that instability errors are automatically skipped during precompilation.
 > - Within an `@unstable` block
 > - Within a macro
 > - A generated function
-> - Within an `@eval` statement
 > - Within a `quote` block
+> - Within an incompatible macro, such as
+>    - `@eval`
+>    - `@generated`
+>    - `@assume_effects`
+>    - `@pure`
+>    - Or anything else registered as incompatible `register_macro!`
 > - If the function name is an expression (such as parameterized functions like `MyType{T}(args...) = ...`)
 > - A function inside another function (a closure).
 >    - But note the outer function will still be stabilized. So, e.g., `@stable f(x) = map(xi -> xi^2, x)` would stabilize `f`, but not `xi -> xi^2`. Though if `xi -> xi^2` were unstable, `f` would likely be as well, and it would get caught.
