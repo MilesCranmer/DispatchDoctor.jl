@@ -22,6 +22,8 @@ If type instability is detected, a `TypeInstabilityError` is thrown.
    entire duplicate function so that `@code_warntype` can be used. To locally set the code generation
    level for a package that uses DispatchDoctor, you can use the "instability_check_codegen" key in your
    LocalPreferences.toml.
+- `default_ignore_union::Bool=false`: Set to `true` to ignore unions as a type of instability for the
+    stabilized block of code.
 
 
 # Example

@@ -10,6 +10,7 @@ include("printing.jl")
 include("runtime_checks.jl")
 include("preferences.jl")
 include("macro_interactions.jl")
+include("parse_options.jl")
 include("stabilization.jl")
 include("macros.jl")
 
