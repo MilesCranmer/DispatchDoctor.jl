@@ -1,3 +1,4 @@
+"""This module parses the options for the `@stable` macro"""
 module _ParseOptions
 
 using .._Preferences:
