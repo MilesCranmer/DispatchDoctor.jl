@@ -5,7 +5,7 @@ using Preferences: load_preference, get_uuid
 
 const GLOBAL_DEFAULT_MODE = "error"
 const GLOBAL_DEFAULT_CODEGEN_LEVEL = "debug"
-const GLOBAL_DEFAULT_IGNORE_UNION = false
+const GLOBAL_DEFAULT_UNION_LIMIT = 1
 
 function get_preferred(default, calling_module, key)
     try

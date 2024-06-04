@@ -4,19 +4,19 @@ using .._Preferences:
     get_preferred,
     GLOBAL_DEFAULT_MODE,
     GLOBAL_DEFAULT_CODEGEN_LEVEL,
-    GLOBAL_DEFAULT_IGNORE_UNION
+    GLOBAL_DEFAULT_UNION_LIMIT
 
 struct StabilizationOptions
     mode::String
     codegen_level::String
-    ignore_union::Bool
+    union_limit::Int
 end
 
 function parse_options(options, calling_module)
     # Standard defaults:
     mode = GLOBAL_DEFAULT_MODE
     codegen_level = GLOBAL_DEFAULT_CODEGEN_LEVEL
-    ignore_union = GLOBAL_DEFAULT_IGNORE_UNION
+    union_limit = GLOBAL_DEFAULT_UNION_LIMIT
 
     # Deprecated
     warnonly = nothing
@@ -36,8 +36,8 @@ function parse_options(options, calling_module)
             elseif option.args[1] == :default_codegen_level
                 codegen_level = option.args[2]
                 continue
-            elseif option.args[1] == :default_ignore_union
-                ignore_union = option.args[2]
+            elseif option.args[1] == :default_union_limit
+                union_limit = option.args[2]
                 continue
             end
         end
@@ -48,7 +48,7 @@ function parse_options(options, calling_module)
     #! format: off
     mode = mode isa Expr ? Core.eval(calling_module, mode) : (mode isa QuoteNode ? mode.value : mode)
     codegen_level = codegen_level isa QuoteNode ? codegen_level.value : codegen_level
-    ignore_union = ignore_union isa QuoteNode ? ignore_union.value : ignore_union
+    union_limit = union_limit isa QuoteNode ? union_limit.value : union_limit
     #! format: on
     # TODO: Deprecate passing expression here.
 
@@ -61,7 +61,7 @@ function parse_options(options, calling_module)
 
     mode::String
     codegen_level::String
-    ignore_union::Bool
+    union_limit::Int
 
     # Deprecated
     warnonly = warnonly isa Expr ? Core.eval(calling_module, warnonly) : warnonly
@@ -72,7 +72,7 @@ function parse_options(options, calling_module)
         #! format: off
         mode = get_preferred(mode, calling_module, "instability_check")
         codegen_level = get_preferred(codegen_level, calling_module, "instability_check_codegen")
-        ignore_union = get_preferred(ignore_union, calling_module, "instability_check_ignore_union")
+        union_limit = get_preferred(union_limit, calling_module, "instability_check_union_limit")
         #! format: on
         # TODO: Why do we need this try-catch? Seems like its used by e.g.,
         # https://github.com/JuliaLang/PrecompileTools.jl/blob/a99446373f9a4a46d62a2889b7efb242b4ad7471/src/workloads.jl#L2C10-L11
@@ -86,7 +86,7 @@ function parse_options(options, calling_module)
             mode = enable ? "error" : "disable"
         end
     end
-    return StabilizationOptions(mode, codegen_level, ignore_union)
+    return StabilizationOptions(mode, codegen_level, union_limit)
 end
 
 end

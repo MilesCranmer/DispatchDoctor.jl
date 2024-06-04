@@ -14,16 +14,19 @@ If type instability is detected, a `TypeInstabilityError` is thrown.
 # Options
 
 - `default_mode::String="error"`: Change the default mode from `"error"` to `"warn"` to only emit a warning, or
-   `"disable"` to disable type instability checks by default. To locally set the mode for
+   `"disable"` to disable type instability checks by default. To locally or globally override the mode for
    a package that uses DispatchDoctor, you can use the `"instability_check"`` key in your
    LocalPreferences.toml (typically configured with Preferences.jl).
 - `default_codegen_level::String="debug"`: Set the code generation level to `"min"` to only generate
    a single function body for each stabilized function. The default, `"debug"`, generates an
-   entire duplicate function so that `@code_warntype` can be used. To locally set the code generation
-   level for a package that uses DispatchDoctor, you can use the "instability_check_codegen" key in your
-   LocalPreferences.toml.
-- `default_ignore_union::Bool=false`: Set to `true` to ignore unions as a type of instability for the
-    stabilized block of code.
+   entire duplicate function so that `@code_warntype` can be used. To locally or globally override
+   the code generation level for a package that uses DispatchDoctor, you can use the
+   "instability_check_codegen" key in your LocalPreferences.toml.
+- `default_union_limit::Int=1`: Sets the maximum elements in a union to be considered stable. The default
+   is `1`, meaning that all unions are considered unstable. A value of `2` would indicate that `Union{Float32,Float64}`
+   is considered stable, but `Union{Float16,Float32,Float64}` is not. To locally or globally override
+   the union limit for a package that uses DispatchDoctor, you can use the "instability_check_union_limit"
+   key in your LocalPreferences.toml.
 
 
 # Example

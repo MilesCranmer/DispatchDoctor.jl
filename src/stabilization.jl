@@ -10,7 +10,7 @@ using .._Utils:
     inject_symbol_to_arg,
     extract_symbol,
     type_instability,
-    type_instability_no_union
+    type_instability_limit_unions
 using .._Errors: TypeInstabilityError, TypeInstabilityWarning
 using .._Interactions:
     ignore_function,
@@ -33,7 +33,7 @@ function _stable(args...; calling_module, source_info, kws...)
             kws...,
             options.mode,
             options.codegen_level,
-            options.ignore_union,
+            options.union_limit,
         )
         if metadata.matching_function == 0
             @warn(
@@ -190,7 +190,7 @@ function _stabilize_fnc(
     downward_metadata::DownwardMetadata;
     mode::String="error",
     codegen_level::String="debug",
-    ignore_union::Bool=false,
+    union_limit::Int=0,
     source_info::Union{LineNumberNode,Nothing}=nothing,
 )
     func = splitdef(fex)
@@ -273,10 +273,10 @@ function _stabilize_fnc(
         ))
     end
 
-    checker = if ignore_union
-        type_instability_no_union
+    checker = if union_limit > 1
+        :($(type_instability_limit_unions)($T, Val($union_limit)))
     else
-        type_instability
+        :($(type_instability)($T))
     end
 
     caller = if codegen_level == "debug"
@@ -293,7 +293,7 @@ function _stabilize_fnc(
     func_simulator[:name] = simulator
     func[:body] = quote
         $T = $infer
-        if $(checker)($T) && !$ignore && $(checking_enabled)()
+        if $(checker) && !$ignore && $(checking_enabled)()
             $err
         end
 
