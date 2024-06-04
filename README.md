@@ -58,7 +58,7 @@ top:
 
 Meaning there is zero overhead on this type stability check.
 
-You can also use `@stable` on blocks of code,
+You can use `@stable` on blocks of code,
 including `begin-end` blocks, `module`, and anonymous functions.
 The inverse of `@stable` is `@unstable` which turns it off:
 
@@ -119,14 +119,29 @@ julia> allow_unstable() do
 although this will error if you try to use it simultaneously
 from two separate threads.
 
+### Options
+
+You can provide the following options to `@stable`:
+
+- `default_mode::String="error"`:
+  - Change the default mode from `"error"` to `"warn"` to only emit a warning, or `"disable"` to disable type instability checks by default.
+  - To locally or globally override the mode for a package that uses DispatchDoctor, you can use the `"instability_check"` key in your LocalPreferences.toml (typically configured with Preferences.jl).
+- `default_codegen_level::String="debug"`:
+  - Set the code generation level to `"min"` to only generate a single function body for each stabilized function. The default, `"debug"`, generates an entire duplicate function so that `@code_warntype` can be used.
+  - To locally or globally override the code generation level for a package that uses DispatchDoctor, you can use the `"instability_check_codegen"` key in your LocalPreferences.toml.
+- `default_union_limit::Int=1`:
+  - Sets the maximum elements in a union to be considered stable. The default is `1`, meaning that all unions are considered unstable. A value of `2` would indicate that `Union{Float32,Float64}` is considered stable, but `Union{Float16,Float32,Float64}` is not.
+  - To locally or globally override the union limit for a package that uses DispatchDoctor, you can use the `"instability_check_union_limit"` key in your LocalPreferences.toml.
+
+Each of these is denoted a `default_` because you may set them globally or at a per-package level with `Preferences.jl` (see below).
+
 ### Usage in packages
 
 You might find it useful to *only* enable `@stable` during unit-testing,
 to have it check every function in a library, but not throw errors for
 downstream users. You may also want to have warnings instead of errors.
 
-For this, you can use the `default_mode` keyword to set the
-default behavior:
+For this, use the `default_mode` keyword to set the default behavior:
 
 ```julia
 module MyPackage
