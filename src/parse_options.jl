@@ -2,16 +2,11 @@
 module _ParseOptions
 
 using .._Preferences:
-    get_preferred,
+    get_all_preferred,
     GLOBAL_DEFAULT_MODE,
     GLOBAL_DEFAULT_CODEGEN_LEVEL,
-    GLOBAL_DEFAULT_UNION_LIMIT
-
-struct StabilizationOptions
-    mode::String
-    codegen_level::String
-    union_limit::Int
-end
+    GLOBAL_DEFAULT_UNION_LIMIT,
+    StabilizationOptions
 
 function parse_options(options, calling_module)
     # Standard defaults:
@@ -68,16 +63,6 @@ function parse_options(options, calling_module)
     warnonly = warnonly isa Expr ? Core.eval(calling_module, warnonly) : warnonly
     enable = enable isa Expr ? Core.eval(calling_module, enable) : enable
 
-    if calling_module != Core.Main
-        # Local setting from Preferences.jl overrides defaults
-        #! format: off
-        mode = get_preferred(mode, calling_module, "instability_check")
-        codegen_level = get_preferred(codegen_level, calling_module, "instability_check_codegen")
-        union_limit = get_preferred(union_limit, calling_module, "instability_check_union_limit")
-        #! format: on
-        # TODO: Why do we need this try-catch? Seems like its used by e.g.,
-        # https://github.com/JuliaLang/PrecompileTools.jl/blob/a99446373f9a4a46d62a2889b7efb242b4ad7471/src/workloads.jl#L2C10-L11
-    end
     if enable !== nothing
         @warn "The `enable` option is deprecated. Please use `default_mode` instead, either \"error\", \"warn\", or \"disable\"."
         if warnonly !== nothing
@@ -87,7 +72,15 @@ function parse_options(options, calling_module)
             mode = enable ? "error" : "disable"
         end
     end
-    return StabilizationOptions(mode, codegen_level, union_limit)
+
+    options = StabilizationOptions(mode, codegen_level, union_limit)
+
+    if calling_module != Core.Main
+        # Local setting from Preferences.jl overrides defaults
+        return get_all_preferred(options, calling_module)
+    else
+        return options
+    end
 end
 
 end
