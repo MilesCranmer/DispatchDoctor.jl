@@ -109,9 +109,12 @@ end
     ignore_function(f)
 
 Globally ignore certain functions when stabilizing.
-By default, `Base.iterate` is ignored, as it is meant to be unstable.
+By default, a few functions in Base are ignored, as they are meant to
+be unstable, and will be inlined by the compiler.
 """
 @inline ignore_function(f) = false
 @inline ignore_function(::typeof(iterate)) = true
+@inline ignore_function(::typeof(getproperty)) = true
+@inline ignore_function(::typeof(setproperty!)) = true
 
 end
