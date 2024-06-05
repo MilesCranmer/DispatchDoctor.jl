@@ -820,7 +820,7 @@ end
         end
     end
 end
-@testitem "skip Base.iterate" begin
+@testitem "skip certain functions" begin
     using DispatchDoctor
     using DispatchDoctor: _Interactions as DDI
 
@@ -829,12 +829,16 @@ end
 
     struct MyTypeIterate end
     @stable begin
-        f(x) = x > 0 ? x : 0.0
-        Base.iterate(::MyTypeIterate) = (1, 1)
+        f() = Val(rand())
+        Base.iterate(::MyTypeIterate) = Val(rand())
+        Base.getproperty(::MyTypeIterate, ::Symbol) = Val(rand())
+        Base.setproperty!(::MyTypeIterate, ::Symbol, _) = Val(rand())
     end
     if DispatchDoctor.JULIA_OK
-        @test_throws TypeInstabilityError f(0)
-        @test iterate(MyTypeIterate()) == (1, 1)
+        @test_throws TypeInstabilityError f()
+        @test iterate(MyTypeIterate()) isa Val
+        @test getproperty(MyTypeIterate(), :x) isa Val
+        @test setproperty!(MyTypeIterate(), :x, 1) isa Val
     end
 end
 @testitem "conditionally allow union instabilities" begin
