@@ -113,8 +113,10 @@ By default, a few functions in Base are ignored, as they are meant to
 be unstable, and will be inlined by the compiler.
 """
 @inline ignore_function(f) = false
-@inline ignore_function(::typeof(iterate)) = true
-@inline ignore_function(::typeof(getproperty)) = true
-@inline ignore_function(::typeof(setproperty!)) = true
+@inline function ignore_function(
+    ::Union{map(typeof, (iterate, getproperty, setproperty!))...}
+)
+    return true
+end
 
 end
