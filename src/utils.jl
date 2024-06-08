@@ -112,8 +112,14 @@ return false for `Union{}`, so that errors can propagate.
 @generated function type_instability_limit_unions(
     ::Type{T}, ::Val{union_limit}
 ) where {T,union_limit}
-    result = _type_instability_recurse_unions(T) || _count_unions(T) > union_limit
-    return result
+    if T isa UnionAll
+        return true
+    elseif T <: Tuple
+        # So that Tuple{Union{Float32,Float64}} works as expected
+        return any(Base.Fix2(type_instability_limit_unions, Val(union_limit)), T.types)
+    else
+        return _type_instability_recurse_unions(T) || _count_unions(T) > union_limit
+    end
 end
 
 _count_unions(::Type{T}) where {T} = T isa Union ? (1 + _count_unions(T.b)) : 1
