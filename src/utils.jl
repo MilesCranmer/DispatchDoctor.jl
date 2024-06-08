@@ -109,4 +109,21 @@ return false for `Union{}`, so that errors can propagate.
 # so we implement a workaround.
 @inline type_instability(::Type{Type{T}}) where {T} = type_instability(T)
 
+@generated function type_instability_limit_unions(
+    ::Type{T}, ::Val{union_limit}
+) where {T,union_limit}
+    result = _type_instability_recurse_unions(T) || _count_unions(T) > union_limit
+    return result
+end
+
+_count_unions(::Type{T}) where {T} = T isa Union ? (1 + _count_unions(T.b)) : 1
+
+function _type_instability_recurse_unions(::Type{T}) where {T}
+    if T isa Union
+        type_instability(T.a) || _type_instability_recurse_unions(T.b)
+    else
+        type_instability(T)
+    end
+end
+
 end

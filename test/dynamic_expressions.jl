@@ -10,7 +10,8 @@ repo_url = "https://github.com/SymbolicML/DynamicExpressions.jl.git"
 destination_folder = joinpath(tempdir, "DynamicExpressions")
 commit_sha = "ea0076e263e559467a3a5d11996cbddc7c08f36b"
 
-run(`$(git()) clone --depth=1 "$repo_url" "$destination_folder"`)
+run(`$(git()) clone "$repo_url" "$destination_folder"`)
+run(`$(git()) -C "$destination_folder" checkout $commit_sha`)
 
 # Make edits to use DispatchDoctor:
 let
@@ -22,7 +23,7 @@ let
     insert!(lines, 3, "@stable default_mode=\"warn\" begin")
 
     # Find the index of the line to insert 'end' after 'include("Random.jl")'
-    index = findfirst(isequal("include(\"Random.jl\")"), lines)::Integer
+    index = findfirst(h -> occursin("include(\"Random.jl\")", h), lines)::Integer
     insert!(lines, index + 1, "end")
 
     new_contents = join(lines, "\n")

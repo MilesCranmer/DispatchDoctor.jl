@@ -9,9 +9,9 @@ using .._Utils:
     get_first_source_info,
     inject_symbol_to_arg,
     extract_symbol,
-    type_instability
+    type_instability,
+    type_instability_limit_unions
 using .._Errors: TypeInstabilityError, TypeInstabilityWarning
-using .._Preferences: get_preferred, GLOBAL_DEFAULT_MODE, GLOBAL_DEFAULT_CODEGEN_LEVEL
 using .._Interactions:
     ignore_function,
     get_macro_behavior,
@@ -19,80 +19,21 @@ using .._Interactions:
     CompatibleMacro,
     DontPropagateMacro
 using .._RuntimeChecks: is_precompiling, checking_enabled
+using .._ParseOptions: parse_options
 
 function _stable(args...; calling_module, source_info, kws...)
-    options, ex = args[begin:(end - 1)], args[end]
+    raw_options, ex = args[begin:(end - 1)], args[end]
+    options = parse_options(raw_options, calling_module)
 
-    # Standard defaults:
-    mode = GLOBAL_DEFAULT_MODE
-    codegen_level = GLOBAL_DEFAULT_CODEGEN_LEVEL
-
-    # Deprecated
-    warnonly = nothing
-    enable = nothing
-    for option in options
-        if option isa Expr && option.head == :(=)
-            if option.args[1] == :warnonly
-                warnonly = option.args[2]
-                continue
-            elseif option.args[1] == :enable
-                enable = option.args[2]
-                continue
-            elseif option.args[1] == :default_mode
-                mode = option.args[2]
-                continue
-            elseif option.args[1] == :default_codegen_level
-                codegen_level = option.args[2]
-                continue
-            end
-        end
-        error("Unknown macro option: $option")
-    end
-
-    # Load in any expression-based options
-    mode = if mode isa Expr
-        Core.eval(calling_module, mode)
-    else
-        (mode isa QuoteNode ? mode.value : mode)
-    end
-    # TODO: Deprecate passing expression here.
-    codegen_level = codegen_level isa QuoteNode ? codegen_level.value : codegen_level
-
-    if mode ∉ ("error", "warn", "disable")
-        error("Unknown mode: $mode. Please use \"error\", \"warn\", or \"disable\".")
-    end
-    if codegen_level ∉ ("debug", "min")
-        error("Unknown codegen level: $codegen_level. Please use \"debug\" or \"min\".")
-    end
-
-    mode::String
-    codegen_level::String
-
-    # Deprecated
-    warnonly = warnonly isa Expr ? Core.eval(calling_module, warnonly) : warnonly
-    enable = enable isa Expr ? Core.eval(calling_module, enable) : enable
-
-    if calling_module != Core.Main
-        # Local setting from Preferences.jl overrides defaults
-        mode = get_preferred(mode, calling_module, "instability_check")
-        codegen_level = get_preferred(
-            codegen_level, calling_module, "instability_check_codegen"
-        )
-        # TODO: Why do we need this try-catch? Seems like its used by e.g.,
-        # https://github.com/JuliaLang/PrecompileTools.jl/blob/a99446373f9a4a46d62a2889b7efb242b4ad7471/src/workloads.jl#L2C10-L11
-    end
-    if enable !== nothing
-        @warn "The `enable` option is deprecated. Please use `default_mode` instead, either \"error\", \"warn\", or \"disable\"."
-        if warnonly !== nothing
-            @warn "The `warnonly` option is deprecated. Please use `default_mode` instead, either \"error\", \"warn\", or \"disable\"."
-            mode = warnonly ? "warn" : (enable ? "error" : "disable")
-        else
-            mode = enable ? "error" : "disable"
-        end
-    end
-    if mode in ("error", "warn")
+    if options.mode in ("error", "warn")
         out, metadata = _stabilize_all(
-            ex, DownwardMetadata(); source_info, kws..., mode, codegen_level
+            ex,
+            DownwardMetadata();
+            source_info,
+            kws...,
+            options.mode,
+            options.codegen_level,
+            options.union_limit,
         )
         if metadata.matching_function == 0
             @warn(
@@ -249,6 +190,7 @@ function _stabilize_fnc(
     downward_metadata::DownwardMetadata;
     mode::String="error",
     codegen_level::String="debug",
+    union_limit::Int=0,
     source_info::Union{LineNumberNode,Nothing}=nothing,
 )
     func = splitdef(fex)
@@ -320,7 +262,7 @@ function _stabilize_fnc(
         error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
     end
 
-    checker = if isempty(kwarg_symbols)
+    infer = if isempty(kwarg_symbols)
         :($(Base).promote_op($simulator, map($specializing_typeof, ($(arg_symbols...),))...))
     else
         :($(Base).promote_op(
@@ -329,6 +271,12 @@ function _stabilize_fnc(
             typeof($simulator),
             map($specializing_typeof, ($(arg_symbols...),))...,
         ))
+    end
+
+    checker = if union_limit > 1
+        :($(type_instability_limit_unions)($T, Val($union_limit)))
+    else
+        :($(type_instability)($T))
     end
 
     caller = if codegen_level == "debug"
@@ -344,8 +292,8 @@ function _stabilize_fnc(
 
     func_simulator[:name] = simulator
     func[:body] = quote
-        $T = $checker
-        if $(type_instability)($T) && !$ignore && $(checking_enabled)()
+        $T = $infer
+        if $(checker) && !$ignore && $(checking_enabled)()
             $err
         end
 

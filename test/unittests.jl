@@ -837,6 +837,53 @@ end
         @test iterate(MyTypeIterate()) == (1, 1)
     end
 end
+@testitem "conditionally allow union instabilities" begin
+    using DispatchDoctor
+    @stable default_union_limit = 2 begin
+        # Just a union:
+        f(x) = x > 0 ? x : 0.0
+        # Full-blown type instability:
+        g() = Val(rand())
+    end
+    @test f(0) == 0
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g()
+end
+@testitem "disallow union if any element is unstable" begin
+    using DispatchDoctor
+    @stable default_union_limit = 2 function f(x)
+        return x > 0 ? Val(rand()) : x
+    end
+    # This should still fail because one of the elements is unstable!
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(0)
+end
+@testitem "unionall within union" begin
+    using DispatchDoctor
+    @stable default_union_limit = 2 function f(x)
+        return [x > 0 ? Val(rand()) : x]
+    end
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(0)
+end
+@testitem "larger union limit" begin
+    using DispatchDoctor
+
+    # Breaks with 4 unions:
+    @stable default_union_limit = 3 function f(x)
+        x = Union{Float16,Float32,Float64,BigFloat}[
+            one(Float16), one(Float32), one(Float64), one(BigFloat)
+        ]
+        return x[rand(1:4)]
+    end
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(0)
+
+    # But, now it works:
+    @stable default_union_limit = 4 function f(x)
+        x = Union{Float16,Float32,Float64,BigFloat}[
+            one(Float16), one(Float32), one(Float64), one(BigFloat)
+        ]
+        return x[rand(1:4)]
+    end
+    @test f(0) == 1
+end
 @testitem "skip global" begin
     using DispatchDoctor
     @stable struct A
