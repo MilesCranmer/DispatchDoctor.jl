@@ -22,5 +22,6 @@ struct TypeInstabilityWarning
     params::Any
     return_type::Any
 end
+show_warning(w::TypeInstabilityWarning, _) = (@warn w; nothing)
 
 end
