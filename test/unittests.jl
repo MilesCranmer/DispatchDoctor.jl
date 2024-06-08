@@ -884,6 +884,25 @@ end
     end
     @test f(0) == 1
 end
+@testitem "union limit respects tuple" begin
+    import DispatchDoctor as DD
+
+    U2 = Union{Float32,Float64}
+    U3 = Union{Float16,U2}
+    @test DD.type_instability(U2) == true
+    @test DD.type_instability_limit_unions(U2, Val(2)) == false
+    # Limit will also apply to tuples:
+    @test DD.type_instability(Tuple{U2,Bool}) == true
+    @test DD.type_instability_limit_unions(Tuple{U2,Bool}, Val(2)) == false
+
+    # Multiple unions – only max union split taken:
+    @test DD.type_instability_limit_unions(Tuple{U2,U2,Bool}, Val(2)) == false
+    @test DD.type_instability_limit_unions(Tuple{U2,U2,Bool}, Val(2)) == false
+    @test DD.type_instability_limit_unions(Tuple{U2,U3,Bool}, Val(2)) == true
+
+    # TypeVar should still be unstable
+    @test DD.type_instability_limit_unions(Tuple{U2,T} where {T}, Val(2)) == true
+end
 @testitem "skip global" begin
     using DispatchDoctor
     @stable struct A

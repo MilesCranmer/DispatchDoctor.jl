@@ -15,7 +15,7 @@ include("stabilization.jl")
 include("macros.jl")
 
 #! format: off
-using ._Utils: extract_symbol, JULIA_OK, Unknown, specializing_typeof, type_instability
+using ._Utils: extract_symbol, JULIA_OK, Unknown, specializing_typeof, type_instability, type_instability_limit_unions
 using ._Errors: TypeInstabilityError, TypeInstabilityWarning, AllowUnstableDataRace
 using ._Preferences
 using ._Printing
