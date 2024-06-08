@@ -110,7 +110,7 @@ end
 
 Globally ignore certain functions when stabilizing.
 By default, a few functions in Base are ignored, as they are meant to
-be unstable, and will be inlined by the compiler.
+be unstable, and will (hopefully) always be inlined by the compiler.
 """
 @inline ignore_function(f) = false
 @inline function ignore_function(
