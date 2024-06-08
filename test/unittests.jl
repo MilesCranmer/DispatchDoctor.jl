@@ -948,6 +948,63 @@ end
         end
     end
 end
+@testitem "Preferences.jl" begin
+    import DispatchDoctor._Preferences as DDP
+    import DispatchDoctor._ParseOptions as DDPO
+    import Preferences: load_preference, has_preference, get_uuid
+
+    abstract type FakeUUID end
+    abstract type FakeModule end
+    struct FakeModule1 <: FakeModule end
+    struct FakeModule2 <: FakeModule end
+    struct FakeModule3 <: FakeModule end
+    struct FakeUUID1 <: FakeUUID end
+    struct FakeUUID2 <: FakeUUID end
+    struct FakeUUID3 <: FakeUUID end
+
+    # Default:
+    @test DDP.uuid_type(Core.Main) == Base.UUID
+    DDP.uuid_type(::FakeModule) = FakeUUID
+    get_uuid(::FakeModule1) = FakeUUID1()
+    get_uuid(::FakeModule2) = FakeUUID2()
+    function load_preference(::FakeUUID, k, default)
+        if k == "instability_check"
+            return "a"
+        elseif k == "instability_check_codegen"
+            return "b"
+        elseif k == "instability_check_codegen_level"
+            return "c"
+        elseif k == "instability_check_union_limit"
+            return 7
+        end
+    end
+
+    options = DDP.StabilizationOptions("d", "e", 3)
+    m = FakeModule1()
+    # FakeModule 1 has all the keys:
+    has_preference(::FakeUUID1, k) = true
+    @test DDP.get_all_preferred(options, m) == DDP.StabilizationOptions("a", "c", 7)
+    # So it checks the `_codegen` key first^
+
+    # However, FakeModule2 is missing the `_codegen_level` key, and using
+    # the deprecated version:
+    m2 = FakeModule2()
+    has_preference(::FakeUUID2, k) = k != "instability_check_codegen_level"
+    @test DDP.get_all_preferred(options, m2) == DDP.StabilizationOptions("a", "b", 7)
+
+    # FakeModule3 takes the defaults for everything:
+    m3 = FakeModule3()
+    has_preference(::FakeUUID3, k) = false
+    options = DDP.StabilizationOptions("f", "g", 8)
+    @test DDP.get_all_preferred(options, m3) == options
+
+    # By default, passing Main will just return all the options:
+    @test DDPO.parse_options(Any[], Main) == DDP.StabilizationOptions(
+        DDP.GLOBAL_DEFAULT_MODE,
+        DDP.GLOBAL_DEFAULT_CODEGEN_LEVEL,
+        DDP.GLOBAL_DEFAULT_UNION_LIMIT,
+    )
+end
 @testitem "warn on no matches" begin
     using DispatchDoctor
     using Suppressor: @capture_err
