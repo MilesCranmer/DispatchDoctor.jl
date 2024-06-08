@@ -950,6 +950,7 @@ end
 end
 @testitem "Preferences.jl" begin
     import DispatchDoctor._Preferences as DDP
+    import DispatchDoctor._ParseOptions as DDPO
     import Preferences: load_preference, has_preference, get_uuid
 
     abstract type FakeUUID end
@@ -996,6 +997,13 @@ end
     has_preference(::FakeUUID3, k) = false
     options = DDP.StabilizationOptions("f", "g", 8)
     @test DDP.get_all_preferred(options, m3) == options
+
+    # By default, passing Main will just return all the options:
+    @test DDPO.parse_options(Any[], Main) == DDP.StabilizationOptions(
+        DDP.GLOBAL_DEFAULT_MODE,
+        DDP.GLOBAL_DEFAULT_CODEGEN_LEVEL,
+        DDP.GLOBAL_DEFAULT_UNION_LIMIT,
+    )
 end
 @testitem "warn on no matches" begin
     using DispatchDoctor
