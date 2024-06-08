@@ -956,9 +956,13 @@ end
     abstract type FakeModule end
     struct FakeModule1 <: FakeModule end
     struct FakeModule2 <: FakeModule end
+    struct FakeModule3 <: FakeModule end
     struct FakeUUID1 <: FakeUUID end
     struct FakeUUID2 <: FakeUUID end
+    struct FakeUUID3 <: FakeUUID end
 
+    # Default:
+    @test DDP.uuid_type(Core.Main) == Base.UUID
     DDP.uuid_type(::FakeModule) = FakeUUID
     get_uuid(::FakeModule1) = FakeUUID1()
     get_uuid(::FakeModule2) = FakeUUID2()
@@ -986,6 +990,12 @@ end
     m2 = FakeModule2()
     has_preference(::FakeUUID2, k) = k != "instability_check_codegen_level"
     @test DDP.get_all_preferred(options, m2) == DDP.StabilizationOptions("a", "b", 7)
+
+    # FakeModule3 takes the defaults for everything:
+    m3 = FakeModule3()
+    has_preference(::FakeUUID3, k) = false
+    options = DDP.StabilizationOptions("f", "g", 8)
+    @test DDP.get_all_preferred(options, m3) == options
 end
 @testitem "warn on no matches" begin
     using DispatchDoctor
