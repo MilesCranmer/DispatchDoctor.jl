@@ -68,6 +68,7 @@ jobs:
         os: ['ubuntu-latest']
         test:
           - "enzyme"
+          - "zygote"
           - "dynamic-expressions"
     env:
       DISPATCH_DOCTOR_TEST: ${{ matrix.test }}
