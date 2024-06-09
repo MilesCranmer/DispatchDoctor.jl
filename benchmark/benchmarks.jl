@@ -1,5 +1,5 @@
 using BenchmarkTools
-using DispatchDoctor: _stabilize_all
+using DispatchDoctor: _stable
 
 const SUITE = BenchmarkGroup()
 
@@ -23,13 +23,13 @@ ex = quote
     end
 end
 
-module EmptyModule
+@eval module EmptyModule
 end
 
 for mode in ("error", "warn", "disable")
     options = Any[:(default_mode=$mode)]
     SUITE["_stable"]["mode=$mode"] = @benchmarkable(
-        $_stable(ex, options; calling_module, source_info=nothing),
+        $(_stable)(ex, options; calling_module, source_info=nothing),
         setup=(ex=$ex; options=$options; calling_module=EmptyModule)
     )
 end
