@@ -1,0 +1,4 @@
+[FakePackage1]
+instability_check = "a"
+instability_check_codegen_level = "b"
+instability_check_union_limit = 3
