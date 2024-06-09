@@ -131,7 +131,17 @@ end
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(*, *)
     end
 end
+@testitem "QuoteNode in options" begin
+    using DispatchDoctor
+    using DispatchDoctor: _ParseOptions as DDPO
+    default_mode = "disable"
+    @eval @stable default_mode = $default_mode f() = Val(rand())
+    @test f() isa Val
+    @test DDPO._parse(QuoteNode(default_mode), String) == "disable"
 
+    # Edge case
+    @test DDPO._parse(nothing, String) == nothing
+end
 @testitem "showerror" begin
     using DispatchDoctor
 
