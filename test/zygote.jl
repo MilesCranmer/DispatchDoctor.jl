@@ -12,7 +12,6 @@ using Test
 
 # Still want errors to show up:
 @stable default_mode = "error" g(x) = x > 0 ? x : 0
-@test_skip false
 @test_throws TypeInstabilityError gradient(g, 1.0)
 
 end
