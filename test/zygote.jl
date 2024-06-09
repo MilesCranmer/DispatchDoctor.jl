@@ -1,5 +1,5 @@
 """Test that `@stable` is compatible with Zygote"""
-module EnzymeTest
+module ZygoteTest
 
 using DispatchDoctor: @stable, TypeInstabilityError
 using Zygote: gradient
@@ -13,7 +13,6 @@ using Test
 # Still want errors to show up:
 @stable default_mode = "error" g(x) = x > 0 ? x : 0
 @test_skip false
-@test_throws ErrorException gradient(g, 1.0)
-# TODO: How to get this to return the right error?
+@test_throws TypeInstabilityError gradient(g, 1.0)
 
 end

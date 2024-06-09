@@ -185,6 +185,8 @@ function _stabilize_module(ex, downward_metadata; kws...)
     )
 end
 
+_construct_pairs(x, y) = x .=> y
+
 function _stabilize_fnc(
     fex::Expr,
     downward_metadata::DownwardMetadata;
@@ -243,7 +245,7 @@ function _stabilize_fnc(
                 $(source_info),
                 ($(arg_symbols...),),
                 (; $(kwarg_symbols...)),
-                ($(where_param_symbols) .=> ($(where_param_symbols...),)),
+                ($(_construct_pairs)($(where_param_symbols), ($(where_param_symbols...),))),
                 $T,
             ),
         ))
@@ -254,7 +256,7 @@ function _stabilize_fnc(
                 $(source_info),
                 ($(arg_symbols...),),
                 (; $(kwarg_symbols...)),
-                ($(where_param_symbols) .=> ($(where_param_symbols...),)),
+                ($(_construct_pairs)($(where_param_symbols), ($(where_param_symbols...),))),
                 $T,
             ),
             0,
