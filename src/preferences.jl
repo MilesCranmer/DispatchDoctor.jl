@@ -69,10 +69,15 @@ function get_preferred(default, cache, calling_module, key, deprecated_key=nothi
     end
 end
 function get_all_preferred(options::StabilizationOptions, calling_module)
+    mode = get_preferred(
+        options.mode, PREFERENCE_CACHE.mode, calling_module, "instability_check"
+    )
+    if mode == "disable"
+        # Short circuit and quit early
+        return StabilizationOptions("disable", options.codegen_level, options.union_limit)
+    end
     return StabilizationOptions(
-        get_preferred(
-            options.mode, PREFERENCE_CACHE.mode, calling_module, "instability_check"
-        ),
+        mode,
         get_preferred(
             options.codegen_level,
             PREFERENCE_CACHE.codegen_level,
