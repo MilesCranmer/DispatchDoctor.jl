@@ -987,6 +987,13 @@ end
     if DispatchDoctor.JULIA_OK
         @test_throws TypeInstabilityError FakePackage3.f()
     end
+
+    # By default, passing Main will just return all the options:
+    @test DDPO.parse_options(Any[], Main) == DDP.StabilizationOptions(
+        DDP.GLOBAL_DEFAULT_MODE,
+        DDP.GLOBAL_DEFAULT_CODEGEN_LEVEL,
+        DDP.GLOBAL_DEFAULT_UNION_LIMIT,
+    )
 end
 @testitem "warn on no matches" begin
     using DispatchDoctor

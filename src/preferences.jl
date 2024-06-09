@@ -71,10 +71,7 @@ end
 function get_all_preferred(options::StabilizationOptions, calling_module)
     return StabilizationOptions(
         get_preferred(
-            options.mode,
-            PREFERENCE_CACHE.mode,
-            calling_module,
-            "instability_check"
+            options.mode, PREFERENCE_CACHE.mode, calling_module, "instability_check"
         ),
         get_preferred(
             options.codegen_level,
