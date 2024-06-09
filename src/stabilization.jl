@@ -11,7 +11,7 @@ using .._Utils:
     extract_symbol,
     type_instability,
     type_instability_limit_unions
-using .._Errors: TypeInstabilityError, TypeInstabilityWarning, show_warning
+using .._Errors: TypeInstabilityError, TypeInstabilityWarning
 using .._Interactions:
     ignore_function,
     get_macro_behavior,
@@ -185,6 +185,7 @@ function _stabilize_module(ex, downward_metadata; kws...)
     )
 end
 
+_show_warning(w::TypeInstabilityWarning) = (@warn w; nothing)
 _construct_pairs(x, y) = x .=> y
 
 function _stabilize_fnc(
@@ -250,7 +251,7 @@ function _stabilize_fnc(
             ),
         ))
     elseif mode == "warn"
-        :($(show_warning)(
+        :($(_show_warning)(
             $(TypeInstabilityWarning)(
                 $(print_name),
                 $(source_info),
@@ -259,11 +260,7 @@ function _stabilize_fnc(
                 ($(_construct_pairs)($(where_param_symbols), ($(where_param_symbols...),))),
                 $T,
             ),
-            0,
         ))
-        # We pass the `0` here to allow extension overloading on `::Int`.
-        # However, TODO, we may want to generalize this so other packages can
-        # overwrite.
     else
         error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
     end
