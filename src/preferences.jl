@@ -30,6 +30,7 @@ const PREFERENCE_CACHE = (;
     codegen_level=Cache{Base.UUID,Tuple{String,IsCached}}(),
     union_limit=Cache{Base.UUID,Tuple{Int,IsCached}}(),
 )
+# All of our preferences are compile-time only, so we can safely cache them
 
 function _cached_call(f::F, cache::Cache, key) where {F}
     lock(cache.lock) do
@@ -51,7 +52,6 @@ end
 function get_preferred(default, cache, calling_module, key, deprecated_key=nothing)
     uuid = _cached_get_uuid(calling_module)
     # ^Surprisingly it takes 600 us to get the UUID, so its worth the cache!
-    # Note that all of our preferences are compile-time only, so we can safely cache them
     # TODO: Though, this might need to be changed if Revise.jl becomes compatible
     (value, cached) = _cached_call(cache, uuid) do
         if has_preference(uuid, key)
