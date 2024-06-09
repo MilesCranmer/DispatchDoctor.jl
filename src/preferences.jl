@@ -13,13 +13,23 @@ const GLOBAL_DEFAULT_MODE = "error"
 const GLOBAL_DEFAULT_CODEGEN_LEVEL = "debug"
 const GLOBAL_DEFAULT_UNION_LIMIT = 1
 
-Base.@kwdef struct Cache{A,B}
-    cache::Dict{A,B} = Dict{A,B}()
-    lock::Threads.SpinLock = Threads.SpinLock()
+@enum IsCached::Bool begin
+    Cached
+    NotCached
 end
+struct Cache{A,B}
+    cache::Dict{A,B}
+    lock::Threads.SpinLock
+
+    Cache{A,B}() where {A,B} = new{A,B}(Dict{A,B}(), Threads.SpinLock())
+end
+
 const UUID_CACHE = Cache{UInt64,Base.UUID}()
-const HAS_PREFERENCE_CACHE = Cache{Tuple{Base.UUID,String},Bool}()
-const PREFERENCE_CACHE = Cache{Tuple{Base.UUID,String},String}()
+const PREFERENCE_CACHE = (;
+    mode=Cache{Base.UUID,Tuple{String,IsCached}}(),
+    codegen_level=Cache{Base.UUID,Tuple{String,IsCached}}(),
+    union_limit=Cache{Base.UUID,Tuple{Int,IsCached}}(),
+)
 
 function _cached_call(f::F, cache::Cache, key) where {F}
     lock(cache.lock) do
@@ -28,7 +38,6 @@ function _cached_call(f::F, cache::Cache, key) where {F}
         end
     end
 end
-# Surprisingly it takes 600 us to get the UUID, so its worth the cache!
 function _cached_get_uuid(m)
     _cached_call(UUID_CACHE, objectid(m)) do
         try
@@ -38,35 +47,49 @@ function _cached_get_uuid(m)
         end
     end
 end
-function _cached_has_preference(uuid, key)
-    _cached_call(HAS_PREFERENCE_CACHE, (uuid, key)) do
-        has_preference(uuid, key)
-    end
-end
-function _cached_load_preference(uuid, key)
-    _cached_call(PREFERENCE_CACHE, (uuid, key)) do
-        load_preference(uuid, key)
-    end
-end
 
-function get_preferred(default, calling_module, key, deprecated_key=nothing)
+function get_preferred(default, cache, calling_module, key, deprecated_key=nothing)
     uuid = _cached_get_uuid(calling_module)
-    if _cached_has_preference(uuid, key)
-        return _cached_load_preference(uuid, key)
-    elseif deprecated_key !== nothing && _cached_has_preference(uuid, deprecated_key)
-        return _cached_load_preference(uuid, deprecated_key)
+    # ^Surprisingly it takes 600 us to get the UUID, so its worth the cache!
+    # Note that all of our preferences are compile-time only, so we can safely cache them
+    # TODO: Though, this might need to be changed if Revise.jl becomes compatible
+    (value, cached) = _cached_call(cache, uuid) do
+        if has_preference(uuid, key)
+            (load_preference(uuid, key), Cached)
+        elseif deprecated_key !== nothing && has_preference(uuid, deprecated_key)
+            (load_preference(uuid, deprecated_key), Cached)
+        else
+            (default, NotCached)
+        end
+    end
+    if cached == Cached
+        return value
     else
         return default
     end
 end
-function get_all_preferred(options::StabilizationOptions, m)
-    #! format: off
+function get_all_preferred(options::StabilizationOptions, calling_module)
     return StabilizationOptions(
-        get_preferred(options.mode, m, "instability_check"),
-        get_preferred(options.codegen_level, m, "instability_check_codegen_level", "instability_check_codegen"),
-        get_preferred(options.union_limit, m, "instability_check_union_limit"),
+        get_preferred(
+            options.mode,
+            PREFERENCE_CACHE.mode,
+            calling_module,
+            "instability_check"
+        ),
+        get_preferred(
+            options.codegen_level,
+            PREFERENCE_CACHE.codegen_level,
+            calling_module,
+            "instability_check_codegen_level",
+            "instability_check_codegen",
+        ),
+        get_preferred(
+            options.union_limit,
+            PREFERENCE_CACHE.union_limit,
+            calling_module,
+            "instability_check_union_limit",
+        ),
     )
-    #! format: on
 end
 
 end
