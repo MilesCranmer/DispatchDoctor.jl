@@ -40,37 +40,27 @@ function parse_options(options, calling_module)
         error("Unknown macro option: $option")
     end
 
-    # Load in any expression-based options
-    #! format: off
-    mode = mode isa Expr ? Core.eval(calling_module, mode) : (mode isa QuoteNode ? mode.value : mode)
-    codegen_level = codegen_level isa QuoteNode ? codegen_level.value : codegen_level
-    union_limit = union_limit isa QuoteNode ? union_limit.value : union_limit
-    #! format: on
-    # TODO: Deprecate passing expression here.
+    mode = _parse_even_if_expr(mode, calling_module, String)
+    codegen_level = _parse(codegen_level, String)
+    union_limit = _parse(union_limit, Int)
 
-    if mode ∉ ("error", "warn", "disable")
-        error("Unknown mode: $mode. Please use \"error\", \"warn\", or \"disable\".")
-    end
-    if codegen_level ∉ ("debug", "min")
-        error("Unknown codegen level: $codegen_level. Please use \"debug\" or \"min\".")
-    end
-
-    mode::String
-    codegen_level::String
-    union_limit::Int
+    _validate_mode(mode)
+    _validate_codegen_level(codegen_level)
 
     # Deprecated
-    warnonly = warnonly isa Expr ? Core.eval(calling_module, warnonly) : warnonly
-    enable = enable isa Expr ? Core.eval(calling_module, enable) : enable
+    warnonly = _parse_even_if_expr(warnonly, calling_module, Bool)
+    enable = _parse_even_if_expr(enable, calling_module, Bool)
 
-    if enable !== nothing
+    mode = if enable !== nothing
         @warn "The `enable` option is deprecated. Please use `default_mode` instead, either \"error\", \"warn\", or \"disable\"."
         if warnonly !== nothing
             @warn "The `warnonly` option is deprecated. Please use `default_mode` instead, either \"error\", \"warn\", or \"disable\"."
-            mode = warnonly ? "warn" : (enable ? "error" : "disable")
+            warnonly ? "warn" : (enable ? "error" : "disable")
         else
-            mode = enable ? "error" : "disable"
+            enable ? "error" : "disable"
         end
+    else
+        mode
     end
 
     options = StabilizationOptions(mode, codegen_level, union_limit)
@@ -82,5 +72,28 @@ function parse_options(options, calling_module)
         return options
     end
 end
+
+function _validate_mode(mode)
+    if mode ∉ ("error", "warn", "disable")
+        error("Unknown mode: $mode. Please use \"error\", \"warn\", or \"disable\".")
+    end
+    return nothing
+end
+function _validate_codegen_level(codegen_level)
+    if codegen_level ∉ ("debug", "min")
+        error("Unknown codegen level: $codegen_level. Please use \"debug\" or \"min\".")
+    end
+    return nothing
+end
+
+# TODO: Deprecate passing expressions
+function _parse_even_if_expr(ex::Expr, calling_module, ::Type{T}) where {T}
+    return Core.eval(calling_module, ex)::T
+end
+_parse_even_if_expr(::Nothing, _, ::Type{T}) where {T} = nothing
+_parse_even_if_expr(ex, _, ::Type{T}) where {T} = _parse(ex, T)
+_parse(::Nothing, ::Type{T}) where {T} = nothing
+_parse(ex::QuoteNode, ::Type{T}) where {T} = ex.value::T
+_parse(ex, ::Type{T}) where {T} = ex::T
 
 end

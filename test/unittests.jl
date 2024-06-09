@@ -131,7 +131,17 @@ end
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(*, *)
     end
 end
+@testitem "QuoteNode in options" begin
+    using DispatchDoctor
+    using DispatchDoctor: _ParseOptions as DDPO
+    default_mode = "disable"
+    @eval @stable default_mode = $default_mode f() = Val(rand())
+    @test f() isa Val
+    @test DDPO._parse(QuoteNode(default_mode), String) == "disable"
 
+    # Edge case
+    @test DDPO._parse(nothing, String) == nothing
+end
 @testitem "showerror" begin
     using DispatchDoctor
 
@@ -949,54 +959,34 @@ end
     end
 end
 @testitem "Preferences.jl" begin
+    using DispatchDoctor
     import DispatchDoctor._Preferences as DDP
     import DispatchDoctor._ParseOptions as DDPO
-    import Preferences: load_preference, has_preference, get_uuid
+    import Preferences: set_preferences!, load_preference, has_preference, get_uuid
 
-    abstract type FakeUUID end
-    abstract type FakeModule end
-    struct FakeModule1 <: FakeModule end
-    struct FakeModule2 <: FakeModule end
-    struct FakeModule3 <: FakeModule end
-    struct FakeUUID1 <: FakeUUID end
-    struct FakeUUID2 <: FakeUUID end
-    struct FakeUUID3 <: FakeUUID end
+    push!(LOAD_PATH, joinpath(@__DIR__, "FakePackage1"))
+    push!(LOAD_PATH, joinpath(@__DIR__, "FakePackage2"))
+    push!(LOAD_PATH, joinpath(@__DIR__, "FakePackage3"))
 
-    # Default:
-    @test DDP.uuid_type(Core.Main) == Base.UUID
-    DDP.uuid_type(::FakeModule) = FakeUUID
-    get_uuid(::FakeModule1) = FakeUUID1()
-    get_uuid(::FakeModule2) = FakeUUID2()
-    function load_preference(::FakeUUID, k, default)
-        if k == "instability_check"
-            return "a"
-        elseif k == "instability_check_codegen"
-            return "b"
-        elseif k == "instability_check_codegen_level"
-            return "c"
-        elseif k == "instability_check_union_limit"
-            return 7
-        end
+    # These packages have `LocalPreferences.toml` with
+    # various settings
+    using FakePackage1
+
+    options = DDP.StabilizationOptions("d", "e", 6)
+    @test DDP.get_all_preferred(options, FakePackage1) ==
+        DDP.StabilizationOptions("a", "b", 3)
+
+    using FakePackage2
+    options = DDP.StabilizationOptions("d", "e", 6)
+    @test DDP.get_all_preferred(options, FakePackage2) ==
+        DDP.StabilizationOptions("d", "alpha", 6)
+
+    # FakePackage3 has no preferences
+    using FakePackage3
+    FakePackage3.eval(:($(DispatchDoctor).@stable f() = Val(rand())))
+    if DispatchDoctor.JULIA_OK
+        @test_throws TypeInstabilityError FakePackage3.f()
     end
-
-    options = DDP.StabilizationOptions("d", "e", 3)
-    m = FakeModule1()
-    # FakeModule 1 has all the keys:
-    has_preference(::FakeUUID1, k) = true
-    @test DDP.get_all_preferred(options, m) == DDP.StabilizationOptions("a", "c", 7)
-    # So it checks the `_codegen` key first^
-
-    # However, FakeModule2 is missing the `_codegen_level` key, and using
-    # the deprecated version:
-    m2 = FakeModule2()
-    has_preference(::FakeUUID2, k) = k != "instability_check_codegen_level"
-    @test DDP.get_all_preferred(options, m2) == DDP.StabilizationOptions("a", "b", 7)
-
-    # FakeModule3 takes the defaults for everything:
-    m3 = FakeModule3()
-    has_preference(::FakeUUID3, k) = false
-    options = DDP.StabilizationOptions("f", "g", 8)
-    @test DDP.get_all_preferred(options, m3) == options
 
     # By default, passing Main will just return all the options:
     @test DDPO.parse_options(Any[], Main) == DDP.StabilizationOptions(

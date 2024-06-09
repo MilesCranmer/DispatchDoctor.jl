@@ -13,32 +13,85 @@ const GLOBAL_DEFAULT_MODE = "error"
 const GLOBAL_DEFAULT_CODEGEN_LEVEL = "debug"
 const GLOBAL_DEFAULT_UNION_LIMIT = 1
 
-# (Just so we can test with custom UUID types)
-uuid_type(_) = Base.UUID
+@enum IsCached::Bool begin
+    Cached
+    NotCached
+end
+struct Cache{A,B}
+    cache::Dict{A,B}
+    lock::Threads.SpinLock
 
-function get_preferred(default, calling_module, key, deprecated_key=nothing)
-    try
-        uuid = get_uuid(calling_module)::uuid_type(calling_module)
-        if has_preference(uuid, key)
-            return load_preference(uuid, key, default)
-        elseif deprecated_key !== nothing && has_preference(uuid, deprecated_key)
-            return load_preference(uuid, deprecated_key, default)
-        else
-            return default
+    Cache{A,B}() where {A,B} = new{A,B}(Dict{A,B}(), Threads.SpinLock())
+end
+
+const UUID_CACHE = Cache{UInt64,Base.UUID}()
+const PREFERENCE_CACHE = (;
+    mode=Cache{Base.UUID,Tuple{String,IsCached}}(),
+    codegen_level=Cache{Base.UUID,Tuple{String,IsCached}}(),
+    union_limit=Cache{Base.UUID,Tuple{Int,IsCached}}(),
+)
+# All of our preferences are compile-time only, so we can safely cache them
+
+function _cached_call(f::F, cache::Cache, key) where {F}
+    lock(cache.lock) do
+        get!(cache.cache, key) do
+            f()
         end
-    catch
-        default
+    end
+end
+function _cached_get_uuid(m)
+    _cached_call(UUID_CACHE, objectid(m)) do
+        try
+            get_uuid(m)
+        catch
+            Base.UUID(0)
+        end
+    end
+end
+
+function get_preferred(default, cache, calling_module, key, deprecated_key=nothing)
+    uuid = _cached_get_uuid(calling_module)
+    # ^Surprisingly it takes 600 us to get the UUID, so its worth the cache!
+    # TODO: Though, this might need to be changed if Revise.jl becomes compatible
+    (value, cached) = _cached_call(cache, uuid) do
+        if has_preference(uuid, key)
+            (load_preference(uuid, key), Cached)
+        elseif deprecated_key !== nothing && has_preference(uuid, deprecated_key)
+            (load_preference(uuid, deprecated_key), Cached)
+        else
+            (default, NotCached)
+        end
+    end
+    if cached == Cached
+        return value
+    else
+        return default
     end
 end
 function get_all_preferred(options::StabilizationOptions, calling_module)
-    #! format: off
-    return StabilizationOptions(
-        get_preferred(options.mode, calling_module, "instability_check"),
-        get_preferred(options.codegen_level, calling_module, "instability_check_codegen_level", "instability_check_codegen"),
-        get_preferred(options.union_limit, calling_module, "instability_check_union_limit"),
+    mode = get_preferred(
+        options.mode, PREFERENCE_CACHE.mode, calling_module, "instability_check"
     )
-    #! format: on
-    # TODO: formally deprecate "instability_check_codegen
+    if mode == "disable"
+        # Short circuit and quit early
+        return StabilizationOptions("disable", options.codegen_level, options.union_limit)
+    end
+    return StabilizationOptions(
+        mode,
+        get_preferred(
+            options.codegen_level,
+            PREFERENCE_CACHE.codegen_level,
+            calling_module,
+            "instability_check_codegen_level",
+            "instability_check_codegen",
+        ),
+        get_preferred(
+            options.union_limit,
+            PREFERENCE_CACHE.union_limit,
+            calling_module,
+            "instability_check_union_limit",
+        ),
+    )
 end
 
 end
