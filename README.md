@@ -159,7 +159,7 @@ DispatchDoctor has no effect on your code by default.
 
 The mode is configurable
 via [Preferences.jl](https://github.com/JuliaPackaging/Preferences.jl),
-meaning that, within your `test/runtests.jl`, you could add a line:
+meaning that, within your `test/runtests.jl`, you could add a line **before importing your package**:
 
 ```julia
 using Preferences: set_preferences!
