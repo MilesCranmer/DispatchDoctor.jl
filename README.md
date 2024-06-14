@@ -206,7 +206,7 @@ you will also need to use `default_codegen_level="min"`.
 	- A function inside another function (a closure).
 		- But note the outer function will still be stabilized. So, e.g., `@stable f(x) = map(xi -> xi^2, x)` would stabilize `f`, but not `xi -> xi^2`. Though if `xi -> xi^2` were unstable, `f` would likely be as well, and it would get caught!
 
-Note that you can safely use `@stable` over all of these cases, it will simply be ignored. Although, if you use `@stable` internally in some of these cases, like calling `@stable` within a function on a closure, such as directly on the `xi -> xi^2`, then it can still apply.
+Note that you can safely use `@stable` over all of these cases, and special cases will automatically be skipped. Although, if you use `@stable` internally in some of these cases, like calling `@stable` within a function on a closure, such as directly on the `xi -> xi^2`, then it can still apply.
 
 
 
