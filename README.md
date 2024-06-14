@@ -180,30 +180,33 @@ by using the `"instability_check_codegen_level"` key.
 Note that for code coverage to work as expected over stabilized code,
 you will also need to use `default_codegen_level="min"`.
 
-### Additional notes
-
-Note that instability errors are automatically skipped during precompilation.
 
 > [!NOTE]
+> 
+> Instability errors are automatically skipped during precompilation.
+>
 > `@stable` will have no effect on code if it is:
 > - Within an `@unstable` block
-> - Within a macro definition
-> - A generated function
-> - Within a `quote` block
+> - Within a `@generated` block
+> - Within a `quote ... end` block
+> - Within a `macro ... end` block
 > - Within an incompatible macro, such as
 >    - `@eval`
 >    - `@generated`
 >    - `@assume_effects`
 >    - `@pure`
->    - Or anything else registered as incompatible `register_macro!`
-> - If the function name is an expression (such as parameterized functions like `MyType{T}(args...) = ...`)
+>    - Or anything else registered as incompatible with `register_macro!`
+> - Parameterized functions like `MyType{T}(args...) = ...`
+> - Functions with an expression-based name like `(::MyType)(args...) = ...`
 > - A function inside another function (a closure).
->    - But note the outer function will still be stabilized. So, e.g., `@stable f(x) = map(xi -> xi^2, x)` would stabilize `f`, but not `xi -> xi^2`. Though if `xi -> xi^2` were unstable, `f` would likely be as well, and it would get caught.
+>    - But note the outer function will still be stabilized. So, e.g., `@stable f(x) = map(xi -> xi^2, x)` would stabilize `f`, but not `xi -> xi^2`. Though if `xi -> xi^2` were unstable, `f` would likely be as well, and it would get caught!
 >
 > You can safely use `@stable` over all of these cases, it will simply be ignored.
 > Although, if you use `@stable` *internally* in any of these cases, (like calling `@stable` *within* a function on a closure, such as directly on the `xi -> xi^2`), then it will still apply.
 >
 > Also, `@stable` has no effect on code in unsupported Julia versions.
+>
+> `@stable` will recurse through `include`. However, if you edit the included file and load the changes with Revise.jl, the instability errors will get stripped (see [Revise#634](https://github.com/timholy/Revise.jl/issues/634)).
 
 ## Eliminating Type Instabilities
 
