@@ -181,32 +181,34 @@ Note that for code coverage to work as expected over stabilized code,
 you will also need to use `default_codegen_level="min"`.
 
 
+## Special Cases
+
 > [!NOTE]
-> 
-> Instability errors are automatically skipped during precompilation.
->
-> `@stable` will have no effect on code if it is:
-> - Within an `@unstable` block
-> - Within a `@generated` block
-> - Within a `quote ... end` block
-> - Within a `macro ... end` block
-> - Within an incompatible macro, such as
->    - `@eval`
->    - `@generated`
->    - `@assume_effects`
->    - `@pure`
->    - Or anything else registered as incompatible with `register_macro!`
-> - Parameterized functions like `MyType{T}(args...) = ...`
-> - Functions with an expression-based name like `(::MyType)(args...) = ...`
-> - A function inside another function (a closure).
->    - But note the outer function will still be stabilized. So, e.g., `@stable f(x) = map(xi -> xi^2, x)` would stabilize `f`, but not `xi -> xi^2`. Though if `xi -> xi^2` were unstable, `f` would likely be as well, and it would get caught!
->
-> You can safely use `@stable` over all of these cases, it will simply be ignored.
-> Although, if you use `@stable` *internally* in any of these cases, (like calling `@stable` *within* a function on a closure, such as directly on the `xi -> xi^2`), then it will still apply.
->
-> Also, `@stable` has no effect on code in unsupported Julia versions.
->
-> `@stable` will recurse through `include`. However, if you edit the included file and load the changes with Revise.jl, the instability errors will get stripped (see [Revise#634](https://github.com/timholy/Revise.jl/issues/634)).
+> There are several scenarios and special cases for which type instabilities will be ignored: (1) during precompilation, (2) in supported Julia versions, (3) when loading code changes with Revise.jl\*, and (4) within certain code blocks and function types. These are discussed below.
+
+1. **During precompilation.**
+2. **In unsupported Julia versions**.
+3. **When loading code changes with Revise.jl\*.**
+   - \*Basically, `@stable` will attempt to travel through any `include`'s. However, if you edit the included file and load the changes with Revise.jl, instability checks will get stripped (see [Revise#634](https://github.com/timholy/Revise.jl/issues/634)). The result will be that the `@stable` will be ignored.
+4. **Within certain code blocks and function types:**
+    - Within an `@unstable` block
+    - Within a `@generated` block
+	- Within a `quote ... end` block
+	- Within a `macro ... end` block
+	- Within an incompatible macro, such as
+		- `@eval`
+		- `@generated`
+		- `@assume_effects`
+		- `@pure`
+		- Or anything else registered as incompatible with `register_macro!`
+	- Parameterized functions like `MyType{T}(args...) = ...`
+	- Functions with an expression-based name like `(::MyType)(args...) = ...`
+	- A function inside another function (a closure).
+		- But note the outer function will still be stabilized. So, e.g., `@stable f(x) = map(xi -> xi^2, x)` would stabilize `f`, but not `xi -> xi^2`. Though if `xi -> xi^2` were unstable, `f` would likely be as well, and it would get caught!
+
+Note that you can safely use `@stable` over all of these cases, it will simply be ignored. Although, if you use `@stable` internally in some of these cases, like calling `@stable` within a function on a closure, such as directly on the `xi -> xi^2`, then it can still apply.
+
+
 
 ## Eliminating Type Instabilities
 
