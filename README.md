@@ -183,7 +183,7 @@ you will also need to use `default_codegen_level="min"`.
 ## Special Cases
 
 > [!NOTE]
-> There are several scenarios and special cases for which type instabilities will be ignored: (1) during precompilation, (2) in supported Julia versions, (3) when loading code changes with Revise.jl\*, and (4) within certain code blocks and function types. These are discussed below.
+> There are several scenarios and special cases for which type instabilities will be ignored. These are discussed below.
 
 1. **During precompilation.**
 2. **In unsupported Julia versions**.
