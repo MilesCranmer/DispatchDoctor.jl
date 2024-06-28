@@ -238,4 +238,4 @@ your function calls to help you locate the source of the instability.
 ## Credits
 
 Many thanks to @chriselrod and @thofma for tips on this
-[discord thread](https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697).
+[discourse thread](https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697).
