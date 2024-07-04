@@ -2,8 +2,6 @@ module DispatchDoctor
 
 export @stable, @unstable, allow_unstable, TypeInstabilityError, register_macro!
 
-using TestItems: @testitem
-
 include("utils.jl")
 include("errors.jl")
 include("printing.jl")
