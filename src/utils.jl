@@ -96,6 +96,8 @@ specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(::Val{T}) where {T} = Val{T}
 
+_promote_op(f, S::Type...) = Base.promote_op(f, S...)
+
 """
     type_instability(T::Type)
 
