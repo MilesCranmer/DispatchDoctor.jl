@@ -14,4 +14,8 @@ using Test
 @stable default_mode = "error" g(x) = x > 0 ? x : 0
 @test_throws TypeInstabilityError gradient(g, 1.0)
 
+# Issue https://github.com/MilesCranmer/DispatchDoctor.jl/issues/46
+@stable g(x) = 1
+@inferred gradient(g, 1.0)
+
 end

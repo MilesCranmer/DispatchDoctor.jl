@@ -95,6 +95,17 @@ end
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(::Val{T}) where {T} = Val{T}
+map_specializing_typeof(args...) = map(specializing_typeof, args)
+
+_promote_op(f, S::Type...) = Base.promote_op(f, S...)
+_promote_op(f, S::Tuple) = _promote_op(f, S...)
+@static if isdefined(Core, :kwcall)
+    function _promote_op(
+        ::typeof(Core.kwcall), ::Type{Kwargs}, ::Type{F}, S::Tuple
+    ) where {Kwargs,F}
+        return _promote_op(Core.kwcall, Kwargs, F, S...)
+    end
+end
 
 """
     type_instability(T::Type)
