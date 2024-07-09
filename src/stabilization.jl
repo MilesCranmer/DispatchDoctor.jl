@@ -5,6 +5,7 @@ using MacroTools: @capture, combinedef, splitdef, isdef, longdef
 
 using .._Utils:
     specializing_typeof,
+    map_specializing_typeof,
     _promote_op,
     is_function_name_compatible,
     get_first_source_info,
@@ -266,15 +267,15 @@ function _stabilize_fnc(
         error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
     end
 
-    typeof_args = map(s -> Expr(:call, specializing_typeof, s), arg_symbols)
+    typeof_args = Expr(:call, map_specializing_typeof, arg_symbols...)
     infer = if isempty(kwarg_symbols)
-        :($(_promote_op)($simulator, $(typeof_args...)))
+        :($(_promote_op)($simulator, $(typeof_args)))
     else
         :($(_promote_op)(
             Core.kwcall,
             typeof((; $(kwarg_symbols...))),
             typeof($simulator),
-            $(typeof_args...),
+            $(typeof_args),
         ))
     end
 
