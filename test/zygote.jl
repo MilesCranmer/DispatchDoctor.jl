@@ -1,7 +1,7 @@
 """Test that `@stable` is compatible with Zygote"""
 module ZygoteTest
 
-using DispatchDoctor: @stable, TypeInstabilityError
+using DispatchDoctor: @stable, TypeInstabilityError, _RuntimeChecks
 using Zygote: gradient
 using Test
 
@@ -17,5 +17,12 @@ using Test
 # Issue https://github.com/MilesCranmer/DispatchDoctor.jl/issues/46
 @stable g(x) = 1
 @inferred gradient(g, 1.0)
+
+# Test foreingcall expressions doesn't lead to errors
+is_precompiling(x) = _RuntimeChecks.is_precompiling()
+@test only(gradient(is_precompiling, 1.0)) === nothing
+
+checking_enabled(x) = _RuntimeChecks.checking_enabled()
+@test only(gradient(checking_enabled, 1.0)) === nothing
 
 end
