@@ -12,7 +12,7 @@
 
 </div>
 
-## Usage
+## 💊 Usage
 
 This package provides the `@stable` macro
 to enforce that functions have type stable return values.
@@ -119,7 +119,7 @@ julia> allow_unstable() do
 although this will error if you try to use it simultaneously
 from two separate threads.
 
-### Options
+### 🧪 Options
 
 You can provide the following options to `@stable`:
 
@@ -135,7 +135,7 @@ You can provide the following options to `@stable`:
 
 Each of these is denoted a `default_` because you may set them globally or at a per-package level with `Preferences.jl` (see below).
 
-### Usage in packages
+### 🚑 Usage in packages
 
 You might find it useful to *only* enable `@stable` during unit-testing,
 to have it check every function in a library, but not throw errors for
@@ -180,7 +180,7 @@ by using the `"instability_check_codegen_level"` key.
 Note that for code coverage to work as expected over stabilized code,
 you will also need to use `default_codegen_level="min"`.
 
-## Special Cases
+## 🔬 Special Cases
 
 > [!NOTE]
 > There are several scenarios and special cases for which type instabilities will be ignored. These are discussed below.
@@ -209,7 +209,7 @@ Note that you can safely use `@stable` over all of these cases, and special case
 
 
 
-## Eliminating Type Instabilities
+## 🩹 Eliminating Type Instabilities
 
 Say that you start using `@stable` and you run into a type instability error.
 What then? How should you fix it?
@@ -230,12 +230,12 @@ provide more detailed type instability reports in an easier-to-read
 format than `@code_warntype`. Both packages can also descend into
 your function calls to help you locate the source of the instability.
 
-## Caveats
+## 🦠 Caveats
 
 - Using `@stable` is likely to increase precompilation time. (To reduce this effect, try the `default_codegen_level` above)
 - Using `@stable` over an entire package may result in flagging type instabilities on small functions that act as aliases and may otherwise be inlined by the Julia compiler. Try putting `@unstable` on any suspected such functions if needed.
 
-## Credits
+## 🧑‍⚕️ Credits
 
 Many thanks to @chriselrod and @thofma for tips on this
 [discourse thread](https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697).
