@@ -267,7 +267,7 @@ function _stabilize_fnc(
         error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
     end
 
-    typeof_args = Expr(:call, map_specializing_typeof, arg_symbols...)
+    typeof_args = :($(map_specializing_typeof)(($(arg_symbols...),)))
     infer = if isempty(kwarg_symbols)
         :($(_promote_op)($simulator, $(typeof_args)))
     else
