@@ -269,7 +269,7 @@ function _stabilize_fnc(
 
     typeof_args = :($(map_specializing_typeof)(($(arg_symbols...),)))
     infer = if isempty(kwarg_symbols)
-        :($(_promote_op)($simulator, $typeof_args))
+        :($(_promote_op)($simulator, $(typeof_args)...))
     else
         :($(_promote_op)(
             Core.kwcall,

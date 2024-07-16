@@ -97,8 +97,17 @@ specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(::Val{T}) where {T} = Val{T}
 map_specializing_typeof(args::Tuple) = map(specializing_typeof, args)
 
-_promote_op(f, S::Type...) = Base.promote_op(f, S...)
-_promote_op(f, S::Tuple) = Base.promote_op(f, S...)
+#! format: on
+function _promote_op(f, S::Vararg{Type})
+    if @generated
+        # TODO: Remove once if this compilation issue is fixed within Julia:
+        # https://github.com/MilesCranmer/DispatchDoctor.jl/issues/51
+        :(Base.promote_op(f, S...))
+    else
+        Base.promote_op(f, S...)
+    end
+end
+#! format: off
 @static if isdefined(Core, :kwcall)
     function _promote_op(
         ::typeof(Core.kwcall), ::Type{Kwargs}, ::Type{F}, S::Tuple
