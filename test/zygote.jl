@@ -18,7 +18,7 @@ using Test
 @stable g(x) = 1
 @inferred gradient(g, 1.0)
 
-# Test foreingcall expressions doesn't lead to errors
+# Test foreign call expressions doesn't lead to errors
 is_precompiling(x) = _RuntimeChecks.is_precompiling()
 @test only(gradient(is_precompiling, 1.0)) === nothing
 
