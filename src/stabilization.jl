@@ -227,12 +227,13 @@ function _stabilize_fnc(
         print_name = "anonymous function"
     end
 
-    args = map(inject_symbol_to_arg, func[:args])
+    args_destructurings = map(inject_symbol_to_arg, func[:args])
+    args = first.(args_destructurings)
+    destructurings = filter(!isnothing, last.(args_destructurings))
     kwargs = func[:kwargs]
     where_params = func[:whereparams]
 
     func[:args] = args
-    func_simulator[:args] = deepcopy(args)
 
     arg_symbols = map(extract_symbol, args)
     kwarg_symbols = map(extract_symbol, kwargs)
@@ -287,7 +288,8 @@ function _stabilize_fnc(
 
     caller = if codegen_level == "debug"
         # Duplicate entire body, so `@code_warntype` works
-        func[:body]
+        # Prepend destructuring expressions from signature
+        Expr(:block, destructurings..., func[:body])
     elseif isempty(kwarg_symbols)
         :($simulator($(arg_symbols...)))
     else

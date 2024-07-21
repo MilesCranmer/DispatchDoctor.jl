@@ -50,32 +50,35 @@ function extract_symbol(ex::Expr, fullex=ex)
 end
 
 """
-Fix args that do not have a symbol.
+Fix args that do not have a symbol or are destructured in the signature. Return gensymmed
+arg expression and, if needed, an equivalent destructuring assignment for the body.
 """
 function inject_symbol_to_arg(ex::Symbol)
-    return ex
+    return ex, nothing
 end
 function inject_symbol_to_arg(ex::Expr)
-    if ex.head == :(::) && length(ex.args) == 1
-        return Expr(:(::), gensym("arg"), ex.args[1])
-    elseif ex.head == :(kw) &&
-        length(ex.args) == 2 &&
-        ex.args[1] isa Expr &&
-        ex.args[1].head == :(::) &&
-        length(ex.args[1].args) == 1
-
-        # Matches things like `::Type{T}=MyType`
-        return Expr(:(kw), Expr(:(::), gensym("arg"), ex.args[1].args[1]), ex.args[2])
-    elseif ex.head == :(...) &&
-        length(ex.args) == 1 &&
-        ex.args[1] isa Expr &&
-        ex.args[1].head == :(::) &&
-        length(ex.args[1].args) == 1
-
-        # Matches things like `::Int...`
-        return Expr(:(...), Expr(:(::), gensym("arg"), ex.args[1].args[1]))
+    if ex.head == :(tuple)
+        # Base case: matches things like (x,) and (; x)
+        arg = gensym("arg")
+        return arg, Expr(:(=), ex, arg)
+    elseif ex.head == :(::) && length(ex.args) == 1
+        # Base case: matches things like `::T`
+        arg = gensym("arg")
+        return Expr(:(::), arg, ex.args[1]), nothing
+    elseif ex.head == :(::) && length(ex.args) == 2
+        # Composite case: matches things like `(x,)::T` and `(; x)::T`
+        arg_ex, destructure_ex = inject_symbol_to_arg(ex.args[1])
+        return Expr(:(::), arg_ex, ex.args[2]), destructure_ex
+    elseif ex.head == :(kw) && length(ex.args) == 2
+        # Composite case: matches things like `::Type{T}=MyType`
+        arg_ex, destructure_ex = inject_symbol_to_arg(ex.args[1])
+        return Expr(:(kw), arg_ex, ex.args[2]), destructure_ex
+    elseif ex.head == :(...) && length(ex.args) == 1
+        # Composite case: matches things like `::Int...`
+        arg_ex, destructure_ex = inject_symbol_to_arg(ex.args[1])
+        return Expr(:(...), arg_ex), destructure_ex
     else
-        return ex
+        return ex, nothing
     end
 end
 
