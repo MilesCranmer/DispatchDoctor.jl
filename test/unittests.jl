@@ -195,7 +195,7 @@ end
             )
             @eval @stable(
                 default_codegen_level = $codegen_level,
-                k(a, (; x, y)=(; z=a, x=2, y=3)) = x + y,
+                k(a, (; x, y)=(; z=1, x=a, y=3)) = x + y,
             )
             #! format: on
             @test f(S2(1, 2.0)) == 3.0
@@ -212,7 +212,7 @@ end
                 @test_throws TypeInstabilityError h([3, 4], U2(1, 2.0))
             DispatchDoctor.JULIA_OK &&
                 @test_throws TypeInstabilityError h(Any[3, 4], S2(1, 2.0))
-            @test k(nothing) == 5
+            @test k(1) == 4
             @test k(nothing, S2(1, 2.0)) == 3.0
             DispatchDoctor.JULIA_OK &&
                 @test_throws TypeInstabilityError k(nothing, U2(1, 2.0))
