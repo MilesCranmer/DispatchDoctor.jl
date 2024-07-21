@@ -50,33 +50,35 @@ function extract_symbol(ex::Expr, fullex=ex)
 end
 
 """
-Fix args that do not have a symbol or are destructured in the signature. Return gensymmed
+Amend args that do not have a symbol or are destructured in the signature. Return gensymmed
 arg expression and, if needed, an equivalent destructuring assignment for the body.
 """
 function inject_symbol_to_arg(ex::Symbol)::Tuple{Union{Expr,Symbol},Union{Expr,Nothing}}
     return ex, nothing
 end
 function inject_symbol_to_arg(ex::Expr)::Tuple{Union{Expr,Symbol},Union{Expr,Nothing}}
-    if ex.head == :(tuple)
-        # Base case: matches things like (x,) and (; x)
+    head, args = ex.head, ex.args
+    if head == :(tuple)
+        # (Base case)
+        # matches things like (x,) and (; x)
         arg = gensym("arg")
         return arg, Expr(:(=), ex, arg)
-    elseif ex.head == :(::) && length(ex.args) == 1
-        # Base case: matches things like `::T`
+    elseif head == :(::) && length(args) == 1
+        # (Base case)
+        # matches things like `::T`
         arg = gensym("arg")
-        return Expr(:(::), arg, ex.args[1]), nothing
-    elseif ex.head == :(::) && length(ex.args) == 2
-        # Composite case: matches things like `(x,)::T` and `(; x)::T`
-        arg_ex, destructure_ex = inject_symbol_to_arg(ex.args[1])
-        return Expr(:(::), arg_ex, ex.args[2]), destructure_ex
-    elseif ex.head == :(kw) && length(ex.args) == 2
-        # Composite case: matches things like `::Type{T}=MyType`
-        arg_ex, destructure_ex = inject_symbol_to_arg(ex.args[1])
-        return Expr(:(kw), arg_ex, ex.args[2]), destructure_ex
-    elseif ex.head == :(...) && length(ex.args) == 1
-        # Composite case: matches things like `::Int...`
-        arg_ex, destructure_ex = inject_symbol_to_arg(ex.args[1])
-        return Expr(:(...), arg_ex), destructure_ex
+        return Expr(head, arg, only(args)), nothing
+    elseif head == :(...) && length(args) == 1
+        # (Composite case)
+        # matches things like `::Int...`
+        arg_ex, destructure_ex = inject_symbol_to_arg(only(args))
+        return Expr(head, arg_ex), destructure_ex
+    elseif head in (:kw, :(::)) && length(args) == 2
+        # (Composite case)
+        # :(::) => matches things like `(x,)::T` and `(; x)::T`
+        # :kw => matches things like `::Type{T}=MyType`
+        arg_ex, destructure_ex = inject_symbol_to_arg(first(args))
+        return Expr(head, arg_ex, last(args)), destructure_ex
     else
         return ex, nothing
     end
