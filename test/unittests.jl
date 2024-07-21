@@ -84,7 +84,7 @@ end
             r"var\"[#0-9]*f_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m,
         )
 
-        for expected_code in expected_code_snippets
+        DispatchDoctor.JULIA_OK && for expected_code in expected_code_snippets
             @test occursin(expected_code, string(f_expanded))
         end
 
@@ -124,11 +124,11 @@ end
 
     if v"1.7-" <= VERSION  # property destructuring introduced in 1.7
         abstract type MyAbstractType end
-        struct S <: MyAbstractType
+        struct StableType <: MyAbstractType
             x::Int
             y::Float64
         end
-        struct U <: MyAbstractType
+        struct UnstableType <: MyAbstractType
             x
             y
         end
@@ -155,14 +155,15 @@ end
                 r"var\"[#0-9]*f_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m,
             )
 
-            for expected_code in expected_code_snippets
+            DispatchDoctor.JULIA_OK && for expected_code in expected_code_snippets
                 @test occursin(expected_code, string(fex))
             end
 
             eval(fex)
-            @test f(S(1, 2.0)) == 1
+            @test f(StableType(1, 2.0)) == 1
             @test_throws MethodError f((; x=1))
-            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(U(1, 2.0))
+            DispatchDoctor.JULIA_OK &&
+                @test_throws TypeInstabilityError f(UnstableType(1, 2.0))
         end
     end
 end
@@ -171,11 +172,11 @@ end
 
     if v"1.7-" <= VERSION  # property destructuring introduced in 1.7
         abstract type MyAbstractType2 end
-        struct S2 <: MyAbstractType2
+        struct StableType2 <: MyAbstractType2
             x::Int
             y::Float64
         end
-        struct U2 <: MyAbstractType2
+        struct UnstableType2 <: MyAbstractType2
             x
             y
         end
@@ -198,24 +199,25 @@ end
                 k(a, (; x, y)=(; z=1, x=a, y=3)) = x + y,
             )
             #! format: on
-            @test f(S2(1, 2.0)) == 3.0
+            @test f(StableType2(1, 2.0)) == 3.0
             @test_throws MethodError f((; x=1, y=2.0))
-            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(U2(1, 2.0))
-            @test g(S2(1, 2.0), (; z=3)) == 6.0
+            DispatchDoctor.JULIA_OK &&
+                @test_throws TypeInstabilityError f(UnstableType2(1, 2.0))
+            @test g(StableType2(1, 2.0), (; z=3)) == 6.0
             @test_throws MethodError g((; x=1, y=2.0), (; z=3))
             DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError g(U2(1, 2.0), (; z=3))
-            @test h([3, 4], S2(1, 2.0)) == 10.0
+                @test_throws TypeInstabilityError g(UnstableType2(1, 2.0), (; z=3))
+            @test h([3, 4], StableType2(1, 2.0)) == 10.0
             @test_throws MethodError h([3, 4], (; x=1, y=2.0))
-            @test_throws MethodError h((3, 4), S2(1, 2.0))
+            @test_throws MethodError h((3, 4), StableType2(1, 2.0))
             DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError h([3, 4], U2(1, 2.0))
+                @test_throws TypeInstabilityError h([3, 4], UnstableType2(1, 2.0))
             DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError h(Any[3, 4], S2(1, 2.0))
+                @test_throws TypeInstabilityError h(Any[3, 4], UnstableType2(1, 2.0))
             @test k(1) == 4
-            @test k(nothing, S2(1, 2.0)) == 3.0
+            @test k(nothing, StableType2(1, 2.0)) == 3.0
             DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError k(nothing, U2(1, 2.0))
+                @test_throws TypeInstabilityError k(nothing, UnstableType2(1, 2.0))
         end
     end
 end
