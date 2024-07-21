@@ -52,6 +52,178 @@ end
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(1; y=2.0)
     end
 end
+@testitem ":: tuple args" begin
+    using DispatchDoctor
+
+    for codegen_level in ("debug", "min")
+        #! format: off
+        f_expanded = @eval @macroexpand @stable(
+            default_codegen_level = $codegen_level,
+            function f((x,)::Vector)
+                return x
+            end
+        )
+        #! format: on
+
+        expected_code_snippets = [
+            # Original signature preserved in simulator:
+            r"function var\"[#0-9]*f_simulator[#0-9]*\"\(\(x,\)::Vector[,; ]*\)$"m,
+            # Gensymmed arg used in new signature:
+            r"function f\(var\"[#0-9]*arg[#0-9]*\"::Vector[,; ]*\)$"m,
+            # Gensymmed arg used in instability check:
+            r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"",
+        ]
+
+        # Destructuring assignment in body:
+        codegen_level == "debug" &&
+            push!(expected_code_snippets, r"\(x,\) = var\"[#0-9]*arg[#0-9]*\"$"m)
+
+        # Simulator called with gensymmed arg
+        codegen_level == "min" && push!(
+            expected_code_snippets,
+            r"var\"[#0-9]*f_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m,
+        )
+
+        DispatchDoctor.JULIA_OK && for expected_code in expected_code_snippets
+            @test occursin(expected_code, string(f_expanded))
+        end
+
+        eval(f_expanded)
+
+        @test f([1]) == 1
+        @test_throws MethodError f((1,)) == 1
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(Any[1])
+    end
+end
+@testitem "multiple tuple args" begin
+    using DispatchDoctor
+
+    for codegen_level in ("debug", "min")
+        #! format: off
+        @eval @stable(
+            default_codegen_level = $codegen_level,
+            f((x, y)::Vector) = x + y,
+        )
+        @eval @stable(
+            default_codegen_level = $codegen_level,
+            g((x, y)::Vector, (z,)) = x + y + z,
+        )
+        #! format: on
+
+        @test f([1, 2]) == 3
+        @test g([1, 2], (3,)) == 6
+
+        @test_throws MethodError f((1, 2))
+        @test_throws MethodError g((1, 2), (3,))
+
+        if DispatchDoctor.JULIA_OK
+            @test_throws TypeInstabilityError f(Any[1, 2])
+            @test_throws TypeInstabilityError g(Any[1, 2], (3,))
+        end
+    end
+end
+@testitem "property destructuring" begin
+    using DispatchDoctor
+
+    if v"1.7-" <= VERSION  # property destructuring introduced in 1.7
+        abstract type MyAbstractType end
+        struct StableType <: MyAbstractType
+            x::Int
+            y::Float64
+        end
+        struct UnstableType <: MyAbstractType
+            x
+            y
+        end
+        for codegen_level in ("debug", "min")
+            #! format: off
+            fex = @eval @macroexpand @stable(
+                default_codegen_level = $codegen_level,
+                f((; x)::MyAbstractType) = x
+            )
+            #! format: on
+
+            expected_code_snippets = [
+                # Original signature preserved in simulator
+                r"function var\"[#0-9]*f_simulator[#0-9]*\"\(\(; x\)::MyAbstractType[,; ]*\)$"m,
+                # Gensymmed arg used in new signature
+                r"function f\(var\"[#0-9]*arg[#0-9]*\"::MyAbstractType[,; ]*\)$"m,
+                # Gensymmed arg used in instability check
+                r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"",
+            ]
+            codegen_level == "debug" &&
+                push!(expected_code_snippets, r"\(; x\) = var\"[#0-9]*arg[#0-9]*\"$"m)
+            codegen_level == "min" && push!(
+                expected_code_snippets,
+                r"var\"[#0-9]*f_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m,
+            )
+
+            DispatchDoctor.JULIA_OK && for expected_code in expected_code_snippets
+                @test occursin(expected_code, string(fex))
+            end
+
+            eval(fex)
+            @test f(StableType(1, 2.0)) == 1
+            @test_throws MethodError f((; x=1))
+            DispatchDoctor.JULIA_OK &&
+                @test_throws TypeInstabilityError f(UnstableType(1, 2.0))
+        end
+    end
+end
+@testitem "multiple property destructuring" begin
+    using DispatchDoctor
+
+    if v"1.7-" <= VERSION  # property destructuring introduced in 1.7
+        abstract type MyAbstractType2 end
+        struct StableType2 <: MyAbstractType2
+            x::Int
+            y::Float64
+        end
+        struct UnstableType2 <: MyAbstractType2
+            x
+            y
+        end
+        for codegen_level in ("debug", "min")
+            #! format: off
+            @eval @stable(
+                default_codegen_level = $codegen_level,
+                f((; x, y)::MyAbstractType2) = x + y,
+            )
+            @eval @stable(
+                default_codegen_level = $codegen_level,
+                g((; x, y)::MyAbstractType2, (; z)) = x + y + z,
+            )
+            @eval @stable(
+                default_codegen_level = $codegen_level,
+                h((a, b)::Vector, (; x, y)::MyAbstractType2) = a + b + x + y,
+            )
+            @eval @stable(
+                default_codegen_level = $codegen_level,
+                k(a, (; x, y)=(; z=1, x=a, y=3)) = x + y,
+            )
+            #! format: on
+
+            @test f(StableType2(1, 2.0)) == 3.0
+            @test g(StableType2(1, 2.0), (; z=3)) == 6.0
+            @test h([3, 4], StableType2(1, 2.0)) == 10.0
+            @test k(1) == 4
+            @test k(nothing, StableType2(1, 2.0)) == 3.0
+
+            @test_throws MethodError f((; x=1, y=2.0))
+            @test_throws MethodError g((; x=1, y=2.0), (; z=3))
+            @test_throws MethodError h([3, 4], (; x=1, y=2.0))
+            @test_throws MethodError h((3, 4), StableType2(1, 2.0))
+
+            if DispatchDoctor.JULIA_OK
+                @test_throws TypeInstabilityError f(UnstableType2(1, 2.0))
+                @test_throws TypeInstabilityError g(UnstableType2(1, 2.0), (; z=3))
+                @test_throws TypeInstabilityError h([3, 4], UnstableType2(1, 2.0))
+                @test_throws TypeInstabilityError h(Any[3, 4], UnstableType2(1, 2.0))
+                @test_throws TypeInstabilityError k(nothing, UnstableType2(1, 2.0))
+            end
+        end
+    end
+end
 @testitem "Type specialization" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")

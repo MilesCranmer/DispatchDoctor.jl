@@ -9,7 +9,7 @@ using .._Utils:
     _promote_op,
     is_function_name_compatible,
     get_first_source_info,
-    inject_symbol_to_arg,
+    sanitize_arg_for_stability_check,
     extract_symbol,
     type_instability,
     type_instability_limit_unions
@@ -227,12 +227,17 @@ function _stabilize_fnc(
         print_name = "anonymous function"
     end
 
-    args = map(inject_symbol_to_arg, func[:args])
+    args, destructurings = let
+        args_destructurings = map(sanitize_arg_for_stability_check, func[:args])
+        (
+            map(first, args_destructurings),
+            filter(!isnothing, map(last, args_destructurings)),
+        )
+    end
     kwargs = func[:kwargs]
     where_params = func[:whereparams]
 
     func[:args] = args
-    func_simulator[:args] = deepcopy(args)
 
     arg_symbols = map(extract_symbol, args)
     kwarg_symbols = map(extract_symbol, kwargs)
@@ -286,8 +291,10 @@ function _stabilize_fnc(
     end
 
     caller = if codegen_level == "debug"
-        # Duplicate entire body, so `@code_warntype` works
-        func[:body]
+        # We duplicate entire body, so `@code_warntype` works
+        body = func[:body]
+        # and we also destructure the signature
+        Expr(:block, destructurings..., body)
     elseif isempty(kwarg_symbols)
         :($simulator($(arg_symbols...)))
     else
