@@ -6,7 +6,13 @@ using .._Errors: AllowUnstableDataRace, TypeInstabilityError, TypeInstabilityWar
 Base.showerror(io::IO, e::AllowUnstableDataRace) = print(io, e.msg)
 
 function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning})
-    print(io, "$(typeof(e)): Instability detected in $(e.f)")
+    print(
+        io,
+        "DispatchDoctor.TypeInstability",
+        e isa TypeInstabilityError ? "Error" : "Warning",
+        ": Instability detected in ",
+        e.f,
+    )
     if e.source_info !== nothing
         print(io, " defined at ", e.source_info)
     end
@@ -25,7 +31,7 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
         join(io, parts, " and ")
     end
     print(io, ". ")
-    return print(io, "Inferred to be `$(e.return_type)`, which is not a concrete type.")
+    return print(io, "Inferred to be `", e.return_type, "`, which is not a concrete type.")
 end
 typeinfo(x) = specializing_typeof(x)
 typeinfo(u::Unknown) = u

@@ -618,7 +618,7 @@ end
 
     if DispatchDoctor.JULIA_OK
         msg = @capture_err f(1)
-        @test occursin("TypeInstabilityWarning", msg)
+        @test occursin("DispatchDoctor.TypeInstabilityWarning", msg)
     end
 end
 @testitem "disable @stable using env variable" begin
@@ -1192,7 +1192,7 @@ end
         @test occursin("The `warnonly` option is deprecated", msg)
         msg2 = @capture_err f(1)
 
-        @test occursin("TypeInstabilityWarning", msg2)
+        @test occursin("DispatchDoctor.TypeInstabilityWarning", msg2)
 
         @stable enable = false function f(x)
             return x > 0 ? x : 0.0
