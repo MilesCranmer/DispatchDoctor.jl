@@ -229,7 +229,10 @@ function _stabilize_fnc(
 
     args, destructurings = let
         args_destructurings = map(inject_symbol_to_arg, func[:args])
-        map(first, args_destructurings), map(last, args_destructurings)
+        (
+            map(first, args_destructurings),
+            filter(!isnothing, map(last, args_destructurings)),
+        )
     end
     kwargs = func[:kwargs]
     where_params = func[:whereparams]

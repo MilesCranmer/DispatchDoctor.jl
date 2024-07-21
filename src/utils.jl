@@ -53,10 +53,10 @@ end
 Fix args that do not have a symbol or are destructured in the signature. Return gensymmed
 arg expression and, if needed, an equivalent destructuring assignment for the body.
 """
-function inject_symbol_to_arg(ex::Symbol)
+function inject_symbol_to_arg(ex::Symbol)::Tuple{Union{Expr,Symbol},Union{Expr,Nothing}}
     return ex, nothing
 end
-function inject_symbol_to_arg(ex::Expr)
+function inject_symbol_to_arg(ex::Expr)::Tuple{Union{Expr,Symbol},Union{Expr,Nothing}}
     if ex.head == :(tuple)
         # Base case: matches things like (x,) and (; x)
         arg = gensym("arg")
