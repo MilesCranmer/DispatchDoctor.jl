@@ -52,6 +52,25 @@ end
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(1; y=2.0)
     end
 end
+@testitem ":: tuple args" begin
+    using DispatchDoctor
+    abstract type A end
+    struct B <: A
+        x::Int
+    end
+    struct C <: A
+        x
+    end
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level f((x,)::Vector) = x
+        @test f([1]) == 1
+        @test_throws MethodError f((1,)) == 1
+        @eval @stable default_codegen_level = $codegen_level g((; x)::A) = x
+        @test g(B(1)) == 1
+        @test_throws MethodError g((; x=1))
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(C(1.0))
+    end
+end
 @testitem "Type specialization" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
