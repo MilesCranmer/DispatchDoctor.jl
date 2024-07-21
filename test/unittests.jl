@@ -111,12 +111,15 @@ end
         #! format: on
 
         @test f([1, 2]) == 3
-        @test_throws MethodError f((1, 2))
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(Any[1, 2])
-
         @test g([1, 2], (3,)) == 6
+
+        @test_throws MethodError f((1, 2))
         @test_throws MethodError g((1, 2), (3,))
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(Any[1, 2], (3,))
+
+        if DispatchDoctor.JULIA_OK
+            @test_throws TypeInstabilityError f(Any[1, 2])
+            @test_throws TypeInstabilityError g(Any[1, 2], (3,))
+        end
     end
 end
 @testitem "property destructuring" begin
@@ -199,25 +202,25 @@ end
                 k(a, (; x, y)=(; z=1, x=a, y=3)) = x + y,
             )
             #! format: on
+
             @test f(StableType2(1, 2.0)) == 3.0
-            @test_throws MethodError f((; x=1, y=2.0))
-            DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError f(UnstableType2(1, 2.0))
             @test g(StableType2(1, 2.0), (; z=3)) == 6.0
-            @test_throws MethodError g((; x=1, y=2.0), (; z=3))
-            DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError g(UnstableType2(1, 2.0), (; z=3))
             @test h([3, 4], StableType2(1, 2.0)) == 10.0
-            @test_throws MethodError h([3, 4], (; x=1, y=2.0))
-            @test_throws MethodError h((3, 4), StableType2(1, 2.0))
-            DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError h([3, 4], UnstableType2(1, 2.0))
-            DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError h(Any[3, 4], UnstableType2(1, 2.0))
             @test k(1) == 4
             @test k(nothing, StableType2(1, 2.0)) == 3.0
-            DispatchDoctor.JULIA_OK &&
+
+            @test_throws MethodError f((; x=1, y=2.0))
+            @test_throws MethodError g((; x=1, y=2.0), (; z=3))
+            @test_throws MethodError h([3, 4], (; x=1, y=2.0))
+            @test_throws MethodError h((3, 4), StableType2(1, 2.0))
+
+            if DispatchDoctor.JULIA_OK
+                @test_throws TypeInstabilityError f(UnstableType2(1, 2.0))
+                @test_throws TypeInstabilityError g(UnstableType2(1, 2.0), (; z=3))
+                @test_throws TypeInstabilityError h([3, 4], UnstableType2(1, 2.0))
+                @test_throws TypeInstabilityError h(Any[3, 4], UnstableType2(1, 2.0))
                 @test_throws TypeInstabilityError k(nothing, UnstableType2(1, 2.0))
+            end
         end
     end
 end

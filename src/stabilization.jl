@@ -293,7 +293,7 @@ function _stabilize_fnc(
     caller = if codegen_level == "debug"
         # We duplicate entire body, so `@code_warntype` works
         body = func[:body]
-        # and we also destructure signature
+        # and we also destructure the signature
         Expr(:block, destructurings..., body)
     elseif isempty(kwarg_symbols)
         :($simulator($(arg_symbols...)))
