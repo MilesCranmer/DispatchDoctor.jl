@@ -54,21 +54,88 @@ end
 end
 @testitem ":: tuple args" begin
     using DispatchDoctor
-    abstract type A end
-    struct B <: A
-        x::Int
-    end
-    struct C <: A
-        x
-    end
     for codegen_level in ("debug", "min")
-        @eval @stable default_codegen_level = $codegen_level f((x,)::Vector) = x
+        fex = @eval @macroexpand @stable default_codegen_level = $codegen_level f((x,)::Vector) = x
+        occursinf = occursin(string(fex))
+        # Original signature preserved in simulator
+        @test occursinf(r"function var\"[#0-9]*f_simulator[#0-9]*\"\(\(x,\)::Vector[,; ]*\)$"m)
+        # Gensymmed arg used in new signature
+        @test occursinf(r"function f\(var\"[#0-9]*arg[#0-9]*\"::Vector[,; ]*\)$"m)
+        # Gensymmed arg used in instability check
+        @test occursinf(r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"")
+        if codegen_level == "debug"
+            # Destructuring assignment in body
+            @test occursinf(r"\(x,\) = var\"[#0-9]*arg[#0-9]*\"$"m)
+        else
+            # Simulator called with gensymmed arg
+            @test occursinf(r"var\"[#0-9]*f_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m)
+        end
+        @eval $fex
         @test f([1]) == 1
         @test_throws MethodError f((1,)) == 1
-        @eval @stable default_codegen_level = $codegen_level g((; x)::A) = x
-        @test g(B(1)) == 1
-        @test_throws MethodError g((; x=1))
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(C(1.0))
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(Any[1])
+        @eval @stable default_codegen_level = $codegen_level f2((x, y)::Vector) = x + y
+        @test f2([1, 2]) == 3
+        @test_throws MethodError f2((1, 2))
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f2(Any[1, 2])
+        @eval @stable default_codegen_level = $codegen_level f3((x, y)::Vector, (z,)) =
+            x + y + z
+        @test f3([1, 2], (3,)) == 6
+        @test_throws MethodError f3((1, 2), (3,))
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f3(Any[1, 2], (3,))
+    end
+    if v"1.7-" <= VERSION  # property destructuring introduced in 1.7
+        abstract type T end
+        struct S <: T
+            x::Int
+            y::Float64
+        end
+        struct U <: T
+            x
+            y
+        end
+        for codegen_level in ("debug", "min")
+            gex = @eval @macroexpand @stable default_codegen_level = $codegen_level g((; x)::T) = x
+            occursing = occursin(string(gex))
+            # Original signature preserved in simulator
+            @test occursing(r"function var\"[#0-9]*g_simulator[#0-9]*\"\(\(; x\)::T[,; ]*\)$"m)
+            # Gensymmed arg used in new signature
+            @test occursing(r"function g\(var\"[#0-9]*arg[#0-9]*\"::T[,; ]*\)$"m)
+            # Gensymmed arg used in instability check
+            @test occursing(r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"")
+            if codegen_level == "debug"
+                # Destructuring assignment in body
+                @test occursing(r"\(; x\) = var\"[#0-9]*arg[#0-9]*\"$"m)
+            else
+                # Simulator called with gensymmed arg
+                @test occursing(r"var\"[#0-9]*g_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m)
+            end
+            @eval $gex
+            @test g(S(1, 2.0)) == 1
+            @test_throws MethodError g((; x=1))
+            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(U(1, 2.0))
+            @eval @stable default_codegen_level = $codegen_level g2((; x, y)::T) = x + y
+            @test g2(S(1, 2.0)) == 3.0
+            @test_throws MethodError g2((; x=1, y=2.0))
+            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g2(U(1, 2.0))
+            @eval @stable default_codegen_level = $codegen_level g3((; x, y)::T, (; z)) =
+                x + y + z
+            @test g3(S(1, 2.0), (; z=3)) == 6.0
+            @test_throws MethodError g3((; x=1, y=2.0), (; z=3))
+            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g3(U(1, 2.0), (; z=3))
+            @eval @stable default_codegen_level = $codegen_level g4((a, b)::Vector, (; x, y)::T) =
+                a + b + x + y
+            @test g4([3, 4], S(1, 2.0)) == 10.0
+            @test_throws MethodError g4([3, 4], (; x=1, y=2.0))
+            @test_throws MethodError g4((3, 4), S(1, 2.0))
+            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g4([3, 4], U(1, 2.0))
+            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g4(Any[3, 4], S(1, 2.0))
+            @eval @stable default_codegen_level = $codegen_level h(a, (; x, y) = (; z=a, x=2, y=3)) =
+                x + y
+            @test h(nothing) == 5
+            @test h(nothing, S(1, 2.0)) == 3.0
+            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(nothing, U(1, 2.0))
+        end
     end
 end
 @testitem "Type specialization" begin
