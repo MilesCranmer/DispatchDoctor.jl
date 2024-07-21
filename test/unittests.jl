@@ -55,10 +55,14 @@ end
 @testitem ":: tuple args" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
-        fex = @eval @macroexpand @stable default_codegen_level = $codegen_level f((x,)::Vector) = x
+        fex = @eval @macroexpand @stable default_codegen_level = $codegen_level f(
+            (x,)::Vector
+        ) = x
         occursinf = occursin(string(fex))
         # Original signature preserved in simulator
-        @test occursinf(r"function var\"[#0-9]*f_simulator[#0-9]*\"\(\(x,\)::Vector[,; ]*\)$"m)
+        @test occursinf(
+            r"function var\"[#0-9]*f_simulator[#0-9]*\"\(\(x,\)::Vector[,; ]*\)$"m
+        )
         # Gensymmed arg used in new signature
         @test occursinf(r"function f\(var\"[#0-9]*arg[#0-9]*\"::Vector[,; ]*\)$"m)
         # Gensymmed arg used in instability check
@@ -68,7 +72,9 @@ end
             @test occursinf(r"\(x,\) = var\"[#0-9]*arg[#0-9]*\"$"m)
         else
             # Simulator called with gensymmed arg
-            @test occursinf(r"var\"[#0-9]*f_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m)
+            @test occursinf(
+                r"var\"[#0-9]*f_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m
+            )
         end
         @eval $fex
         @test f([1]) == 1
@@ -95,10 +101,14 @@ end
             y
         end
         for codegen_level in ("debug", "min")
-            gex = @eval @macroexpand @stable default_codegen_level = $codegen_level g((; x)::T) = x
+            gex = @eval @macroexpand @stable default_codegen_level = $codegen_level g(
+                (; x)::T
+            ) = x
             occursing = occursin(string(gex))
             # Original signature preserved in simulator
-            @test occursing(r"function var\"[#0-9]*g_simulator[#0-9]*\"\(\(; x\)::T[,; ]*\)$"m)
+            @test occursing(
+                r"function var\"[#0-9]*g_simulator[#0-9]*\"\(\(; x\)::T[,; ]*\)$"m
+            )
             # Gensymmed arg used in new signature
             @test occursing(r"function g\(var\"[#0-9]*arg[#0-9]*\"::T[,; ]*\)$"m)
             # Gensymmed arg used in instability check
@@ -108,7 +118,9 @@ end
                 @test occursing(r"\(; x\) = var\"[#0-9]*arg[#0-9]*\"$"m)
             else
                 # Simulator called with gensymmed arg
-                @test occursing(r"var\"[#0-9]*g_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m)
+                @test occursing(
+                    r"var\"[#0-9]*g_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m
+                )
             end
             @eval $gex
             @test g(S(1, 2.0)) == 1
@@ -122,19 +134,25 @@ end
                 x + y + z
             @test g3(S(1, 2.0), (; z=3)) == 6.0
             @test_throws MethodError g3((; x=1, y=2.0), (; z=3))
-            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g3(U(1, 2.0), (; z=3))
-            @eval @stable default_codegen_level = $codegen_level g4((a, b)::Vector, (; x, y)::T) =
-                a + b + x + y
+            DispatchDoctor.JULIA_OK &&
+                @test_throws TypeInstabilityError g3(U(1, 2.0), (; z=3))
+            @eval @stable default_codegen_level = $codegen_level g4(
+                (a, b)::Vector, (; x, y)::T
+            ) = a + b + x + y
             @test g4([3, 4], S(1, 2.0)) == 10.0
             @test_throws MethodError g4([3, 4], (; x=1, y=2.0))
             @test_throws MethodError g4((3, 4), S(1, 2.0))
-            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g4([3, 4], U(1, 2.0))
-            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g4(Any[3, 4], S(1, 2.0))
-            @eval @stable default_codegen_level = $codegen_level h(a, (; x, y) = (; z=a, x=2, y=3)) =
-                x + y
+            DispatchDoctor.JULIA_OK &&
+                @test_throws TypeInstabilityError g4([3, 4], U(1, 2.0))
+            DispatchDoctor.JULIA_OK &&
+                @test_throws TypeInstabilityError g4(Any[3, 4], S(1, 2.0))
+            @eval @stable default_codegen_level = $codegen_level h(
+                a, (; x, y)=(; z=a, x=2, y=3)
+            ) = x + y
             @test h(nothing) == 5
             @test h(nothing, S(1, 2.0)) == 3.0
-            DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(nothing, U(1, 2.0))
+            DispatchDoctor.JULIA_OK &&
+                @test_throws TypeInstabilityError h(nothing, U(1, 2.0))
         end
     end
 end
