@@ -9,7 +9,7 @@ using .._Utils:
     _promote_op,
     is_function_name_compatible,
     get_first_source_info,
-    inject_symbol_to_arg,
+    sanitize_arg_for_stability_check,
     extract_symbol,
     type_instability,
     type_instability_limit_unions
@@ -228,7 +228,7 @@ function _stabilize_fnc(
     end
 
     args, destructurings = let
-        args_destructurings = map(inject_symbol_to_arg, func[:args])
+        args_destructurings = map(sanitize_arg_for_stability_check, func[:args])
         (
             map(first, args_destructurings),
             filter(!isnothing, map(last, args_destructurings)),

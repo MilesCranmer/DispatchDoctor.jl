@@ -53,10 +53,14 @@ end
 Amend args that do not have a symbol or are destructured in the signature. Return gensymmed
 arg expression and, if needed, an equivalent destructuring assignment for the body.
 """
-function inject_symbol_to_arg(ex::Symbol)::Tuple{Union{Expr,Symbol},Union{Expr,Nothing}}
+function sanitize_arg_for_stability_check(
+    ex::Symbol
+)::Tuple{Union{Expr,Symbol},Union{Expr,Nothing}}
     return ex, nothing
 end
-function inject_symbol_to_arg(ex::Expr)::Tuple{Union{Expr,Symbol},Union{Expr,Nothing}}
+function sanitize_arg_for_stability_check(
+    ex::Expr
+)::Tuple{Union{Expr,Symbol},Union{Expr,Nothing}}
     head, args = ex.head, ex.args
     if head == :(tuple)
         # (Base case)
@@ -71,13 +75,13 @@ function inject_symbol_to_arg(ex::Expr)::Tuple{Union{Expr,Symbol},Union{Expr,Not
     elseif head == :(...) && length(args) == 1
         # (Composite case)
         # matches things like `::Int...`
-        arg_ex, destructure_ex = inject_symbol_to_arg(only(args))
+        arg_ex, destructure_ex = sanitize_arg_for_stability_check(only(args))
         return Expr(head, arg_ex), destructure_ex
     elseif head in (:kw, :(::)) && length(args) == 2
         # (Composite case)
         # :(::) => matches things like `(x,)::T` and `(; x)::T`
         # :kw => matches things like `::Type{T}=MyType`
-        arg_ex, destructure_ex = inject_symbol_to_arg(first(args))
+        arg_ex, destructure_ex = sanitize_arg_for_stability_check(first(args))
         return Expr(head, arg_ex, last(args)), destructure_ex
     else
         return ex, nothing
