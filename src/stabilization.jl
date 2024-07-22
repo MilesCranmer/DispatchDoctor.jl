@@ -227,17 +227,20 @@ function _stabilize_fnc(
         print_name = "anonymous function"
     end
 
-    args, destructurings = let
-        args_destructurings = map(sanitize_arg_for_stability_check, func[:args])
+    args, destructurings, typevars = let genwhereparam=true #(codegen_level == "min")
+        args_destructurings_typevars = map(
+            arg -> sanitize_arg_for_stability_check(arg; genwhereparam), func[:args])
         (
-            map(first, args_destructurings),
-            filter(!isnothing, map(last, args_destructurings)),
+            map(first, args_destructurings_typevars),
+            filter(!isnothing, map(adt -> adt[2], args_destructurings_typevars)),
+            filter(!isnothing, map(last, args_destructurings_typevars)),
         )
     end
     kwargs = func[:kwargs]
     where_params = func[:whereparams]
 
     func[:args] = args
+    func[:whereparams] = (where_params..., typevars...)
 
     arg_symbols = map(extract_symbol, args)
     kwarg_symbols = map(extract_symbol, kwargs)
