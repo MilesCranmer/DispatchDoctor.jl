@@ -1,7 +1,7 @@
 name = "DispatchDoctor"
 uuid = "8d63f2c5-f18a-4cf2-ba9d-b3f60fc568c8"
 authors = ["MilesCranmer <miles.cranmer@gmail.com> and contributors"]
-version = "0.4.12"
+version = "0.4.13"
 
 [deps]
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
@@ -9,15 +9,19 @@ Preferences = "21216c6a-2e73-6563-6e65-726566657250"
 
 [weakdeps]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 
 [extensions]
 DispatchDoctorChainRulesCoreExt = "ChainRulesCore"
+DispatchDoctorEnzymeExt = "Enzyme"
 
 [compat]
 ChainRulesCore = "1"
+Enzyme = "0.12"
 MacroTools = "0.5"
 Preferences = "1"
 julia = "1.6.7"
 
 [extras]
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
