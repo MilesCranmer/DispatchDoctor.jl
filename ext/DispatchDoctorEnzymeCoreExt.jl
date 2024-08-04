@@ -1,6 +1,6 @@
-module DispatchDoctorEnzymeExt
+module DispatchDoctorEnzymeCoreExt
 
-using Enzyme: EnzymeRules as ER
+using EnzymeCore: EnzymeRules as ER
 using DispatchDoctor._RuntimeChecks: is_precompiling, checking_enabled
 using DispatchDoctor._Stabilization: _show_warning, _construct_pairs
 using DispatchDoctor._Utils:
