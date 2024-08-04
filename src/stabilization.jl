@@ -84,13 +84,7 @@ function _stabilize_all(ex, downward_metadata::DownwardMetadata; kws...)
 end
 function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
     #! format: off
-    if ex.head == :macrocall && ex.args[1] == Symbol("@stable")
-        # Avoid recursive tags
-        return ex, UpwardMetadata(downward_metadata)
-    elseif ex.head == :macrocall && ex.args[1] == Symbol("@unstable")
-        # Allow disabling
-        return ex, UpwardMetadata(downward_metadata)
-    elseif ex.head == :macrocall
+    if ex.head == :macrocall
         macro_behavior = get_macro_behavior(ex.args[1])
         if macro_behavior == IncompatibleMacro
             return ex, UpwardMetadata(downward_metadata)
