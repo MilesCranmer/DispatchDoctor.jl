@@ -26,4 +26,40 @@ end
     end
 end
 
+@testset "cover rules" begin
+    # Due to a bug in Coverage.jl, we call these explicitly
+    @eval module CoverageRules
+        using Enzyme: EnzymeRules
+        using DispatchDoctor._RuntimeChecks: is_precompiling, checking_enabled
+        using DispatchDoctor._Stabilization: _show_warning, _construct_pairs
+        using DispatchDoctor._Utils:
+            specializing_typeof,
+            map_specializing_typeof,
+            _promote_op,
+            type_instability,
+            type_instability_limit_unions
+
+        using Test
+
+        function test_all()
+            for f in [
+                is_precompiling,
+                checking_enabled,
+                _show_warning,
+                _construct_pairs,
+                specializing_typeof,
+                map_specializing_typeof,
+                _promote_op,
+                type_instability,
+                type_instability_limit_unions,
+            ]
+                f != specializing_typeof && @test EnzymeRules.inactive_noinl(f) === nothing
+                @test EnzymeRules.inactive_noinl(f, 1) === nothing
+            end
+        end
+    end
+    CoverageRules.test_all()
+    # TODO: There must be a better way to do this?
+end
+
 end
