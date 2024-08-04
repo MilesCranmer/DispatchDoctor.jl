@@ -10,16 +10,16 @@ using DispatchDoctor._Utils:
     type_instability,
     type_instability_limit_unions
 
-ER.inactive(::typeof(_show_warning), ::Any...) = nothing
-ER.inactive(::typeof(_construct_pairs), ::Any...) = nothing
+ER.inactive_noinl(::typeof(_show_warning), ::Any...) = nothing
+ER.inactive_noinl(::typeof(_construct_pairs), ::Any...) = nothing
 
-ER.inactive(::typeof(specializing_typeof), ::Any) = nothing
-ER.inactive(::typeof(map_specializing_typeof), ::Any...) = nothing
-ER.inactive(::typeof(_promote_op), ::Any...) = nothing
-ER.inactive(::typeof(type_instability), ::Any...) = nothing
-ER.inactive(::typeof(type_instability_limit_unions), ::Any...) = nothing
+ER.inactive_noinl(::typeof(specializing_typeof), ::Any) = nothing
+ER.inactive_noinl(::typeof(map_specializing_typeof), ::Any...) = nothing
+ER.inactive_noinl(::typeof(_promote_op), ::Any...) = nothing
+ER.inactive_noinl(::typeof(type_instability), ::Any...) = nothing
+ER.inactive_noinl(::typeof(type_instability_limit_unions), ::Any...) = nothing
 
-ER.inactive(::typeof(is_precompiling), ::Any...) = nothing
-ER.inactive(::typeof(checking_enabled), ::Any...) = nothing
+ER.inactive_noinl(::typeof(is_precompiling), ::Any...) = nothing
+ER.inactive_noinl(::typeof(checking_enabled), ::Any...) = nothing
 
 end
