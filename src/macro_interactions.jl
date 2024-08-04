@@ -17,6 +17,10 @@ end
 # Macros we dont want to propagate
 const MACRO_BEHAVIOR = (;
     table=Dict([
+        Symbol("@stable") => IncompatibleMacro,             # <self>
+        # ^ We don't want to stabilize a function twice.
+        Symbol("@unstable") => IncompatibleMacro,           # <self>
+        # ^ This is the purpose of `@unstable`
         Symbol("@doc") => DontPropagateMacro,               # Core
         # ^ Base.@__doc__ takes care of this.
         Symbol("@assume_effects") => IncompatibleMacro,     # Base
