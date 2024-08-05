@@ -3,7 +3,7 @@ module _Macros
 
 using .._Utils: JULIA_OK
 using .._Stabilization: _stable
-using .._Interactions: MACRO_BEHAVIOR, CompatibleMacro, DontPropagateMacro, IncompatibleMacro
+using .._Interactions: CompatibleMacro, DontPropagateMacro, IncompatibleMacro, _register_macro!
 
 """
     @stable [options...] [code_block]
@@ -128,15 +128,8 @@ macro register_macro(behavior_name, macro_call)
         else error("$behavior_name is not a valid macro interaction")
         end
     macro_name = macro_call.args[1]
-    lock(MACRO_BEHAVIOR.lock) do
-        if haskey(MACRO_BEHAVIOR.table, __module__ => macro_name)
-            error(
-                "Macro `$macro_name` already registered in module $__module__ with behavior ($(MACRO_BEHAVIOR.table[__module__ => macro_name]).",
-            )
-        end
-        MACRO_BEHAVIOR.table[__module__ => macro_name] = behavior
-        MACRO_BEHAVIOR.table[__module__ => macro_name]
-    end
+
+    _register_macro!(__module__, macro_name, behavior)
 end
 
 end
