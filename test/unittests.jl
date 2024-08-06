@@ -1237,10 +1237,21 @@ end
     module AModule
         using DispatchDoctor
         @register_macro CompatibleMacro @stable
+        module BModule end
+    end
+
+    module CModule
+        module DModule
+            using DispatchDoctor
+            @register_macro DontPropagateMacro @stable
+        end
     end
 
     @test DDI.get_macro_behavior(Main, Symbol("@stable")) == DDI.IncompatibleMacro
     @test DDI.get_macro_behavior(AModule, Symbol("@stable")) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(AModule.BModule, Symbol("@stable")) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(CModule, Symbol("@stable")) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(CModule.DModule, Symbol("@stable")) == DDI.DontPropagateMacro
 
     @test_throws LoadError eval(quote
         @register_macro CompatibleMacro @a_macro

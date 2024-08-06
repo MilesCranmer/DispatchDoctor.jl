@@ -59,8 +59,13 @@ const MACRO_BEHAVIOR = (;
 )
 get_macro_behavior(_, _) = CompatibleMacro
 function get_macro_behavior(m::Module, ex::Symbol)
-    default = get(MACRO_BEHAVIOR.table, Main => ex, CompatibleMacro)
-    return get(MACRO_BEHAVIOR.table, m => ex, default)
+    while m != Main
+        if haskey(MACRO_BEHAVIOR.table, m => ex) break
+        else m = parentmodule(m)
+        end
+    end
+
+    return get(MACRO_BEHAVIOR.table, m => ex, CompatibleMacro)
 end
 get_macro_behavior(m::Module, ex::QuoteNode) = get_macro_behavior(m, ex.value)
 function get_macro_behavior(m::Module, ex::Expr)
