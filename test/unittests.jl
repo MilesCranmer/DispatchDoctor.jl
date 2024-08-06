@@ -1233,30 +1233,28 @@ end
 end
 @testitem "Macros with same name" begin
     using DispatchDoctor: _Interactions as DDI
+    @register_macro IncompatibleMacro @new_macro
 
     module AModule
         using DispatchDoctor
-        @register_macro CompatibleMacro @stable
+        @register_macro CompatibleMacro @new_macro
         module BModule end
     end
 
     module CModule
         module DModule
             using DispatchDoctor
-            @register_macro DontPropagateMacro @stable
+            @register_macro DontPropagateMacro @new_macro
         end
     end
 
-    @test DDI.get_macro_behavior(Main, Symbol("@stable")) == DDI.IncompatibleMacro
-    @test DDI.get_macro_behavior(AModule, Symbol("@stable")) == DDI.CompatibleMacro
-    @test DDI.get_macro_behavior(AModule.BModule, Symbol("@stable")) == DDI.CompatibleMacro
-    @test DDI.get_macro_behavior(CModule, Symbol("@stable")) == DDI.IncompatibleMacro
-    @test DDI.get_macro_behavior(CModule.DModule, Symbol("@stable")) == DDI.DontPropagateMacro
+    @test DDI.get_macro_behavior(@__MODULE__, Symbol("@new_macro")) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(AModule, Symbol("@new_macro")) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(AModule.BModule, Symbol("@new_macro")) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(CModule, Symbol("@new_macro")) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(CModule.DModule, Symbol("@new_macro")) == DDI.DontPropagateMacro
 
-    @test_throws LoadError eval(quote
-        @register_macro CompatibleMacro @a_macro
-        @register_macro IncompatibleMacro @a_macro
-    end)
+    @test_throws LoadError eval(:(@register_macro CompatibleMacro @new_macro))
 end
 
 @run_package_tests
