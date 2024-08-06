@@ -1,7 +1,6 @@
 """This module describes interactions between `@stable` and other macros and functions"""
 module _Interactions
 
-using Core: _Symbol
 """
 An enum to describe the behavior of macros when interacting with `@stable`.
 
