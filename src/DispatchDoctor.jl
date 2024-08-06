@@ -1,6 +1,6 @@
 module DispatchDoctor
 
-export @stable, @unstable, allow_unstable, TypeInstabilityError, register_macro!
+export @stable, @unstable, @register_macro, allow_unstable, TypeInstabilityError, register_macro!
 
 include("utils.jl")
 include("errors.jl")
@@ -20,7 +20,7 @@ using ._Printing
 using ._Interactions: MACRO_BEHAVIOR, MacroInteractions, CompatibleMacro, IncompatibleMacro, DontPropagateMacro, register_macro!, get_macro_behavior, ignore_function
 using ._RuntimeChecks: INSTABILITY_CHECK_ENABLED, allow_unstable, is_precompiling
 using ._Stabilization: _stable, _stabilize_all, _stabilize_fnc, _stabilize_module
-using ._Macros: @stable, @unstable
+using ._Macros: @stable, @unstable, @register_macro
 #! format: on
 
 end
