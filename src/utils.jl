@@ -141,8 +141,7 @@ return false for `Union{}`, so that errors can propagate.
 ) where {T,union_limit}
     if T isa UnionAll
         return true
-    elseif T <: Tuple
-        # So that Tuple{Union{Float32,Float64}} works as expected
+    elseif T <: Tuple && !(T isa Union)
         return any(Base.Fix2(type_instability_limit_unions, Val(union_limit)), T.types)
     else
         return _type_instability_recurse_unions(T) || _count_unions(T) > union_limit
