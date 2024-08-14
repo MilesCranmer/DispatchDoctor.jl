@@ -85,7 +85,7 @@ jobs:
             julia --color=yes --threads=auto --project=test/ -e 'import Pkg; Pkg.add("Enzyme")'
           fi
       - name: "Run integration tests"
-        # flaky through no fault of our own
+        # enzyme test is flaky through no fault of our own
         continue-on-error: ${{ matrix.test == 'enzyme' }}
         id: test-step
         run: |
