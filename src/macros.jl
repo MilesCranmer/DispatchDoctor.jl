@@ -3,6 +3,7 @@ module _Macros
 
 using .._Utils: JULIA_OK
 using .._Stabilization: _stable
+using .._Interactions: CompatibleMacro, DontPropagateMacro, IncompatibleMacro, _register_macro!
 
 """
     @stable [options...] [code_block]
@@ -94,6 +95,41 @@ A no-op macro to hide blocks of code from `@stable`.
 """
 macro unstable(fex)
     return esc(fex)
+end
+
+"""
+    @register_macro(behavior, macro_name)
+
+Register a macro with a specified behavior in the `MACRO_BEHAVIOR` list.
+
+This function adds a new macro and its associated behavior to the global list that
+tracks how macros should be treated when encountered during the stabilization
+process. The behavior can be one of `CompatibleMacro`, `IncompatibleMacro`, or `DontPropagateMacro`,
+which influences how the `@stable` macro interacts with the registered macro.
+
+The default behavior for `@stable` is to assume `CompatibleMacro` unless explicitly declared.
+
+# Arguments
+- `macro_name::Symbol`: The symbol representing the macro to register.
+- `behavior::MacroInteractions`: The behavior to associate with the macro, which dictates how it should be handled.
+
+# Examples
+```julia
+using DispatchDoctor: @register_macro, IncompatibleMacro
+
+@register_macro IncompatibleMacro @mymacro
+```
+"""
+macro register_macro(behavior_name, macro_call)
+    behavior =
+        if behavior_name == :CompatibleMacro CompatibleMacro
+        elseif behavior_name == :DontPropagateMacro DontPropagateMacro
+        elseif behavior_name == :IncompatibleMacro IncompatibleMacro
+        else error("$behavior_name is not a valid macro interaction")
+        end
+    macro_name = macro_call.args[1]
+
+    _register_macro!(__module__, macro_name, behavior)
 end
 
 end

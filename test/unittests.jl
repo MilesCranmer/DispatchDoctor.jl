@@ -508,7 +508,7 @@ end
             g(x, y) = x > 0 ? y : 0.0
             end),
             DispatchDoctor._Stabilization.DownwardMetadata(),
-        ),
+        Main),
     )
 
     # First, we capture `f` using postwalk and `@capture`
@@ -564,7 +564,7 @@ end
     using DispatchDoctor: _stabilize_fnc, _stabilize_all
 
     ex = _stabilize_all(
-        :(function donothing end), DispatchDoctor._Stabilization.DownwardMetadata()
+        :(function donothing end), DispatchDoctor._Stabilization.DownwardMetadata(), Main
     )[1]
     @test ex == :(function donothing end)
 
@@ -591,6 +591,7 @@ end
             return ex
         end),
         DispatchDoctor._Stabilization.DownwardMetadata(),
+        Main
     )
 
     # Should skip the internal function
@@ -831,6 +832,7 @@ end
             return x > 0 ? x : 0.0
         end),
         DispatchDoctor._Stabilization.DownwardMetadata(),
+        Main
     )
     JULIA_OK && @test occursin("propagate_inbounds", string(ex))
 end
@@ -840,16 +842,14 @@ end
     macro mymacro(ex)
         return esc(ex)
     end
-    if !haskey(DispatchDoctor.MACRO_BEHAVIOR.table, Symbol("@mymacro"))
-        register_macro!(Symbol("@mymacro"), DispatchDoctor.IncompatibleMacro)
-    end
-    @test DispatchDoctor.get_macro_behavior(:(@mymacro x = 1)) ==
+    @register_macro IncompatibleMacro @mymacro
+    @test DispatchDoctor.get_macro_behavior(@__MODULE__, :(@mymacro x = 1)) ==
         DispatchDoctor.IncompatibleMacro
 
     # Trying to register again should fail with a useful error
     if VERSION >= v"1.9"
-        @test_throws "Macro `@mymacro` already registered" register_macro!(
-            Symbol("@mymacro"), DispatchDoctor.IncompatibleMacro
+        @test_throws "Macro `@mymacro` already registered" eval(
+            :(@register_macro IncompatibleMacro @mymacro)
         )
     end
 
@@ -873,18 +873,12 @@ end
     macro dontpropagatemacro(ex)
         return esc(ex)
     end
-    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@compatiblemacro"))
-        register_macro!(Symbol("@compatiblemacro"), DDI.CompatibleMacro)
-    end
-    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@incompatiblemacro"))
-        register_macro!(Symbol("@incompatiblemacro"), DDI.IncompatibleMacro)
-    end
-    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@dontpropagatemacro"))
-        register_macro!(Symbol("@dontpropagatemacro"), DDI.DontPropagateMacro)
-    end
-    @test DDI.get_macro_behavior(:(@compatiblemacro true x = 1)) == DDI.CompatibleMacro
-    @test DDI.get_macro_behavior(:(@incompatiblemacro x = 1)) == DDI.IncompatibleMacro
-    @test DDI.get_macro_behavior(:(@dontpropagatemacro x = 1)) == DDI.DontPropagateMacro
+    @register_macro CompatibleMacro @compatiblemacro
+    @register_macro IncompatibleMacro @incompatiblemacro
+    @register_macro DontPropagateMacro @dontpropagatemacro
+    @test DDI.get_macro_behavior(@__MODULE__, :(@compatiblemacro true x = 1)) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(@__MODULE__, :(@incompatiblemacro x = 1)) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(@__MODULE__, :(@dontpropagatemacro x = 1)) == DDI.DontPropagateMacro
 
     @test DDI.combine_behavior(DDI.CompatibleMacro, DDI.CompatibleMacro) ==
         DDI.CompatibleMacro
@@ -920,7 +914,7 @@ end
     end
     if DispatchDoctor.JULIA_OK
         new_ex, upward_metadata = DispatchDoctor._stabilize_all(
-            ex, DispatchDoctor._Stabilization.DownwardMetadata()
+            ex, DispatchDoctor._Stabilization.DownwardMetadata(), @__MODULE__
         )
         # We should expect:
         #   1. All of the `@dontpropagatemacro`'s to be on the outside of the block.
@@ -965,6 +959,7 @@ end
             return x > 0 ? x : 0.0
         end),
         downward_metadata,
+        Main
     )
     @test upward_metadata.matching_function
     @test isempty(upward_metadata.unused_macros)
@@ -1244,6 +1239,31 @@ end
     # Important to run the LLVM IR tests in a new
     # julia process with things like --code-coverage disabled.
     # See https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697/14?u=milescranmer
+end
+@testitem "Macros with same name" begin
+    using DispatchDoctor: _Interactions as DDI
+    @register_macro IncompatibleMacro @new_macro
+
+    module AModule
+        using DispatchDoctor
+        @register_macro CompatibleMacro @new_macro
+        module BModule end
+    end
+
+    module CModule
+        module DModule
+            using DispatchDoctor
+            @register_macro DontPropagateMacro @new_macro
+        end
+    end
+
+    @test DDI.get_macro_behavior(@__MODULE__, Symbol("@new_macro")) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(AModule, Symbol("@new_macro")) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(AModule.BModule, Symbol("@new_macro")) == DDI.CompatibleMacro
+    @test DDI.get_macro_behavior(CModule, Symbol("@new_macro")) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(CModule.DModule, Symbol("@new_macro")) == DDI.DontPropagateMacro
+
+    @test_throws LoadError eval(:(@register_macro CompatibleMacro @new_macro))
 end
 
 @run_package_tests
