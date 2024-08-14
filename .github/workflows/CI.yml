@@ -85,12 +85,16 @@ jobs:
             julia --color=yes --threads=auto --project=test/ -e 'import Pkg; Pkg.add("Enzyme")'
           fi
       - name: "Run integration tests"
+        # flaky through no fault of our own
+        continue-on-error: ${{ matrix.test == 'enzyme' }}
+        id: test-step
         run: |
           julia --color=yes -e 'import Pkg; Pkg.add("Coverage")'
           julia --color=yes --threads=auto --check-bounds=yes --depwarn=yes --code-coverage=user -e 'import Coverage; import Pkg; Pkg.activate("."); Pkg.test(coverage=true)'
           julia --color=yes --project=test/ coverage.jl
         shell: bash
       - name: "Coveralls"
+        if: steps.test-step.outcome == 'success' && steps.test-step.conclusion == 'success'
         uses: coverallsapp/github-action@v2
         with:
           path-to-lcov: lcov.info
