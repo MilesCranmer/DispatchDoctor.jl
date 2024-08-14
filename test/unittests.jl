@@ -1180,6 +1180,15 @@ end
         @test occursin("calling_module =", msg)
     end
 end
+@testitem "issue #64" begin
+    using DispatchDoctor
+
+    @stable default_union_limit = 2 function f(x)
+        return x > 0 ? (nothing, 1) : (1.0, 1)
+    end
+
+    @test f(2) == (nothing, 1)
+end
 @testitem "deprecated options" begin
     using DispatchDoctor
     using Suppressor: @capture_err
