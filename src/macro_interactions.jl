@@ -56,9 +56,15 @@ const MACRO_BEHAVIOR = (;
     ]),
     lock=Threads.SpinLock(),
 )
-get_macro_behavior(_) = CompatibleMacro
-get_macro_behavior(ex::Symbol) = get(MACRO_BEHAVIOR.table, ex, CompatibleMacro)
-get_macro_behavior(ex::QuoteNode) = get_macro_behavior(ex.value)
+function get_macro_behavior(_)
+    return CompatibleMacro
+end
+function get_macro_behavior(ex::Symbol)
+    Base.@lock MACRO_BEHAVIOR.lock get(MACRO_BEHAVIOR.table, ex, CompatibleMacro)
+end
+function get_macro_behavior(ex::QuoteNode)
+    return get_macro_behavior(ex.value)
+end
 function get_macro_behavior(ex::Expr)
     parts = map(get_macro_behavior, ex.args)
     return reduce(combine_behavior, parts; init=CompatibleMacro)
@@ -98,7 +104,7 @@ register_macro!(Symbol("@mymacro"), IncompatibleMacro)
 ```
 """
 function register_macro!(macro_name::Symbol, behavior::MacroInteractions)
-    lock(MACRO_BEHAVIOR.lock) do
+    Base.@lock MACRO_BEHAVIOR.lock begin
         if haskey(MACRO_BEHAVIOR.table, macro_name)
             error(
                 "Macro `$macro_name` already registered with behavior $(MACRO_BEHAVIOR.table[macro_name]).",
