@@ -56,7 +56,12 @@ arg expression and, if needed, an equivalent destructuring assignment for the bo
 function sanitize_arg_for_stability_check(
     ex::Symbol
 )::Tuple{Union{Expr,Symbol},Union{Expr,Nothing}}
-    return ex, nothing
+    if ex == :(_)
+        arg = gensym("arg")
+        return arg, Expr(:(=), ex, arg)
+    else
+        return ex, nothing
+    end
 end
 function sanitize_arg_for_stability_check(
     ex::Expr
