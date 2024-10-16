@@ -578,7 +578,7 @@ end
     @stable f(_) = rand(Bool) ? Float32 : Float64
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
     if VERSION >= v"1.9"
-        @test_throws "with arguments `([_],)`" f(1)
+        @test_throws "with arguments `(Int64,)`" f(1)
     end
 end
 @testitem "skip closures inside macros" begin
@@ -1188,6 +1188,26 @@ end
     end
 
     @test f(2) == (nothing, 1)
+end
+@testitem "issue with underscore function and min codegen" begin
+    #! format: off
+    using DispatchDoctor
+
+    @stable g_debug(_::Int) = 1
+    @test g_debug(1) == 1
+    @stable default_codegen_level = "min" g_min(_::Int) = 1
+    @test g_min(1) == 1
+
+    @stable f_debug(_::Int, _::Float64) = 1
+    @test f_debug(1, 2.0) == 1
+    @stable default_codegen_level = "min" f_min(_::Int, _::Float64) = 1
+    @test f_min(1, 2.0) == 1
+
+    @stable default_codegen_level = "min" f_min_with_error(_::Int, _::Float64) = Val(rand())
+    if DispatchDoctor.JULIA_OK
+        @test_throws TypeInstabilityError f_min_with_error(1, 2.0)
+    end
+    # ! format: on
 end
 @testitem "deprecated options" begin
     using DispatchDoctor
