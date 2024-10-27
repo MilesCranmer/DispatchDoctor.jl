@@ -10,9 +10,7 @@ mktempdir() do tempdir
     run(`$(git()) -C $dest_dir checkout v1.2.0`)
 
     dd_path = dirname(dirname(@__FILE__))
-    dd_toml_content = TOML.parsefile(
-        joinpath(dd_path, "Project.toml")
-    )
+    dd_toml_content = TOML.parsefile(joinpath(dd_path, "Project.toml"))
     dd_version = dd_toml_content["version"]
 
     # Modify compat in Project.toml
