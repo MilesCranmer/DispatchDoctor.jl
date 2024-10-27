@@ -523,8 +523,8 @@ end
     #! format: on
 
     # We should be able to find a g_simulator, but NOT
-    # an f_simulator (indicating the `@stable` has not
-    # been expanded yet)
+    # an f_simulator (indicating the `@stable` has
+    # not been expanded yet)
     @test length(f_defs) == 3
 
     @test any(e -> occursin("g_simulator", string(e)), f_defs)
@@ -1264,6 +1264,41 @@ end
     # Important to run the LLVM IR tests in a new
     # julia process with things like --code-coverage disabled.
     # See https://discourse.julialang.org/t/improving-speed-of-runtime-dispatch-detector/114697/14?u=milescranmer
+end
+@testitem "nospecialize tests" begin
+    using DispatchDoctor
+
+    @stable begin
+        # Will ignore everything that has a @nospecialize macro:
+        function test_nospecialize(@nospecialize(x))
+            return x > 0 ? x : 0.0
+        end
+        function test_nospecialize_with_type(@nospecialize(x::Integer))
+            return x > 0 ? x : 0.0
+        end
+        function test_nospecialize_with_default(@nospecialize(x)=1)
+            return x > 0 ? x : 0.0
+        end
+        # Including keywords:
+        function test_nospecialize_kwarg(x; @nospecialize(y))
+            return x > 0 ? y : 0.0
+        end
+        function test_nospecialize_kwarg_typed(x; @nospecialize(y::Integer))
+            return x > 0 ? y : 0.0
+        end
+        function test_nospecialize_kwarg_default(x; @nospecialize(y = 1))
+            return x > 0 ? y : 0.0
+        end
+        # This will not stop other functions from being stabilized:
+        f() = Val(rand())
+    end
+    @test test_nospecialize(1) == 1
+    @test test_nospecialize_with_type(1) == 1
+    @test test_nospecialize_with_default() == 1
+    @test test_nospecialize_kwarg(1; y=2) == 2
+    @test test_nospecialize_kwarg_typed(1; y=2) == 2
+    @test test_nospecialize_kwarg_default(1) == 1
+    @test_throws TypeInstabilityError f()
 end
 
 @run_package_tests

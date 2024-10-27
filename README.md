@@ -192,11 +192,11 @@ you will also need to use `default_codegen_level="min"`.
 4. **Within certain code blocks and function types:**
     - Within an `@unstable` block
     - Within a `@generated` block
+    - Within any function containing a `@nospecialize` macro
 	- Within a `quote ... end` block
 	- Within a `macro ... end` block
 	- Within an incompatible macro, such as
 		- `@eval`
-		- `@generated`
 		- `@assume_effects`
 		- `@pure`
 		- Or anything else registered as incompatible with `register_macro!`

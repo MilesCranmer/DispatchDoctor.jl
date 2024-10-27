@@ -163,4 +163,15 @@ function _type_instability_recurse_unions(::Type{T}) where {T}
     end
 end
 
+"""
+Recursively search an expression for @nospecialize macro
+"""
+function has_nospecialize(ex::Expr)
+    if ex.head == :macrocall && ex.args[1] == Symbol("@nospecialize")
+        return true
+    end
+    return any(has_nospecialize, ex.args)
+end
+has_nospecialize(::Any) = false
+
 end

@@ -12,7 +12,8 @@ using .._Utils:
     sanitize_arg_for_stability_check,
     extract_symbol,
     type_instability,
-    type_instability_limit_unions
+    type_instability_limit_unions,
+    has_nospecialize
 using .._Errors: TypeInstabilityError, TypeInstabilityWarning
 using .._Interactions:
     ignore_function,
@@ -228,6 +229,12 @@ function _stabilize_fnc(
             filter(!isnothing, map(last, args_destructurings)),
         )
     end
+
+    # Check for @nospecialize anywhere in the original args or kwargs
+    if any(has_nospecialize, func[:args]) || any(has_nospecialize, func[:kwargs])
+        return fex, UpwardMetadata(downward_metadata)
+    end
+
     kwargs = func[:kwargs]
     where_params = func[:whereparams]
 
