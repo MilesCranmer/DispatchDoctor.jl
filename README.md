@@ -57,6 +57,7 @@ top:
 ```
 
 Meaning there is zero overhead on this type stability check.
+(This may not always be true, so be sure to try the workflow in [usage in packages](#-usage-in-packages))
 
 You can use `@stable` on blocks of code,
 including `begin-end` blocks, `module`, and anonymous functions.
