@@ -137,6 +137,10 @@ return false for `Union{}`, so that errors can propagate.
 @inline type_instability(::Type{T}) where {T} = !Base.isconcretetype(T)
 @inline type_instability(::Type{Union{}}) = false
 
+@static if Base.isdefined(Core, :TypeofBottom)
+    @inline type_instability(::Type{Core.TypeofBottom}) = false
+end
+
 # Weirdly, Base.isconcretetype flags Type{T} itself as not concrete,
 # so we implement a workaround.
 @inline type_instability(::Type{Type{T}}) where {T} = type_instability(T)
@@ -146,7 +150,7 @@ return false for `Union{}`, so that errors can propagate.
 ) where {T,union_limit}
     if T isa UnionAll
         return true
-    elseif T <: Tuple && !(T isa Union)
+    elseif T <: Tuple && !(T isa Union) && hasproperty(T, :types)
         return any(Base.Fix2(type_instability_limit_unions, Val(union_limit)), T.types)
     else
         return _type_instability_recurse_unions(T) || _count_unions(T) > union_limit
