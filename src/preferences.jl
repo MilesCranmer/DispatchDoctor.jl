@@ -49,15 +49,21 @@ function _cached_get_uuid(m)
     end
 end
 
-function get_preferred(default, cache, calling_module, key, deprecated_key=nothing)
+function get_preferred(
+    default, cache, calling_module, key, deprecated_keys::Vector{String}=String[]
+)
     uuid = _cached_get_uuid(calling_module)
     # ^Surprisingly it takes 600 us to get the UUID, so its worth the cache!
     # TODO: Though, this might need to be changed if Revise.jl becomes compatible
     (value, cached) = _cached_call(cache, uuid) do
         if has_preference(uuid, key)
             (load_preference(uuid, key), Cached)
-        elseif deprecated_key !== nothing && has_preference(uuid, deprecated_key)
-            (load_preference(uuid, deprecated_key), Cached)
+        elseif (i = findfirst(Base.Fix1(has_preference, uuid), deprecated_keys)) !== nothing
+            Base.depwarn(
+                "The preference key `$(deprecated_keys[i])` is deprecated. Please use `$key` instead.",
+                :get_preferred,
+            )
+            (load_preference(uuid, deprecated_keys[i]), Cached)
         else
             (default, NotCached)
         end
@@ -70,7 +76,11 @@ function get_preferred(default, cache, calling_module, key, deprecated_key=nothi
 end
 function get_all_preferred(options::StabilizationOptions, calling_module)
     mode = get_preferred(
-        options.mode, PREFERENCE_CACHE.mode, calling_module, "instability_check"
+        options.mode,
+        PREFERENCE_CACHE.mode,
+        calling_module,
+        "dispatch_doctor_mode",
+        ["instability_check"],
     )
     if mode == "disable"
         # Short circuit and quit early
@@ -82,14 +92,15 @@ function get_all_preferred(options::StabilizationOptions, calling_module)
             options.codegen_level,
             PREFERENCE_CACHE.codegen_level,
             calling_module,
-            "instability_check_codegen_level",
-            "instability_check_codegen",
+            "dispatch_doctor_codegen_level",
+            ["instability_check_codegen_level", "instability_check_codegen"],
         ),
         get_preferred(
             options.union_limit,
             PREFERENCE_CACHE.union_limit,
             calling_module,
-            "instability_check_union_limit",
+            "dispatch_doctor_union_limit",
+            ["instability_check_union_limit"],
         ),
     )
 end

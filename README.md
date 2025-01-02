@@ -126,13 +126,13 @@ You can provide the following options to `@stable`:
 
 - `default_mode::String="error"`:
   - Change the default mode from `"error"` to `"warn"` to only emit a warning, or `"disable"` to disable type instability checks by default.
-  - To locally or globally override the mode for a package that uses DispatchDoctor, you can use the `"instability_check"` key in your LocalPreferences.toml (typically configured with Preferences.jl).
+  - To locally or globally override the mode for a package that uses DispatchDoctor, you can use the `"dispatch_doctor_mode"` key in your LocalPreferences.toml (typically configured with Preferences.jl).
 - `default_codegen_level::String="debug"`:
   - Set the code generation level to `"min"` to only generate a single function body for each stabilized function. The default, `"debug"`, generates an entire duplicate function so that `@code_warntype` can be used.
-  - To locally or globally override the code generation level for a package that uses DispatchDoctor, you can use the `"instability_check_codegen_level"` key in your LocalPreferences.toml.
+  - To locally or globally override the code generation level for a package that uses DispatchDoctor, you can use the `"dispatch_doctor_codegen_level"` key in your LocalPreferences.toml.
 - `default_union_limit::Int=1`:
   - Sets the maximum elements in a union to be considered stable. The default is `1`, meaning that all unions are considered unstable. A value of `2` would indicate that `Union{Float32,Float64}` is considered stable, but `Union{Float16,Float32,Float64}` is not.
-  - To locally or globally override the union limit for a package that uses DispatchDoctor, you can use the `"instability_check_union_limit"` key in your LocalPreferences.toml.
+  - To locally or globally override the union limit for a package that uses DispatchDoctor, you can use the `"dispatch_doctor_union_limit"` key in your LocalPreferences.toml.
 
 Each of these is denoted a `default_` because you may set them globally or at a per-package level with `Preferences.jl` (see below).
 
@@ -165,7 +165,7 @@ meaning that, within your `test/runtests.jl`, you could add a line **before impo
 ```julia
 using Preferences: set_preferences!
 
-set_preferences!("MyPackage", "instability_check" => "error")
+set_preferences!("MyPackage", "dispatch_doctor_mode" => "error")
 ```
 
 You can also set to be `"warn"` if you would just like warnings.
@@ -176,7 +176,7 @@ the default `"debug"`. This will result in no code duplication,
 improving precompilation time (although `@code_warntype` and error
 messages will be less useful).
 As with the `default_mode`, you can configure the codegen level with Preferences.jl
-by using the `"instability_check_codegen_level"` key.
+by using the `"dispatch_doctor_codegen_level"` key.
 
 Note that for code coverage to work as expected over stabilized code,
 you will also need to use `default_codegen_level="min"`.
@@ -221,7 +221,7 @@ type with a special color for any instabilities.
 
 Note that some of the lines you will see are from DispatchDoctor's inserted
 code. If those are bothersome, you can disable the checking with
-`Preferences.set_preferences!("MyPackage", "instability_check" => "disable")`
+`Preferences.set_preferences!("MyPackage", "dispatch_doctor_mode" => "disable")`
 followed by restarting Julia.
 
 Other, much more powerful options to try include
