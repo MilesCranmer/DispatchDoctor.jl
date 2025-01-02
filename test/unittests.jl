@@ -1241,6 +1241,11 @@ end
 
     @test DDU.is_function_name_compatible(1.0) == false
     @test DDU.is_symbol_like(1.0) == false
+
+    if Base.isdefined(Core, :TypeofBottom)
+        @test DD.type_instability(Core.TypeofBottom) == false
+        @test DD.type_instability_limit_unions(Core.TypeofBottom, Val(1)) == false
+    end
 end
 @testitem "Code quality (Aqua.jl)" begin
     using DispatchDoctor
