@@ -32,7 +32,7 @@ makedocs(;
     sitename="DispatchDoctor.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://astroautomata.com/DispatchDoctor.jl",
+        canonical="https://ai.damtp.cam.ac.uk/dispatchdoctor",
         edit_link="main",
         assets=String[],
     ),
@@ -41,3 +41,11 @@ makedocs(;
 )
 
 deploydocs(; repo="github.com/MilesCranmer/DispatchDoctor.jl", devbranch="main")
+
+# Mirror to DAMTP:
+ENV["DOCUMENTER_KEY"] = ENV["DOCUMENTER_KEY_CAM"]
+ENV["GITHUB_REPOSITORY"] = "ai-damtp-cam-ac-uk/dispatchdoctor.git"
+deploydocs(;
+    repo="github.com/ai-damtp-cam-ac-uk/dispatchdoctor.git",
+    devbranch="main"
+)
