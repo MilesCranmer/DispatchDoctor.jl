@@ -145,6 +145,20 @@ end
 # so we implement a workaround.
 @inline type_instability(::Type{Type{T}}) where {T} = type_instability(T)
 
+@inline function type_instability(T::Core.TypeofVararg)
+    # Treat it as unstable unless BOTH parameters are concrete *and* the
+    # element type itself is stable.
+    !(isdefined(T, :T) && isdefined(T, :N)) && return true
+    return type_instability(T.T)
+end
+
+@inline function type_instability_limit_unions(
+    T::Core.TypeofVararg, ::Val{union_limit}
+) where {union_limit}
+    !(isdefined(T, :T) && isdefined(T, :N)) && return true
+    return type_instability_limit_unions(T.T, Val(union_limit))
+end
+
 @generated function type_instability_limit_unions(
     ::Type{T}, ::Val{union_limit}
 ) where {T,union_limit}
