@@ -3,11 +3,11 @@ using Git
 using TOML
 
 mktempdir() do tempdir
-    # Clone DynamicExpressions.jl at version v1.2.0
+    # Clone DynamicExpressions.jl at version v2.2.0
     repo_url = "https://github.com/SymbolicML/DynamicExpressions.jl.git"
     dest_dir = joinpath(tempdir, "DynamicExpressions")
     run(`$(git()) clone $repo_url $dest_dir`)
-    run(`$(git()) -C $dest_dir checkout v1.2.0`)
+    run(`$(git()) -C $dest_dir checkout v2.2.0`)
 
     dd_path = dirname(dirname(@__FILE__))
     dd_toml_content = TOML.parsefile(joinpath(dd_path, "Project.toml"))

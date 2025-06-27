@@ -94,23 +94,10 @@ jobs:
           julia --color=yes --threads=auto --check-bounds=yes --depwarn=yes --code-coverage=user -e 'import Coverage; import Pkg; Pkg.activate("."); Pkg.test(coverage=true)'
           julia --color=yes --project=test/ coverage.jl
         shell: bash
-      - name: "Coveralls"
-        if: steps.test-step.outcome == 'success' && steps.test-step.conclusion == 'success'
-        uses: coverallsapp/github-action@v2
+      - uses: codecov/codecov-action@v5
         with:
-          path-to-lcov: lcov.info
-          parallel: true
-          flag-name: julia-integration-${{ matrix.test }}-${{ matrix.version }}-${{ github.event_name }}
-
-  coveralls:
-    name: Indicate completion to coveralls
-    runs-on: ubuntu-latest
-    needs: [test, integration_test]
-    steps:
-      - name: Finish
-        uses: coverallsapp/github-action@v2
-        with:
-          parallel-finished: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
 
   docs:
     name: Documentation
