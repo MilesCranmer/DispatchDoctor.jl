@@ -1305,5 +1305,25 @@ end
     @test test_nospecialize_kwarg_default(1) == 1
     @test_throws TypeInstabilityError f()
 end
+@testitem "issue with Vararg union limit" begin
+    using DispatchDoctor
+    using DispatchDoctor: @stable
+
+    @stable default_union_limit = 2 function tuple_from_vector(v::Vector{Int})
+        # Converting a vector with unknown length to a tuple yields
+        # `Tuple{Vararg{Int64}}`, which internally stores `Core.TypeofVararg`.
+        # This hits the missing method in `type_instability_limit_unions`.
+        return Tuple(v)
+    end
+
+    DispatchDoctor.JULIA_OK &&
+        @test_throws TypeInstabilityError tuple_from_vector([1, 2, 3])
+
+    @stable function tuple_from_vector2(v::Vector{Int})
+        return Tuple(v)
+    end
+    DispatchDoctor.JULIA_OK &&
+        @test_throws TypeInstabilityError tuple_from_vector2([1, 2, 3])
+end
 
 @run_package_tests
