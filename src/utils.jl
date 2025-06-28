@@ -129,25 +129,21 @@ Returns true if this type is not concrete. Will also
 return false for `Union{}`, so that errors can propagate.
 """
 @inline type_instability(::Type{T}) where {T} = !Base.isconcretetype(T)
-@inline type_instability(::Type{Union{}}) = false
+@inline type_instability(::Type{Union{}}) = false  # LCOV_EXCL_LINE
 
 @static if Base.isdefined(Core, :TypeofBottom)
-    @inline type_instability(::Type{Core.TypeofBottom}) = false
+    @inline type_instability(::Type{Core.TypeofBottom}) = false  # LCOV_EXCL_LINE
 end
 
 # Weirdly, Base.isconcretetype flags Type{T} itself as not concrete,
 # so we implement a workaround.
 @inline type_instability(::Type{Type{T}}) where {T} = type_instability(T)
 
-@inline function type_instability(T::Core.TypeofVararg)
-    # Treat it as unstable unless BOTH parameters are concrete *and* the
-    # element type itself is stable.
-    return !isdefined(T, :T) || !isdefined(T, :N) || type_instability(T.T)
-end
-
 @inline function type_instability_limit_unions(
     T::Core.TypeofVararg, ::Val{union_limit}
 ) where {union_limit}
+    # Treat it as unstable unless BOTH parameters are concrete *and* the
+    # element type itself is stable.
     return !isdefined(T, :T) ||
            !isdefined(T, :N) ||
            type_instability_limit_unions(T.T, Val(union_limit))
@@ -190,6 +186,6 @@ function has_nospecialize(ex::Expr)
     end
     return any(has_nospecialize, ex.args)
 end
-has_nospecialize(::Any) = false
+has_nospecialize(::Any) = false  # LCOV_EXCL_LINE
 
 end
