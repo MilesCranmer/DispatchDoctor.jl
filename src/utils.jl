@@ -111,14 +111,8 @@ specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(::Val{T}) where {T} = Val{T}
 map_specializing_typeof(args::Tuple) = map(specializing_typeof, args)
 
-function _promote_op(f, S::Vararg{Type})
-    if @generated
-        # TODO: Remove once if this compilation issue is fixed within Julia:
-        # https://github.com/MilesCranmer/DispatchDoctor.jl/issues/51
-        :(Base.promote_op(f, S...))
-    else
-        Base.promote_op(f, S...)
-    end
+function _promote_op(f::F, S::Vararg{Type,N}) where {F,N}
+    return Base.promote_op(f, S...)
 end
 @static if isdefined(Core, :kwcall)
     function _promote_op(
@@ -148,18 +142,18 @@ end
 @inline function type_instability(T::Core.TypeofVararg)
     # Treat it as unstable unless BOTH parameters are concrete *and* the
     # element type itself is stable.
-    !(isdefined(T, :T) && isdefined(T, :N)) && return true
-    return type_instability(T.T)
+    return !isdefined(T, :T) || !isdefined(T, :N) || type_instability(T.T)
 end
 
 @inline function type_instability_limit_unions(
     T::Core.TypeofVararg, ::Val{union_limit}
 ) where {union_limit}
-    !(isdefined(T, :T) && isdefined(T, :N)) && return true
-    return type_instability_limit_unions(T.T, Val(union_limit))
+    return !isdefined(T, :T) ||
+           !isdefined(T, :N) ||
+           type_instability_limit_unions(T.T, Val(union_limit))
 end
 
-@generated function type_instability_limit_unions(
+@inline function type_instability_limit_unions(
     ::Type{T}, ::Val{union_limit}
 ) where {T,union_limit}
     if T isa UnionAll
@@ -171,7 +165,13 @@ end
     end
 end
 
-_count_unions(::Type{T}) where {T} = T isa Union ? (1 + _count_unions(T.b)) : 1
+function _count_unions(::Type{T}) where {T}
+    if T isa Union
+        return 1 + _count_unions(T.b)
+    else
+        return 1
+    end
+end
 
 function _type_instability_recurse_unions(::Type{T}) where {T}
     if T isa Union
