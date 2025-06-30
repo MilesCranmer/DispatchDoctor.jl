@@ -45,4 +45,7 @@ deploydocs(; repo="github.com/MilesCranmer/DispatchDoctor.jl", devbranch="main")
 # Mirror to DAMTP:
 ENV["DOCUMENTER_KEY"] = ENV["DOCUMENTER_KEY_CAM"]
 ENV["GITHUB_REPOSITORY"] = "ai-damtp-cam-ac-uk/dispatchdoctor.git"
-deploydocs(; repo="github.com/ai-damtp-cam-ac-uk/dispatchdoctor.git", devbranch="main")
+deploydocs(;
+    repo="github.com/ai-damtp-cam-ac-uk/dispatchdoctor.git",
+    devbranch="main"
+)
