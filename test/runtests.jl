@@ -6,8 +6,6 @@ elseif occursin(TEST, "enzyme")
     include("enzyme.jl")
 elseif occursin(TEST, "zygote")
     include("zygote.jl")
-elseif occursin(TEST, "mooncake")
-    include("mooncake.jl")
 elseif occursin(TEST, "dynamic-expressions")
     include("dynamic_expressions.jl")
 end

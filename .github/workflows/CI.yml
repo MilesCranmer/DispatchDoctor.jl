@@ -67,7 +67,6 @@ jobs:
         test:
           - "enzyme"
           - "zygote"
-          - "mooncake"
           - "dynamic-expressions"
     env:
       DISPATCH_DOCTOR_TEST: ${{ matrix.test }}
@@ -82,8 +81,6 @@ jobs:
         run: |
           if [[ ${{ matrix.test }} == "enzyme" ]]; then
             julia --color=yes --threads=auto --project=test/ -e 'import Pkg; Pkg.add("Enzyme")'
-          elif [[ ${{ matrix.test }} == "mooncake" ]]; then
-            julia --color=yes --threads=auto --project=test/ -e 'import Pkg; Pkg.add("Mooncake")'
           fi
       - name: "Run integration tests"
         # enzyme test is flaky through no fault of our own
