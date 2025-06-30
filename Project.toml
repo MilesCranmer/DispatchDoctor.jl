@@ -1,7 +1,7 @@
 name = "DispatchDoctor"
 uuid = "8d63f2c5-f18a-4cf2-ba9d-b3f60fc568c8"
 authors = ["MilesCranmer <miles.cranmer@gmail.com> and contributors"]
-version = "0.4.21"
+version = "0.4.22"
 
 [deps]
 MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
