@@ -4,40 +4,44 @@ using TestItemRunner
 @testitem "smoke test" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
-        eval(DispatchDoctor._stable(:(default_codegen_level = $codegen_level), :(f(x) = x)))
-        @test f(1) == 1
+        @gensym f
+        eval(
+            DispatchDoctor._stable(:(default_codegen_level = $codegen_level), :($f(x) = x))
+        )
+        @test eval(f)(1) == 1
     end
 end
 @testitem "with error" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
+        @gensym f g
         eval(
             DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level), :(f(x) = x > 0 ? x : 1.0)
+                :(default_codegen_level = $codegen_level), :($f(x) = x > 0 ? x : 1.0)
             ),
         )
+        f = eval(f)
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1)
         @test f(2.0) == 2.0
-
-        @stable default_codegen_level = $codegen_level g(x) = x > 0 ? x : 1.0
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(1)
-        @test g(2.0) == 2.0
     end
 end
 @testitem "with kwargs" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
+        @gensym f g
         eval(
             DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level), :(f(x; a=1, b=2) = x + a + b)
+                :(default_codegen_level = $codegen_level), :($f(x; a=1, b=2) = x + a + b)
             ),
         )
+        f = eval(f)
         @test f(1) == 4
         eval(
             DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level), :(g(; a=1) = a > 0 ? a : 1.0)
+                :(default_codegen_level = $codegen_level), :($g(; a=1) = a > 0 ? a : 1.0)
             ),
         )
+        g = eval(g)
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(a=1)
         @test g(; a=2.0) == 2.0
     end
@@ -45,20 +49,23 @@ end
 @testitem "tuple args" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
+        @gensym f g
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
-                :(f((x, y); a=1, b=2) = x + y + a + b),
+                :($f((x, y); a=1, b=2) = x + y + a + b),
             ),
         )
+        f = eval(f)
         @test f((1, 2)) == 6
         @test f((1, 2); b=3) == 7
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
-                :(g((x, y), z=1.0; c=2.0) = x > 0 ? y : c + z),
+                :($g((x, y), z=1.0; c=2.0) = x > 0 ? y : c + z),
             ),
         )
+        g = eval(g)
         @test g((1, 2.0)) == 2.0
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g((1, 2))
     end
@@ -66,26 +73,27 @@ end
 @testitem ":: args" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
+        @gensym f g h
         eval(
             DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level), :(f(x::Int) = x)
+                :(default_codegen_level = $codegen_level), :($f(x::Int) = x)
             ),
         )
-        @test f(1) == 1
+        @test eval(f)(1) == 1
         eval(
             DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level), :(g(; x::Int) = x)
+                :(default_codegen_level = $codegen_level), :($g(; x::Int) = x)
             ),
         )
-        @test g(; x=1) == 1
+        @test eval(g)(; x=1) == 1
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
-                :(h(x::Number; y::Number) = x > y ? x : y),
+                :($h(x::Number; y::Number) = x > y ? x : y),
             ),
         )
-        @test h(1; y=2) == 2
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(1; y=2.0)
+        @test eval(h)(1; y=2) == 2
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError eval(h)(1; y=2.0)
     end
 end
 @testitem ":: tuple args" begin
@@ -136,15 +144,18 @@ end
 
     for codegen_level in ("debug", "min")
         #! format: off
+        @gensym f g
         eval(DispatchDoctor._stable(
             :(default_codegen_level = $codegen_level),
-            :(f((x, y)::Vector) = x + y)
+            :($f((x, y)::Vector) = x + y)
         ))
         eval(DispatchDoctor._stable(
             :(default_codegen_level = $codegen_level),
-            :(g((x, y)::Vector, (z,)) = x + y + z)
+            :($g((x, y)::Vector, (z,)) = x + y + z)
         ))
         #! format: on
+
+        f, g = map(eval, (f, g))
 
         @test f([1, 2]) == 3
         @test g([1, 2], (3,)) == 6
@@ -160,103 +171,99 @@ end
 end
 @testitem "property destructuring" begin
     using DispatchDoctor
+    abstract type MyAbstractType end
+    struct StableType <: MyAbstractType
+        x::Int
+        y::Float64
+    end
+    struct UnstableType <: MyAbstractType
+        x
+        y
+    end
+    for codegen_level in ("debug", "min")
+        #! format: off
+        fex = @eval @macroexpand @stable(
+            default_codegen_level = $codegen_level,
+            f((; x)::MyAbstractType) = x
+        )
+        #! format: on
 
-    if v"1.7-" <= VERSION  # property destructuring introduced in 1.7
-        abstract type MyAbstractType end
-        struct StableType <: MyAbstractType
-            x::Int
-            y::Float64
+        expected_code_snippets = [
+            # Original signature preserved in simulator
+            r"function var\"[#0-9]*f_simulator[#0-9]*\"\(\(; x\)::MyAbstractType[,; ]*\)$"m,
+            # Gensymmed arg used in new signature
+            r"function f\(var\"[#0-9]*arg[#0-9]*\"::MyAbstractType[,; ]*\)$"m,
+            # Gensymmed arg used in instability check
+            r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"",
+        ]
+        codegen_level == "debug" &&
+            push!(expected_code_snippets, r"\(; x\) = var\"[#0-9]*arg[#0-9]*\"$"m)
+        codegen_level == "min" && push!(
+            expected_code_snippets,
+            r"var\"[#0-9]*f_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m,
+        )
+
+        DispatchDoctor.JULIA_OK && for expected_code in expected_code_snippets
+            @test occursin(expected_code, string(fex))
         end
-        struct UnstableType <: MyAbstractType
-            x
-            y
-        end
-        for codegen_level in ("debug", "min")
-            #! format: off
-            fex = @eval @macroexpand @stable(
-                default_codegen_level = $codegen_level,
-                f((; x)::MyAbstractType) = x
-            )
-            #! format: on
 
-            expected_code_snippets = [
-                # Original signature preserved in simulator
-                r"function var\"[#0-9]*f_simulator[#0-9]*\"\(\(; x\)::MyAbstractType[,; ]*\)$"m,
-                # Gensymmed arg used in new signature
-                r"function f\(var\"[#0-9]*arg[#0-9]*\"::MyAbstractType[,; ]*\)$"m,
-                # Gensymmed arg used in instability check
-                r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"",
-            ]
-            codegen_level == "debug" &&
-                push!(expected_code_snippets, r"\(; x\) = var\"[#0-9]*arg[#0-9]*\"$"m)
-            codegen_level == "min" && push!(
-                expected_code_snippets,
-                r"var\"[#0-9]*f_simulator[#0-9]*\"\(var\"[#0-9]*arg[#0-9]*\"[,; ]*\)$"m,
-            )
-
-            DispatchDoctor.JULIA_OK && for expected_code in expected_code_snippets
-                @test occursin(expected_code, string(fex))
-            end
-
-            eval(fex)
-            @test f(StableType(1, 2.0)) == 1
-            @test_throws MethodError f((; x=1))
-            DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError f(UnstableType(1, 2.0))
-        end
+        eval(fex)
+        @test f(StableType(1, 2.0)) == 1
+        @test_throws MethodError f((; x=1))
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(UnstableType(1, 2.0))
     end
 end
 @testitem "multiple property destructuring" begin
     using DispatchDoctor
 
-    if v"1.7-" <= VERSION  # property destructuring introduced in 1.7
-        abstract type MyAbstractType2 end
-        struct StableType2 <: MyAbstractType2
-            x::Int
-            y::Float64
-        end
-        struct UnstableType2 <: MyAbstractType2
-            x
-            y
-        end
-        for codegen_level in ("debug", "min")
-            #! format: off
-            eval(DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level),
-                :(f((; x, y)::MyAbstractType2) = x + y)
-            ))
-            eval(DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level),
-                :(g((; x, y)::MyAbstractType2, (; z)) = x + y + z),
-            ))
-            eval(DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level),
-                :(h((a, b)::Vector, (; x, y)::MyAbstractType2) = a + b + x + y),
-            ))
-            eval(DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level),
-                :(k(a, (; x, y)=(; z=1, x=a, y=3)) = x + y)
-            ))
-            #! format: on
+    abstract type MyAbstractType2 end
+    struct StableType2 <: MyAbstractType2
+        x::Int
+        y::Float64
+    end
+    struct UnstableType2 <: MyAbstractType2
+        x
+        y
+    end
+    for codegen_level in ("debug", "min")
+        #! format: off
+        @gensym f g h k
+        eval(DispatchDoctor._stable(
+            :(default_codegen_level = $codegen_level),
+            :($f((; x, y)::MyAbstractType2) = x + y)
+        ))
+        eval(DispatchDoctor._stable(
+            :(default_codegen_level = $codegen_level),
+            :($g((; x, y)::MyAbstractType2, (; z)) = x + y + z),
+        ))
+        eval(DispatchDoctor._stable(
+            :(default_codegen_level = $codegen_level),
+            :($h((a, b)::Vector, (; x, y)::MyAbstractType2) = a + b + x + y),
+        ))
+        eval(DispatchDoctor._stable(
+            :(default_codegen_level = $codegen_level),
+            :($k(a, (; x, y)=(; z=1, x=a, y=3)) = x + y)
+        ))
+        #! format: on
+        f, g, h, k = map(eval, (f, g, h, k))
 
-            @test f(StableType2(1, 2.0)) == 3.0
-            @test g(StableType2(1, 2.0), (; z=3)) == 6.0
-            @test h([3, 4], StableType2(1, 2.0)) == 10.0
-            @test k(1) == 4
-            @test k(nothing, StableType2(1, 2.0)) == 3.0
+        @test f(StableType2(1, 2.0)) == 3.0
+        @test g(StableType2(1, 2.0), (; z=3)) == 6.0
+        @test h([3, 4], StableType2(1, 2.0)) == 10.0
+        @test k(1) == 4
+        @test k(nothing, StableType2(1, 2.0)) == 3.0
 
-            @test_throws MethodError f((; x=1, y=2.0))
-            @test_throws MethodError g((; x=1, y=2.0), (; z=3))
-            @test_throws MethodError h([3, 4], (; x=1, y=2.0))
-            @test_throws MethodError h((3, 4), StableType2(1, 2.0))
+        @test_throws MethodError f((; x=1, y=2.0))
+        @test_throws MethodError g((; x=1, y=2.0), (; z=3))
+        @test_throws MethodError h([3, 4], (; x=1, y=2.0))
+        @test_throws MethodError h((3, 4), StableType2(1, 2.0))
 
-            if DispatchDoctor.JULIA_OK
-                @test_throws TypeInstabilityError f(UnstableType2(1, 2.0))
-                @test_throws TypeInstabilityError g(UnstableType2(1, 2.0), (; z=3))
-                @test_throws TypeInstabilityError h([3, 4], UnstableType2(1, 2.0))
-                @test_throws TypeInstabilityError h(Any[3, 4], UnstableType2(1, 2.0))
-                @test_throws TypeInstabilityError k(nothing, UnstableType2(1, 2.0))
-            end
+        if DispatchDoctor.JULIA_OK
+            @test_throws TypeInstabilityError f(UnstableType2(1, 2.0))
+            @test_throws TypeInstabilityError g(UnstableType2(1, 2.0), (; z=3))
+            @test_throws TypeInstabilityError h([3, 4], UnstableType2(1, 2.0))
+            @test_throws TypeInstabilityError h(Any[3, 4], UnstableType2(1, 2.0))
+            @test_throws TypeInstabilityError k(nothing, UnstableType2(1, 2.0))
         end
     end
 end
@@ -289,61 +296,65 @@ end
 @testitem "Type specialization" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
+        @gensym f
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
-                :(f(a, ::Type{T}) where {T} = sum(a; init=zero(T))),
+                :($f(a, ::Type{T}) where {T} = sum(a; init=zero(T))),
             ),
         )
-        @test f([1.0f0, 1.0f0], Float32) == 2.0f0
+        @test eval(f)([1.0f0, 1.0f0], Float32) == 2.0f0
     end
 end
 @testitem "args and kwargs" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
+        @gensym f1 f2 f3 f4
         # Without the dots
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
-                :(f1(a, args::Vararg) = sum(args) + a),
+                :($f1(a, args::Vararg) = sum(args) + a),
             ),
         )
-        @test f1(1, 1, 2, 3) == 7
+        @test eval(f1)(1, 1, 2, 3) == 7
 
         # Without the dots, with curly on Vararg
+        @gensym f1
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
-                :(f1(a, args::Vararg{Any,M}) where {M} = sum(args) + a),
+                :($f1(a, args::Vararg{Any,M}) where {M} = sum(args) + a),
             ),
         )
-        @test f1(1, 1, 2, 3) == 7
+        @test eval(f1)(1, 1, 2, 3) == 7
 
         # With the dots
         eval(
             DispatchDoctor._stable(
-                :(default_codegen_level = $codegen_level), :(f2(a, args...) = sum(args) + a)
+                :(default_codegen_level = $codegen_level),
+                :($f2(a, args...) = sum(args) + a),
             ),
         )
-        @test f2(1, 1, 2, 3) == 7
+        @test eval(f2)(1, 1, 2, 3) == 7
 
         # With kwargs
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
-                :(f3(c; kwargs...) = sum(values(kwargs)) + c),
+                :($f3(c; kwargs...) = sum(values(kwargs)) + c),
             ),
         )
-        @test f3(1; a=1, b=2, c=3) == 7
+        @test eval(f3)(1; a=1, b=2, c=3) == 7
 
         # With both
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
-                :(f4(a, args...; d, kwargs...) = sum(args) + sum(values(kwargs)) + a + d),
+                :($f4(a, args...; d, kwargs...) = sum(args) + sum(values(kwargs)) + a + d),
             ),
         )
-        @test f4(1, 1, 2, 3; d=0, a=1, b=2, c=3) == sum((1, 1, 2, 3, 0, 1, 2, 3))
+        @test eval(f4)(1, 1, 2, 3; d=0, a=1, b=2, c=3) == sum((1, 1, 2, 3, 0, 1, 2, 3))
     end
 end
 @testitem "string macro" begin
@@ -355,70 +366,72 @@ end
     using DispatchDoctor: DispatchDoctor as DD
     struct Undefined end
     for codegen_level in ("debug", "min")
+        @gensym f
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
                 quote
-                    function f(::Type{T1}=Undefined) where {T1}
+                    function $f(::Type{T1}=Undefined) where {T1}
                         return T1
                     end
                 end,
             ),
         )
-        @test f() == Undefined
+        @test eval(f)() == Undefined
     end
 end
 @testitem "vararg with type" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
+        @gensym f f2 f3 g
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
                 quote
-                    function f(::Int...)
+                    function $f(::Int...)
                         return rand(Bool) ? 0 : 0.0
                     end
                 end,
             ),
         )
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(1, 2, 3)
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError eval(f)(1, 2, 3)
 
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
                 quote
-                    function f2(a::Int...)
+                    function $f2(a::Int...)
                         return rand(Bool) ? 0 : 0.0
                     end
                 end,
             ),
         )
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f2(1, 2, 3)
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError eval(f2)(1, 2, 3)
 
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
                 quote
-                    function f3(a, ::Int...)
+                    function $f3(a, ::Int...)
                         return rand(Bool) ? 0 : 0.0
                     end
                 end,
             ),
         )
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f3(1, 2, 3)
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError eval(f3)(1, 2, 3)
 
         # With expression-based type
         eval(
             DispatchDoctor._stable(
                 :(default_codegen_level = $codegen_level),
                 quote
-                    function g(::typeof(*)...)
+                    function $g(::typeof(*)...)
                         return rand(Bool) ? 0 : 0.0
                     end
                 end,
             ),
         )
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(*, *)
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError eval(g)(*, *)
     end
 end
 @testitem "QuoteNode in options" begin
@@ -988,26 +1001,30 @@ end
 @testitem "skip generated" begin
     using DispatchDoctor
 
-    @test_warn eval(DispatchDoctor._stable(
-        quote
-            @generated function f(x)
-                return :(rand(Bool) ? x : 0.0)
-            end
-        end,
-    ))
-    @test f(0) == 0
+    @gensym f
+    @test_warn "`@stable` found no compatible functions to stabilize" eval(
+        DispatchDoctor._stable(
+            quote
+                @generated function $f(x)
+                    return :(rand(Bool) ? x : 0.0)
+                end
+            end,
+        )
+    )
+    @test eval(f)(0) == 0
 end
 @testitem "propagate macros" begin
     using DispatchDoctor: _stabilize_all, JULIA_OK
+    @gensym f
     ex = _stabilize_all(
         quote
-            Base.@propagate_inbounds function f(x)
+            Base.@propagate_inbounds function $f(x)
                 return x > 0 ? x : 0.0
             end
         end,
         DispatchDoctor._Stabilization.DownwardMetadata(),
     )
-    JULIA_OK && @test occursin("propagate_inbounds", string(ex))
+    JULIA_OK && @test occursin("propagate_inbounds", string(eval(ex)))
 end
 @testitem "register custom macros" begin
     using DispatchDoctor
