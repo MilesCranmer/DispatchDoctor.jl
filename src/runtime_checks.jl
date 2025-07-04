@@ -57,11 +57,12 @@ will be thrown if you try to do so.
             ),
         )
     end
+    old_value = INSTABILITY_CHECK_ENABLED.value[]
     INSTABILITY_CHECK_ENABLED.value[] = false
     out = try
         f()
     finally
-        INSTABILITY_CHECK_ENABLED.value[] = true
+        INSTABILITY_CHECK_ENABLED.value[] = old_value
         unlock(INSTABILITY_CHECK_ENABLED.lock)
     end
     return out
