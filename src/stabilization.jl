@@ -1,7 +1,7 @@
 """This module holds the main processing functions for `@stable`"""
 module _Stabilization
 
-using MacroTools: @capture, combinedef, splitdef, isdef, longdef
+using MacroTools: @capture, @q, combinedef, splitdef, isdef, longdef, rmlines, prewalk
 
 using .._Utils:
     specializing_typeof,
@@ -305,13 +305,18 @@ function _stabilize_fnc(
     ignore = haskey(func, :name) ? :($(ignore_function)($(func[:name]))) : :(false)
 
     func_simulator[:name] = simulator
-    func[:body] = quote
+    func_simulator[:body] = if codegen_level == "debug"
+        prewalk(rmlines, func_simulator[:body])
+    else
+        func_simulator[:body]
+    end
+    func[:body] = @q begin
         $T = $infer
         if $(checker) && !$ignore && $(checking_enabled)()
             $err
         end
 
-        $caller
+        $(caller)
     end
 
     func_simulator_ex = combinedef(func_simulator)
@@ -323,7 +328,7 @@ function _stabilize_fnc(
         func_simulator_ex = Expr(:macrocall, macro_element..., func_simulator_ex)
     end
 
-    final_ex = quote
+    final_ex = @q begin
         $(func_simulator_ex)
         $(Base).@__doc__ $(func_ex)
     end
