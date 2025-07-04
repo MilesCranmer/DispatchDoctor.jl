@@ -88,7 +88,7 @@ end
 
 # TODO: Deprecate passing expressions
 function _parse_even_if_expr(ex::Expr, calling_module, ::Type{T}) where {T}
-    return Core.eval(calling_module, ex)::T
+    return Core.eval(something(calling_module, Main), ex)::T
 end
 _parse_even_if_expr(::Nothing, _, ::Type{T}) where {T} = nothing
 _parse_even_if_expr(ex, _, ::Type{T}) where {T} = _parse(ex, T)

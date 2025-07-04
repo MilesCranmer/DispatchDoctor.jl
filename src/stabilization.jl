@@ -24,7 +24,7 @@ using .._Interactions:
 using .._RuntimeChecks: is_precompiling, checking_enabled
 using .._ParseOptions: parse_options
 
-function _stable(args...; calling_module, source_info, kws...)
+function _stable(args...; calling_module=nothing, source_info=nothing, kws...)
     raw_options, ex = args[begin:(end - 1)], args[end]
     options = parse_options(raw_options, calling_module)
 
@@ -222,13 +222,9 @@ function _stabilize_fnc(
         print_name = "anonymous function"
     end
 
-    args, destructurings = let
-        args_destructurings = map(sanitize_arg_for_stability_check, func[:args])
-        (
-            map(first, args_destructurings),
-            filter(!isnothing, map(last, args_destructurings)),
-        )
-    end
+    args_destructurings = map(sanitize_arg_for_stability_check, func[:args])
+    args = map(first, args_destructurings)
+    destructurings = filter(!isnothing, map(last, args_destructurings))
 
     # Check for @nospecialize anywhere in the original args or kwargs
     if any(has_nospecialize, func[:args]) || any(has_nospecialize, func[:kwargs])

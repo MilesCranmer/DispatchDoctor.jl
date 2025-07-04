@@ -1,7 +1,7 @@
 """This module interfaces with Preferences.jl"""
 module _Preferences
 
-using Preferences: load_preference, has_preference, get_uuid
+using Preferences: load_preference, has_preference, get_uuid as _get_uuid
 
 struct StabilizationOptions
     mode::String
@@ -31,6 +31,9 @@ const PREFERENCE_CACHE = (;
     union_limit=Cache{Base.UUID,Tuple{Int,IsCached}}(),
 )
 # All of our preferences are compile-time only, so we can safely cache them
+
+get_uuid(m) = _get_uuid(m)
+get_uuid(::Nothing) = Base.UUID(0)
 
 function _cached_call(f::F, cache::Cache, key) where {F}
     lock(cache.lock) do

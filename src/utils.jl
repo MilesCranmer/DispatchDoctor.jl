@@ -17,12 +17,12 @@ struct Unknown
 end
 
 # Used to check if a function name is compatible with `@stable`
-is_function_name_compatible(ex) = false
-is_function_name_compatible(ex::Symbol) = true
+is_function_name_compatible(ex) = false  # LCOV_EXCL_LINE
+is_function_name_compatible(ex::Symbol) = true  # LCOV_EXCL_LINE
 is_function_name_compatible(ex::Expr) = ex.head == :(.) && all(is_symbol_like, ex.args)
-is_symbol_like(ex) = false
+is_symbol_like(ex) = false  # LCOV_EXCL_LINE
 is_symbol_like(ex::QuoteNode) = is_symbol_like(ex.value)
-is_symbol_like(ex::Symbol) = true
+is_symbol_like(ex::Symbol) = true  # LCOV_EXCL_LINE
 
 function extract_symbol(ex::Symbol, fullex=ex)
     if ex == Symbol("_")
