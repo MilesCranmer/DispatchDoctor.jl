@@ -224,6 +224,32 @@ end
         end
     end
 end
+@testitem "detect duplicate LineNumberNode in @stable expansion" begin
+    using DispatchDoctor
+
+    # Basically we want to verify that the simulator function
+    # doesn't duplicate any LineNumberNodes, which can
+    # mess with stacktraces and coverage.
+    ex = @macroexpand(@stable(function f(x)
+        return x
+    end))
+
+    function collect_line_nodes!(line_nodes, expr)
+        if expr isa LineNumberNode
+            push!(line_nodes, expr)
+        elseif expr isa Expr
+            for arg in expr.args
+                collect_line_nodes!(line_nodes, arg)
+            end
+        end
+        return line_nodes
+    end
+
+    line_nodes = collect_line_nodes!([], ex)
+
+    @test length(line_nodes) > 1
+    @test length(unique(line_nodes)) == length(line_nodes)  # No dupes!
+end
 @testitem "Type specialization" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
