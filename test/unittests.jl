@@ -1351,5 +1351,16 @@ end
     DispatchDoctor.JULIA_OK &&
         @test_throws TypeInstabilityError tuple_from_vector2([1, 2, 3])
 end
+@testitem "issue with specializing_typeof on unbound type parameters" begin
+    using DispatchDoctor
+
+    @stable function test_function(arg::Type{<:Type})
+        return nothing
+    end
+
+    # This should trigger the error
+    P = (Type{T} where {T}).body
+    @test test_function(P) === nothing
+end
 
 @run_package_tests
