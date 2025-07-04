@@ -13,6 +13,7 @@ function parse_options(options, calling_module)
     mode = GLOBAL_DEFAULT_MODE
     codegen_level = GLOBAL_DEFAULT_CODEGEN_LEVEL
     union_limit = GLOBAL_DEFAULT_UNION_LIMIT
+    include_closures = false  # Default to false for backward compatibility
 
     # Deprecated
     warnonly = nothing
@@ -35,6 +36,9 @@ function parse_options(options, calling_module)
             elseif option.args[1] == :default_union_limit
                 union_limit = option.args[2]
                 continue
+            elseif option.args[1] == :include_closures
+                include_closures = option.args[2]
+                continue
             end
         end
         error("Unknown macro option: $option")
@@ -43,6 +47,7 @@ function parse_options(options, calling_module)
     mode = _parse_even_if_expr(mode, calling_module, String)
     codegen_level = _parse(codegen_level, String)
     union_limit = _parse(union_limit, Int)
+    include_closures = _parse_even_if_expr(include_closures, calling_module, Bool)
 
     _validate_mode(mode)
     _validate_codegen_level(codegen_level)
@@ -63,7 +68,7 @@ function parse_options(options, calling_module)
         mode
     end
 
-    options = StabilizationOptions(mode, codegen_level, union_limit)
+    options = StabilizationOptions(mode, codegen_level, union_limit, include_closures)
 
     if calling_module != Core.Main
         # Local setting from Preferences.jl overrides defaults

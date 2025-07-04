@@ -521,6 +521,53 @@ end
     # If it wrapped the closure, this would have thrown an error!
     @test Aclosuresunwrapped.f(1) == 1
 end
+@testitem "include_closures parameter" begin
+    using DispatchDoctor: @stable, TypeInstabilityError
+    
+    # Test default behavior: closures are not stabilized
+    @stable function f_default(x)
+        closure() = rand(Bool) ? 0 : 1.0
+        return closure()
+    end
+    
+    # The outer function should still work (closure instability doesn't affect it in this case)
+    @test f_default(1) in (0, 1.0)
+    
+    # Test new behavior: closures are stabilized when include_closures=true
+    @stable include_closures=true function f_with_closures(x)
+        closure() = rand(Bool) ? 0 : 1.0
+        return closure()
+    end
+    
+    # Now the closure should be stabilized and throw an error
+    if DispatchDoctor.JULIA_OK
+        @test_throws TypeInstabilityError f_with_closures(1)
+    end
+    
+    # Test that stable closures still work
+    @stable include_closures=true function f_stable_closure(x)
+        closure() = 42
+        return closure()
+    end
+    
+    @test f_stable_closure(1) == 42
+    
+    # Test with nested functions
+    @stable include_closures=true function f_nested(x)
+        function inner()
+            function deeper()
+                return rand(Bool) ? 0 : 1.0
+            end
+            return deeper()
+        end
+        return inner()
+    end
+    
+    # All nested functions should be stabilized
+    if DispatchDoctor.JULIA_OK
+        @test_throws TypeInstabilityError f_nested(1)
+    end
+end
 @testitem "avoid double stable in module" begin
     using DispatchDoctor: _stabilize_module
     using MacroTools: postwalk, @capture
@@ -949,8 +996,8 @@ end
             ex, DispatchDoctor._Stabilization.DownwardMetadata()
         )
         # We should expect:
-        #   1. All of the `@dontpropagatemacro`'s to be on the outside of the block.
-        #   2. The `@compatiblemacro`'s to be duplicated on both the simulator function,
+        #   1. All of the `@dontpropagatemacro's to be on the outside of the block.
+        #   2. The `@compatiblemacro's to be duplicated on both the simulator function,
         #      as well as the regular function.
         #   3. The `@incompatiblemacro` will be unaffected, as it is operating on
         #      the first argument of a multi-arg macro.

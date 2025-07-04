@@ -7,6 +7,7 @@ struct StabilizationOptions
     mode::String
     codegen_level::String
     union_limit::Int
+    include_closures::Bool
 end
 
 const GLOBAL_DEFAULT_MODE = "error"
@@ -84,7 +85,7 @@ function get_all_preferred(options::StabilizationOptions, calling_module)
     )
     if mode == "disable"
         # Short circuit and quit early
-        return StabilizationOptions("disable", options.codegen_level, options.union_limit)
+        return StabilizationOptions("disable", options.codegen_level, options.union_limit, options.include_closures)
     end
     return StabilizationOptions(
         mode,
@@ -102,6 +103,7 @@ function get_all_preferred(options::StabilizationOptions, calling_module)
             "dispatch_doctor_union_limit",
             ["instability_check_union_limit"],
         ),
+        options.include_closures,  # For now, closures are not configurable via preferences
     )
 end
 
