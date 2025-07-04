@@ -1373,5 +1373,17 @@ end
     @test_nowarn f(1.0)()
     @test f(1.0)() == 1.0
 end
+@testitem "issue with nested allow_unstable" begin
+    using DispatchDoctor
+
+    @stable f() = Val(rand())
+
+    # Issue was that the `allow_unstable` would set the
+    # `INSTABILITY_CHECK_ENABLED` to `false` and then the
+    # `f` would throw an error, _even though_ we are still
+    # within another `allow_unstable` block.
+    @test_nowarn allow_unstable(() -> (allow_unstable(f); f()))
+    @test_throws TypeInstabilityError f()
+end
 
 @run_package_tests
