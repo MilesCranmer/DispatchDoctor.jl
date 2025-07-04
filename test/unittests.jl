@@ -1362,6 +1362,17 @@ end
     P = (Type{T} where {T}).body
     @test test_function(P) === nothing
 end
+@testitem "issue with closures causing instability" begin
+    using DispatchDoctor
+
+    @stable function f(x)
+        @stable g() = x
+        return g
+    end
+
+    @test_nowarn f(1.0)()
+    @test f(1.0)() == 1.0
+end
 @testitem "issue with nested allow_unstable" begin
     using DispatchDoctor
 
