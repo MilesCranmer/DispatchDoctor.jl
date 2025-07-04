@@ -302,7 +302,7 @@ function _stabilize_fnc(
         :($simulator($(arg_symbols...); $(kwarg_symbols...)))
     end
 
-    ignore = haskey(func, :name) ? :($(ignore_function)($(func[:name]))) : :(false)
+    ignore = haskey(func, :name) ? :($(ignore_function)(var"#self#")) : :(false)
 
     func_simulator[:name] = simulator
     func_simulator[:body] = if codegen_level == "debug"
