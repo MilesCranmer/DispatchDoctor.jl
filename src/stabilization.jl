@@ -37,7 +37,7 @@ function _stable(args...; calling_module, source_info, kws...)
             options.mode,
             options.codegen_level,
             options.union_limit,
-            options.include_closures,
+            options.closures,
         )
         if metadata.matching_function == 0
             @warn(
@@ -192,7 +192,7 @@ function _stabilize_fnc(
     mode::String="error",
     codegen_level::String="debug",
     union_limit::Int=0,
-    include_closures::Bool=false,
+    closures::Bool=false,
     source_info::Union{LineNumberNode,String,Nothing}=nothing,
 )
     func = splitdef(fex)
@@ -237,7 +237,7 @@ function _stabilize_fnc(
         return fex, UpwardMetadata(downward_metadata)
     end
 
-    (func[:body], upward_metadata) = if include_closures
+    (func[:body], upward_metadata) = if closures
         _stabilize_all(
             func[:body],
             # Fresh downward metadata, as we dont want
@@ -246,7 +246,7 @@ function _stabilize_fnc(
             mode,
             codegen_level,
             union_limit,
-            include_closures,
+            closures,
             source_info,
         )
     else

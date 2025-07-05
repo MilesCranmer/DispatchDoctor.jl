@@ -521,10 +521,10 @@ end
     # If it wrapped the closure, this would have thrown an error!
     @test Aclosuresunwrapped.f(1) == 1
 end
-@testitem "include_closures parameter" begin
+@testitem "closures parameter" begin
     using DispatchDoctor
 
-    @stable default_include_closures = true function f(x)
+    @stable default_closures = true function f(x)
         inner() = x > 0 ? x : 0.0
         return inner
     end
@@ -532,7 +532,7 @@ end
     @test_throws TypeInstabilityError f(0)()
     @test allow_unstable(f(1)) == 1
 
-    @stable default_include_closures = true function f2(x)
+    @stable default_closures = true function f2(x)
         function f3()
             function f4()
                 return x > 0 ? x : 0.0
@@ -1216,7 +1216,7 @@ end
         DDP.GLOBAL_DEFAULT_MODE,
         DDP.GLOBAL_DEFAULT_CODEGEN_LEVEL,
         DDP.GLOBAL_DEFAULT_UNION_LIMIT,
-        DDP.GLOBAL_DEFAULT_INCLUDE_CLOSURES,
+        DDP.GLOBAL_DEFAULT_CLOSURES,
     )
 end
 @testitem "warn on no matches" begin

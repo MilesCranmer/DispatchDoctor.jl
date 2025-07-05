@@ -7,13 +7,13 @@ struct StabilizationOptions
     mode::String
     codegen_level::String
     union_limit::Int
-    include_closures::Bool
+    closures::Bool
 end
 
 const GLOBAL_DEFAULT_MODE = "error"
 const GLOBAL_DEFAULT_CODEGEN_LEVEL = "debug"
 const GLOBAL_DEFAULT_UNION_LIMIT = 1
-const GLOBAL_DEFAULT_INCLUDE_CLOSURES = false
+const GLOBAL_DEFAULT_CLOSURES = false
 
 @enum IsCached::Bool begin
     Cached
@@ -31,7 +31,7 @@ const PREFERENCE_CACHE = (;
     mode=Cache{Base.UUID,Tuple{String,IsCached}}(),
     codegen_level=Cache{Base.UUID,Tuple{String,IsCached}}(),
     union_limit=Cache{Base.UUID,Tuple{Int,IsCached}}(),
-    include_closures=Cache{Base.UUID,Tuple{Bool,IsCached}}(),
+    closures=Cache{Base.UUID,Tuple{Bool,IsCached}}(),
 )
 # All of our preferences are compile-time only, so we can safely cache them
 
@@ -88,7 +88,7 @@ function get_all_preferred(options::StabilizationOptions, calling_module)
     if mode == "disable"
         # Short circuit and quit early
         return StabilizationOptions(
-            "disable", options.codegen_level, options.union_limit, options.include_closures
+            "disable", options.codegen_level, options.union_limit, options.closures
         )
     end
     return StabilizationOptions(
@@ -108,10 +108,10 @@ function get_all_preferred(options::StabilizationOptions, calling_module)
             ["instability_check_union_limit"],
         ),
         get_preferred(
-            options.include_closures,
-            PREFERENCE_CACHE.include_closures,
+            options.closures,
+            PREFERENCE_CACHE.closures,
             calling_module,
-            "dispatch_doctor_include_closures",
+            "dispatch_doctor_closures",
         ),
     )
 end
