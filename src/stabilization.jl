@@ -37,6 +37,7 @@ function _stable(args...; calling_module, source_info, kws...)
             options.mode,
             options.codegen_level,
             options.union_limit,
+            options.include_closures,
         )
         if metadata.matching_function == 0
             @warn(
@@ -191,7 +192,8 @@ function _stabilize_fnc(
     mode::String="error",
     codegen_level::String="debug",
     union_limit::Int=0,
-    source_info::Union{LineNumberNode,Nothing}=nothing,
+    include_closures::Bool=false,
+    source_info::Union{LineNumberNode,String,Nothing}=nothing,
 )
     func = splitdef(fex)
 
@@ -234,6 +236,24 @@ function _stabilize_fnc(
     if any(has_nospecialize, func[:args]) || any(has_nospecialize, func[:kwargs])
         return fex, UpwardMetadata(downward_metadata)
     end
+
+    (func[:body], upward_metadata) = if include_closures
+        _stabilize_all(
+            func[:body],
+            # Fresh downward metadata, as we dont want
+            # to pass the macros down through the closures!
+            DownwardMetadata();
+            mode,
+            codegen_level,
+            union_limit,
+            include_closures,
+            source_info,
+        )
+    else
+        (func[:body], UpwardMetadata())
+    end
+
+    func_simulator[:body] = func[:body]
 
     kwargs = func[:kwargs]
     where_params = func[:whereparams]
@@ -332,7 +352,8 @@ function _stabilize_fnc(
         $(func_simulator_ex)
         $(Base).@__doc__ $(func_ex)
     end
-    return final_ex, UpwardMetadata(; matching_function=true)  # Clean metadata – all macros were consumed
+    # Clean metadata – all macros were consumed
+    return final_ex, merge(upward_metadata, UpwardMetadata(; matching_function=true))
 end
 
 end

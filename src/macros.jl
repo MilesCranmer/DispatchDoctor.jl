@@ -22,6 +22,8 @@ If type instability is detected, a `TypeInstabilityError` is thrown.
 - `default_union_limit::Int=1`:
   - Sets the maximum elements in a union to be considered stable. The default is `1`, meaning that all unions are considered unstable. A value of `2` would indicate that `Union{Float32,Float64}` is considered stable, but `Union{Float16,Float32,Float64}` is not.
   - To locally or globally override the union limit for a package that uses DispatchDoctor, you can use the `"dispatch_doctor_union_limit"` key in your LocalPreferences.toml.
+- `default_include_closures::Bool=false`:
+  - When set to `true`, the macro will also apply to closure functions defined within the stabilized code.
 
 
 # Example
@@ -54,7 +56,7 @@ which is not a concrete type.
 
 You may also apply `@stable` to arbitrary blocks of code, such as `begin`
 or `module`, and have it be applied to all functions.
-(Just note that this skips closure functions.)
+By default, this skips closure functions, but you can include them with `default_include_closures=true`.
 
 ```julia
 using DispatchDoctor: @stable
