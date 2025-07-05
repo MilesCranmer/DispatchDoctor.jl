@@ -38,6 +38,8 @@ const MACRO_BEHAVIOR = (;
         Symbol("@generated") => IncompatibleMacro,          # Base
         # ^ In principle this is compatible but
         #   needs additional logic to work.
+        Symbol("@opaque") => IncompatibleMacro,             # Base.Experimental
+        # ^ TODO. Seems to interact.
         Symbol("@kwdef") => IncompatibleMacro,              # Base
         # ^ TODO. Seems to interact.
         Symbol("@pure") => IncompatibleMacro,               # Base
