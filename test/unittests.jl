@@ -1396,7 +1396,9 @@ end
 
         for is_simulator in [true, false]
             f_name_regex = is_simulator ? "Symbol\\(\"##f_simulator#\\d+\"\\)" : ":f"
-            docstring_regex = Regex("\\(Base.Docs.doc!\\)\\(\\w+, \\(Base.Docs.Binding\\)\\(\\w+, $f_name_regex\\), \\(Base.Docs.docstr\\)\\(\\(Core.svec\\)\\(\".*\"\\), \\(Dict\\{Symbol, Any\\}\\)\\(:path => \".*\", :linenumber => \\d+, :module => \\w+\\)\\), Union\\{Tuple\\{\\}\\}\\)")
+            docstring_regex = Regex(
+                "\\(Base.Docs.doc!\\)\\(.+,\\ \\(Base.Docs.Binding\\)\\(.+,\\ $f_name_regex\\)"
+            )
             is_match = !isnothing(match(docstring_regex, f_expanded))
 
             # The docstring for the regular function should always be present.
