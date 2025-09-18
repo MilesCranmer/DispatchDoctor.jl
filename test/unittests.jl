@@ -1385,5 +1385,25 @@ end
     @test_nowarn allow_unstable(() -> (allow_unstable(f); f()))
     @test_throws TypeInstabilityError f()
 end
+@testitem "macro behavior with `GlobalRef`" begin
+    using DispatchDoctor
+
+    for codegen_level in ("debug", "min")
+        f_expanded = string(@macroexpand @stable begin
+            ""
+            f() = nothing
+        end)
+
+        for is_simulator in [true, false]
+            f_name_regex = is_simulator ? "Symbol\\(\"##f_simulator#\\d+\"\\)" : ":f"
+            docstring_regex = Regex("\\(Base.Docs.doc!\\)\\(\\w+, \\(Base.Docs.Binding\\)\\(\\w+, $f_name_regex\\), \\(Base.Docs.docstr\\)\\(\\(Core.svec\\)\\(\".*\"\\), \\(Dict\\{Symbol, Any\\}\\)\\(:path => \".*\", :linenumber => \\d+, :module => \\w+\\)\\), Union\\{Tuple\\{\\}\\}\\)")
+            is_match = !isnothing(match(docstring_regex, f_expanded))
+
+            # The docstring for the regular function should always be present.
+            # The docstring for the simulator function should never be present.
+            @test (is_simulator && !is_match) || (!is_simulator && is_match)
+        end
+    end
+end
 
 @run_package_tests
