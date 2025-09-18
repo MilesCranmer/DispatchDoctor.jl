@@ -1392,7 +1392,7 @@ end
     has_docstring(f) = !isnothing(match(r"\(Base.Docs.doc!\).+\(Base.Docs.Binding\)", string(f)))
 
     for codegen_level in ("debug", "min")
-        f_expanded = @macroexpand @stable begin
+        f_expanded = @macroexpand @stable default_codegen_level = $codegen_level begin
             ""
             f() = nothing
         end
