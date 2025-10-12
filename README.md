@@ -187,7 +187,7 @@ you will also need to use `default_codegen_level="min"`.
 > There are several scenarios and special cases for which type instabilities will be ignored. These are discussed below.
 
 1. **During precompilation.**
-2. **In unsupported Julia versions**.
+2. **In unsupported Julia versions** (currently only [1.10.0, 1.12.0) are active)
 3. **When loading code changes with Revise.jl\*.**
    - \*Basically, `@stable` will attempt to travel through any `include`'s. However, if you edit the included file and load the changes with Revise.jl, instability checks will get stripped (see [Revise#634](https://github.com/timholy/Revise.jl/issues/634)). The result will be that the `@stable` will be ignored.
 4. **Within certain code blocks and function types:**
