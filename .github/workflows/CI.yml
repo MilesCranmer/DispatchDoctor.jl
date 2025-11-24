@@ -32,7 +32,7 @@ jobs:
     env:
       DISPATCH_DOCTOR_TEST: "unit"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
@@ -69,7 +69,7 @@ jobs:
     env:
       DISPATCH_DOCTOR_TEST: ${{ matrix.test }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
@@ -102,7 +102,7 @@ jobs:
       contents: write
       statuses: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1'
