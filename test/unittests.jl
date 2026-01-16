@@ -90,9 +90,11 @@ end
 
         eval(f_expanded)
 
-        @test f([1]) == 1
-        @test_throws MethodError f((1,)) == 1
-        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError f(Any[1])
+        call_f(args...) = Base.invokelatest(f, args...)
+
+        @test call_f([1]) == 1
+        @test_throws MethodError call_f((1,)) == 1
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError call_f(Any[1])
     end
 end
 @testitem "multiple tuple args" begin
@@ -163,10 +165,13 @@ end
             end
 
             eval(fex)
-            @test f(StableType(1, 2.0)) == 1
-            @test_throws MethodError f((; x=1))
+
+            call_f(args...) = Base.invokelatest(f, args...)
+
+            @test call_f(StableType(1, 2.0)) == 1
+            @test_throws MethodError call_f((; x=1))
             DispatchDoctor.JULIA_OK &&
-                @test_throws TypeInstabilityError f(UnstableType(1, 2.0))
+                @test_throws TypeInstabilityError call_f(UnstableType(1, 2.0))
         end
     end
 end
