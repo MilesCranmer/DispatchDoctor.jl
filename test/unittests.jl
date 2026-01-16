@@ -1390,5 +1390,12 @@ end
     @test_nowarn allow_unstable(() -> (allow_unstable(f); f()))
     @test_throws TypeInstabilityError f()
 end
+@testitem "issue with command literal syntax" begin
+    using DispatchDoctor
+
+    # MacroTools.rmlines creates an invalid expression for command literals.
+    # Instead, use `safe_remove_lines` to skip those expressions.
+    @test (@stable f() = ``) isa Function && f() isa Cmd
+end
 
 @run_package_tests

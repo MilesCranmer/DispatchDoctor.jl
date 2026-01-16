@@ -1,7 +1,8 @@
 """This module contains various utility functions"""
 module _Utils
 
-using MacroTools: @capture
+using Base: isexpr
+using MacroTools: @capture, rmlines
 
 # Compatible Julia versions
 const JULIA_OK = let
@@ -188,5 +189,17 @@ function has_nospecialize(ex::Expr)
     return any(has_nospecialize, ex.args)
 end
 has_nospecialize(::Any) = false  # LCOV_EXCL_LINE
+
+is_cmd_ref(x::GlobalRef) = x.mod == Core && x.name == Symbol("@cmd")
+is_cmd_ref(x) = false
+
+function safe_remove_lines(x::Expr)
+    if isexpr(x, :macrocall) && is_cmd_ref(x.args[1])
+        x
+    else
+        rmlines(x)
+    end
+end
+safe_remove_lines(x) = rmlines(x)
 
 end

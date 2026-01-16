@@ -1,7 +1,7 @@
 """This module holds the main processing functions for `@stable`"""
 module _Stabilization
 
-using MacroTools: @capture, @q, combinedef, splitdef, isdef, longdef, rmlines, prewalk
+using MacroTools: @capture, @q, combinedef, splitdef, isdef, longdef, prewalk
 
 using .._Utils:
     specializing_typeof,
@@ -13,7 +13,8 @@ using .._Utils:
     extract_symbol,
     type_instability,
     type_instability_limit_unions,
-    has_nospecialize
+    has_nospecialize,
+    safe_remove_lines
 using .._Errors: TypeInstabilityError, TypeInstabilityWarning
 using .._Interactions:
     ignore_function,
@@ -306,7 +307,7 @@ function _stabilize_fnc(
 
     func_simulator[:name] = simulator
     func_simulator[:body] = if codegen_level == "debug"
-        prewalk(rmlines, func_simulator[:body])
+        prewalk(safe_remove_lines, func_simulator[:body])
     else
         func_simulator[:body]
     end
