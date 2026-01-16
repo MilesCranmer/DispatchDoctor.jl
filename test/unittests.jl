@@ -526,6 +526,31 @@ end
     # If it wrapped the closure, this would have thrown an error!
     @test Aclosuresunwrapped.f(1) == 1
 end
+@testitem "closures parameter" begin
+    using DispatchDoctor
+
+    @stable default_closures = true function f(x)
+        inner() = x > 0 ? x : 0.0
+        return inner
+    end
+
+    @test_throws TypeInstabilityError f(0)()
+    @test allow_unstable(f(1)) == 1
+
+    @stable default_closures = true function f2(x)
+        function f3()
+            function f4()
+                return x > 0 ? x : 0.0
+            end
+            return f4
+        end
+        return f3
+    end
+    f4 = f2(1)()
+    @test_throws TypeInstabilityError f4()
+    @test allow_unstable(() -> f2(1)()()) == 1
+    @test allow_unstable(() -> f2(0)()()) == 0.0
+end
 @testitem "avoid double stable in module" begin
     using DispatchDoctor: _stabilize_module
     using MacroTools: postwalk, @capture
@@ -1175,14 +1200,14 @@ end
     # various settings
     using FakePackage1
 
-    options = DDP.StabilizationOptions("d", "e", 6)
+    options = DDP.StabilizationOptions("d", "e", 6, false)
     @test DDP.get_all_preferred(options, FakePackage1) ==
-        DDP.StabilizationOptions("a", "b", 3)
+        DDP.StabilizationOptions("a", "b", 3, false)
 
     using FakePackage2
-    options = DDP.StabilizationOptions("d", "e", 6)
+    options = DDP.StabilizationOptions("d", "e", 6, false)
     @test DDP.get_all_preferred(options, FakePackage2) ==
-        DDP.StabilizationOptions("d", "alpha", 6)
+        DDP.StabilizationOptions("d", "alpha", 6, false)
 
     # FakePackage3 has no preferences
     using FakePackage3
@@ -1196,6 +1221,7 @@ end
         DDP.GLOBAL_DEFAULT_MODE,
         DDP.GLOBAL_DEFAULT_CODEGEN_LEVEL,
         DDP.GLOBAL_DEFAULT_UNION_LIMIT,
+        DDP.GLOBAL_DEFAULT_CLOSURES,
     )
 end
 @testitem "warn on no matches" begin
