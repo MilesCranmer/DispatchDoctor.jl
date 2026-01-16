@@ -1391,4 +1391,21 @@ end
     @test_throws TypeInstabilityError f()
 end
 
+@testitem "macro behavior with `GlobalRef`" begin
+    using DispatchDoctor
+
+    has_docstring(f) = !isnothing(match(r"\(Base.Docs.doc!\).+\(Base.Docs.Binding\)", string(f)))
+
+    for codegen_level in ("debug", "min")
+        f_expanded = @eval @macroexpand @stable default_codegen_level = $codegen_level begin
+            ""
+            f() = nothing
+        end
+        f_simulator, f_real = f_expanded.args[2].args
+
+        @test !has_docstring(f_simulator)
+        @test has_docstring(f_real)
+    end
+end
+
 @run_package_tests
