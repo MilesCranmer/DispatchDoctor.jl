@@ -9,7 +9,9 @@ include("runtime_checks.jl")
 include("preferences.jl")
 include("macro_interactions.jl")
 include("parse_options.jl")
-include("generated.jl")
+@static if VERSION >= v"1.12.0-"
+    include("generated.jl")
+end
 include("stabilization.jl")
 include("macros.jl")
 
@@ -20,7 +22,9 @@ using ._Preferences
 using ._Printing
 using ._Interactions: MACRO_BEHAVIOR, MacroInteractions, CompatibleMacro, IncompatibleMacro, DontPropagateMacro, register_macro!, get_macro_behavior, ignore_function
 using ._RuntimeChecks: INSTABILITY_CHECK_ENABLED, allow_unstable, is_precompiling
-using ._Generated: GeneratedCfgTag, _generated_instability_info
+@static if VERSION >= v"1.12.0-"
+    using ._Generated: GeneratedCfgTag, _generated_instability_info
+end
 using ._Stabilization: _stable, _stabilize_all, _stabilize_fnc, _stabilize_module
 using ._Macros: @stable, @unstable
 #! format: on

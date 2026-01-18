@@ -9,6 +9,8 @@ using .._Utils:
     get_first_source_info,
     sanitize_arg_for_stability_check,
     extract_symbol,
+    type_instability,
+    type_instability_limit_unions,
     has_nospecialize
 using .._Errors: TypeInstabilityError, TypeInstabilityWarning
 using .._Interactions:
@@ -18,7 +20,12 @@ using .._Interactions:
     CompatibleMacro,
     DontPropagateMacro
 using .._RuntimeChecks: is_precompiling, checking_enabled
-using .._Generated: GeneratedCfgTag, _generated_instability_info
+@static if VERSION < v"1.12.0-"
+    using .._Utils: _promote_op
+end
+@static if VERSION >= v"1.12.0-"
+    using .._Generated: GeneratedCfgTag, _generated_instability_info
+end
 using .._ParseOptions: parse_options
 
 function _stable(args...; calling_module, source_info, kws...)
@@ -272,13 +279,34 @@ function _stabilize_fnc(
     end
 
     typeof_args = :($(map_specializing_typeof)(($(arg_symbols...),)))
-    has_kwargs = !isempty(kwarg_symbols)
-    cfg_tag = GeneratedCfgTag{union_limit, has_kwargs}
-    kwtype = :((typeof((; $(kwarg_symbols...)))))
-    check_sig = if has_kwargs
-        :((Core.apply_type)(Tuple, $cfg_tag, typeof($simulator), $kwtype, $(typeof_args)...))
+    @static if VERSION < v"1.12.0-"
+        infer = if isempty(kwarg_symbols)
+            :($(_promote_op)($simulator, $(typeof_args)...))
+        else
+            :($(_promote_op)(
+                Core.kwcall,
+                typeof((; $(kwarg_symbols...))),
+                typeof($simulator),
+                $(typeof_args),
+            ))
+        end
+
+        checker = if union_limit > 1
+            :($(type_instability_limit_unions)($T, Val($union_limit)))
+        else
+            :($(type_instability)($T))
+        end
     else
-        :((Core.apply_type)(Tuple, $cfg_tag, typeof($simulator), $(typeof_args)...))
+        has_kwargs = !isempty(kwarg_symbols)
+        cfg_tag = GeneratedCfgTag{union_limit, has_kwargs}
+        kwtype = :((typeof((; $(kwarg_symbols...)))))
+        check_sig = if has_kwargs
+            :((Core.apply_type)(
+                Tuple, $cfg_tag, typeof($simulator), $kwtype, $(typeof_args)...
+            ))
+        else
+            :((Core.apply_type)(Tuple, $cfg_tag, typeof($simulator), $(typeof_args)...))
+        end
     end
 
     caller = if codegen_level == "debug"
@@ -300,13 +328,24 @@ function _stabilize_fnc(
     else
         func_simulator[:body]
     end
-    func[:body] = @q begin
-        $unstable, $T = $(_generated_instability_info)($check_sig)
-        if $unstable && !$ignore && $(checking_enabled)()
-            $err
-        end
+    @static if VERSION < v"1.12.0-"
+        func[:body] = @q begin
+            $T = $infer
+            if $(checker) && !$ignore && $(checking_enabled)()
+                $err
+            end
 
-        $(caller)
+            $(caller)
+        end
+    else
+        func[:body] = @q begin
+            $unstable, $T = $(_generated_instability_info)($check_sig)
+            if $unstable && !$ignore && $(checking_enabled)()
+                $err
+            end
+
+            $(caller)
+        end
     end
 
     func_simulator_ex = combinedef(func_simulator)

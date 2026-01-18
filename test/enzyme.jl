@@ -30,7 +30,6 @@ end
     # Due to a bug in Coverage.jl, we call these explicitly
     @eval module CoverageRules
         using Enzyme: EnzymeRules
-        using DispatchDoctor._Generated: _generated_instability_info
         using DispatchDoctor._RuntimeChecks: is_precompiling, checking_enabled
         using DispatchDoctor._Stabilization: _show_warning, _construct_pairs
         using DispatchDoctor._Utils:
@@ -38,21 +37,31 @@ end
             map_specializing_typeof,
             type_instability,
             type_instability_limit_unions
+        @static if VERSION >= v"1.12.0-"
+            using DispatchDoctor._Generated: _generated_instability_info
+        else
+            using DispatchDoctor._Utils: _promote_op
+        end
 
         using Test
 
         function test_all()
-            for f in [
+            fs = Any[
                 is_precompiling,
                 checking_enabled,
                 _show_warning,
                 _construct_pairs,
                 specializing_typeof,
                 map_specializing_typeof,
-                _generated_instability_info,
                 type_instability,
                 type_instability_limit_unions,
             ]
+            @static if VERSION >= v"1.12.0-"
+                push!(fs, _generated_instability_info)
+            else
+                push!(fs, _promote_op)
+            end
+            for f in fs
                 f != specializing_typeof && @test EnzymeRules.inactive_noinl(f) === nothing
                 @test EnzymeRules.inactive_noinl(f, 1) === nothing
             end
