@@ -30,12 +30,12 @@ end
     # Due to a bug in Coverage.jl, we call these explicitly
     @eval module CoverageRules
         using Enzyme: EnzymeRules
+        using DispatchDoctor._Generated: _generated_instability_info
         using DispatchDoctor._RuntimeChecks: is_precompiling, checking_enabled
         using DispatchDoctor._Stabilization: _show_warning, _construct_pairs
         using DispatchDoctor._Utils:
             specializing_typeof,
             map_specializing_typeof,
-            _promote_op,
             type_instability,
             type_instability_limit_unions
 
@@ -49,7 +49,7 @@ end
                 _construct_pairs,
                 specializing_typeof,
                 map_specializing_typeof,
-                _promote_op,
+                _generated_instability_info,
                 type_instability,
                 type_instability_limit_unions,
             ]

@@ -1,12 +1,12 @@
 module DispatchDoctorChainRulesCoreExt
 
-using ChainRulesCore: @ignore_derivatives, @non_differentiable
+using ChainRulesCore: @non_differentiable
+import DispatchDoctor._Generated: _generated_instability_info
 import DispatchDoctor._RuntimeChecks: is_precompiling, checking_enabled
 import DispatchDoctor._Stabilization: _show_warning, _construct_pairs
 import DispatchDoctor._Utils:
     specializing_typeof,
     map_specializing_typeof,
-    _promote_op,
     type_instability,
     type_instability_limit_unions
 
@@ -17,7 +17,7 @@ import DispatchDoctor._Utils:
 # Issue #46
 @non_differentiable specializing_typeof(::Any)
 @non_differentiable map_specializing_typeof(::Any...)
-@non_differentiable _promote_op(::Any...)
+@non_differentiable _generated_instability_info(::Any...)
 @non_differentiable type_instability(::Any...)
 @non_differentiable type_instability_limit_unions(::Any...)
 
