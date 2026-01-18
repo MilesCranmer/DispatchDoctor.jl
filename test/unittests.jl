@@ -71,7 +71,7 @@ end
             # Gensymmed arg used in new signature:
             r"function f\(var\"[#0-9]*arg[#0-9]*\"::Vector[,; ]*\)$"m,
             # Gensymmed arg used in instability check:
-            r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"",
+            r"_generated_instability_info.*var\"[#0-9]*arg[#0-9]*\"",
         ]
 
         # Destructuring assignment in body:
@@ -151,7 +151,7 @@ end
                 # Gensymmed arg used in new signature
                 r"function f\(var\"[#0-9]*arg[#0-9]*\"::MyAbstractType[,; ]*\)$"m,
                 # Gensymmed arg used in instability check
-                r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"",
+                r"_generated_instability_info.*var\"[#0-9]*arg[#0-9]*\"",
             ]
             codegen_level == "debug" &&
                 push!(expected_code_snippets, r"\(; x\) = var\"[#0-9]*arg[#0-9]*\"$"m)
