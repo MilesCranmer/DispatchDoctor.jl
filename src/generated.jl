@@ -13,6 +13,7 @@ Base.@kwdef struct DDInterp <: Compiler.AbstractInterpreter
     inf_cache::Vector{Compiler.InferenceResult} = Compiler.InferenceResult[]
     codegen_cache::IdDict{Core.CodeInstance,Core.CodeInfo} = IdDict{Core.CodeInstance,Core.CodeInfo}()
 end
+Base.Experimental.@MethodTable DDMT
 
 struct GeneratedCfgTag{UnionLimit,HasKw} end
 
@@ -22,6 +23,7 @@ Compiler.get_inference_world(interp::DDInterp) = interp.world
 Compiler.get_inference_cache(interp::DDInterp) = interp.inf_cache
 Compiler.cache_owner(::DDInterp) = DDInterpOwner()
 Compiler.codegen_cache(interp::DDInterp) = interp.codegen_cache
+Compiler.method_table(interp::DDInterp) = Compiler.OverlayMethodTable(interp.world, DDMT)
 
 function _cfg_from_tag(::Type{GeneratedCfgTag{UnionLimit,HasKw}}) where {UnionLimit,HasKw}
     union_limit = UnionLimit::Int
@@ -118,6 +120,8 @@ function _refresh_generated_instability_info()
         $(Expr(:meta, :generated_only))
         $(Expr(:meta, :generated, _generated_instability_info_body))
     end
+
+    @eval Base.Experimental.@overlay DDMT _generated_instability_info(sig) = (false, Union{})
 end
 #! format: on
 
