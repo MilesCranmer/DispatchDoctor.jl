@@ -70,9 +70,16 @@ end
             r"function var\"[#0-9]*f_simulator[#0-9]*\"\(\(x,\)::Vector[,; ]*\)$"m,
             # Gensymmed arg used in new signature:
             r"function f\(var\"[#0-9]*arg[#0-9]*\"::Vector[,; ]*\)$"m,
-            # Gensymmed arg used in instability check:
-            r"_generated_instability_info.*var\"[#0-9]*arg[#0-9]*\"",
         ]
+        @static if VERSION >= v"1.12.0-"
+            # Gensymmed arg used in instability check:
+            push!(
+                expected_code_snippets,
+                r"_generated_instability_info.*var\"[#0-9]*arg[#0-9]*\"",
+            )
+        else
+            push!(expected_code_snippets, r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"")
+        end
 
         # Destructuring assignment in body:
         codegen_level == "debug" &&
@@ -150,9 +157,16 @@ end
                 r"function var\"[#0-9]*f_simulator[#0-9]*\"\(\(; x\)::MyAbstractType[,; ]*\)$"m,
                 # Gensymmed arg used in new signature
                 r"function f\(var\"[#0-9]*arg[#0-9]*\"::MyAbstractType[,; ]*\)$"m,
-                # Gensymmed arg used in instability check
-                r"_generated_instability_info.*var\"[#0-9]*arg[#0-9]*\"",
             ]
+            @static if VERSION >= v"1.12.0-"
+                # Gensymmed arg used in instability check
+                push!(
+                    expected_code_snippets,
+                    r"_generated_instability_info.*var\"[#0-9]*arg[#0-9]*\"",
+                )
+            else
+                push!(expected_code_snippets, r"_promote_op.*var\"[#0-9]*arg[#0-9]*\"")
+            end
             codegen_level == "debug" &&
                 push!(expected_code_snippets, r"\(; x\) = var\"[#0-9]*arg[#0-9]*\"$"m)
             codegen_level == "min" && push!(
