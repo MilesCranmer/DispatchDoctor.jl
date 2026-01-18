@@ -13,7 +13,6 @@ Base.@kwdef struct DDInterp <: Compiler.AbstractInterpreter
     inf_cache::Vector{Compiler.InferenceResult} = Compiler.InferenceResult[]
     codegen_cache::IdDict{Core.CodeInstance,Core.CodeInfo} = IdDict{Core.CodeInstance,Core.CodeInfo}()
 end
-Base.Experimental.@MethodTable DDMT
 
 struct GeneratedCfgTag{UnionLimit,HasKw} end
 
@@ -23,7 +22,6 @@ Compiler.get_inference_world(interp::DDInterp) = interp.world
 Compiler.get_inference_cache(interp::DDInterp) = interp.inf_cache
 Compiler.cache_owner(::DDInterp) = DDInterpOwner()
 Compiler.codegen_cache(interp::DDInterp) = interp.codegen_cache
-Compiler.method_table(interp::DDInterp) = Compiler.OverlayMethodTable(interp.world, DDMT)
 
 function _cfg_from_tag(::Type{GeneratedCfgTag{UnionLimit,HasKw}}) where {UnionLimit,HasKw}
     union_limit = UnionLimit::Int
@@ -33,11 +31,7 @@ end
 
 function _tt_cfg_from_sig(sig::DataType, world::UInt)
     @nospecialize sig
-    tt = try
-        Core.apply_type(Tuple, sig.parameters[2:end]...)
-    catch
-        sig
-    end
+    tt = Core.apply_type(Tuple, sig.parameters[2:end]...)
     tt isa Type{<:Tuple} ||
         error("_generated_instability_info expected a config-tagged Tuple type; got $sig")
     union_limit, has_kwargs = _cfg_from_tag(sig.parameters[1]::Type{<:GeneratedCfgTag})
@@ -124,8 +118,6 @@ function _refresh_generated_instability_info()
         $(Expr(:meta, :generated_only))
         $(Expr(:meta, :generated, _generated_instability_info_body))
     end
-
-    @eval Base.Experimental.@overlay DDMT _generated_instability_info(sig) = (false, Union{})
 end
 #! format: on
 
