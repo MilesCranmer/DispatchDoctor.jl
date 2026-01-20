@@ -871,7 +871,7 @@ end
     macro mymacro(ex)
         return esc(ex)
     end
-    if !haskey(DispatchDoctor.MACRO_BEHAVIOR.table, Symbol("@mymacro"))
+    if !haskey(DispatchDoctor.MACRO_BEHAVIOR.table, (Symbol("@mymacro"), nothing))
         register_macro!(Symbol("@mymacro"), DispatchDoctor.IncompatibleMacro)
     end
     @test DispatchDoctor.get_macro_behavior(:(@mymacro x = 1)) ==
@@ -891,6 +891,69 @@ end
         @test f(0) == 0
     end
 end
+@testitem "register macros scoped to root module" begin
+    using DispatchDoctor
+    using DispatchDoctor: _Interactions as DDI
+
+    push!(LOAD_PATH, joinpath(@__DIR__, "FakePackage1"))
+    push!(LOAD_PATH, joinpath(@__DIR__, "FakePackage2"))
+
+    using FakePackage1
+    using FakePackage2
+
+    macro_ident = Symbol("dd_scoped_macro_", rand(UInt))
+    macro_sym = Symbol("@", macro_ident)
+    submod_ident = Symbol("Sub_", macro_ident)
+
+    FakePackage1.eval(:(module $(submod_ident) end))
+    submod = getfield(FakePackage1, submod_ident)
+    submod.eval(:(macro $(macro_ident)(ex) return esc(ex) end))
+
+    FakePackage2.eval(:(macro $(macro_ident)(ex) return esc(ex) end))
+
+    # Register a global fallback behavior, then override it for FakePackage1's root.
+    register_macro!(macro_sym, DDI.DontPropagateMacro, nothing)
+    register_macro!(macro_sym, DDI.IncompatibleMacro, submod) # Normalizes to Base.moduleroot(FakePackage1)
+
+    @test haskey(DDI.MACRO_BEHAVIOR.table, (macro_sym, FakePackage1))
+    @test !haskey(DDI.MACRO_BEHAVIOR.table, (macro_sym, submod))
+
+    @test DDI.get_macro_behavior(macro_sym, FakePackage1) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(macro_sym, submod) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(macro_sym, FakePackage2) == DDI.DontPropagateMacro
+
+    # Integration test: `@stable` should consult the calling root module.
+    f_name = Symbol("f_", macro_ident)
+    g_name = Symbol("g_", macro_ident)
+    unstable_f_def = :(function $(f_name)(x)
+        return rand(Bool) ? x : 0.0
+    end)
+    unstable_g_def = :(function $(g_name)(x)
+        return rand(Bool) ? x : 0.0
+    end)
+
+    # FakePackage1: incompatible -> skipped -> no instability error
+    inner_f = Expr(:macrocall, macro_sym, LineNumberNode(1, :none), unstable_f_def)
+    submod.eval(:($(DispatchDoctor).@stable $(inner_f)))
+    @test submod.eval(Expr(:call, f_name, 1)) in (1, 0.0)
+
+    # FakePackage2: global dont-propagate -> stabilized -> instability error
+    inner_g = Expr(:macrocall, macro_sym, LineNumberNode(1, :none), unstable_g_def)
+    FakePackage2.eval(:($(DispatchDoctor).@stable $(inner_g)))
+    if DispatchDoctor.JULIA_OK
+        @test_throws DispatchDoctor.TypeInstabilityError FakePackage2.eval(
+            Expr(:call, g_name, 1)
+        )
+    else
+        @test FakePackage2.eval(Expr(:call, g_name, 1)) in (1, 0.0)
+    end
+
+    # Duplicate registration for the same (macro, scope) should throw.
+    tmp_ident = Symbol("dd_scoped_duplicate_", rand(UInt))
+    tmp_sym = Symbol("@", tmp_ident)
+    register_macro!(tmp_sym, DDI.CompatibleMacro, nothing)
+    @test_throws "already registered" register_macro!(tmp_sym, DDI.IncompatibleMacro, nothing)
+end
 @testitem "merging behavior of registered macros" begin
     using DispatchDoctor
     using DispatchDoctor: _Interactions as DDI
@@ -904,13 +967,13 @@ end
     macro dontpropagatemacro(ex)
         return esc(ex)
     end
-    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@compatiblemacro"))
+    if !haskey(DDI.MACRO_BEHAVIOR.table, (Symbol("@compatiblemacro"), nothing))
         register_macro!(Symbol("@compatiblemacro"), DDI.CompatibleMacro)
     end
-    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@incompatiblemacro"))
+    if !haskey(DDI.MACRO_BEHAVIOR.table, (Symbol("@incompatiblemacro"), nothing))
         register_macro!(Symbol("@incompatiblemacro"), DDI.IncompatibleMacro)
     end
-    if !haskey(DDI.MACRO_BEHAVIOR.table, Symbol("@dontpropagatemacro"))
+    if !haskey(DDI.MACRO_BEHAVIOR.table, (Symbol("@dontpropagatemacro"), nothing))
         register_macro!(Symbol("@dontpropagatemacro"), DDI.DontPropagateMacro)
     end
     @test DDI.get_macro_behavior(:(@compatiblemacro true x = 1)) == DDI.CompatibleMacro

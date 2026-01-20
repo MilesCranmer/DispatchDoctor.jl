@@ -32,6 +32,7 @@ function _stable(args...; calling_module, source_info, kws...)
         out, metadata = _stabilize_all(
             ex,
             DownwardMetadata();
+            calling_module,
             source_info,
             kws...,
             options.mode,
@@ -80,13 +81,23 @@ function UpwardMetadata(downward_metadata::DownwardMetadata; matching_function::
     )
 end
 
-function _stabilize_all(ex, downward_metadata::DownwardMetadata; kws...)
+function _stabilize_all(
+    ex,
+    downward_metadata::DownwardMetadata;
+    calling_module::Module=Core.Main,
+    kws...,
+)
     return ex, UpwardMetadata(downward_metadata)
 end
-function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
+function _stabilize_all(
+    ex::Expr,
+    downward_metadata::DownwardMetadata;
+    calling_module::Module=Core.Main,
+    kws...,
+)
     #! format: off
     if ex.head == :macrocall
-        macro_behavior = get_macro_behavior(ex.args[1])
+        macro_behavior = get_macro_behavior(ex.args[1], calling_module)
         if macro_behavior == IncompatibleMacro
             return ex, UpwardMetadata(downward_metadata)
         elseif macro_behavior == CompatibleMacro
@@ -99,7 +110,7 @@ function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
             push!(macro_keys, my_key)
 
             new_downward_metadata = DownwardMetadata(; macros_to_use, macro_keys)
-            inner_ex, upward_metadata = _stabilize_all(ex.args[end], new_downward_metadata; kws...)
+            inner_ex, upward_metadata = _stabilize_all(ex.args[end], new_downward_metadata; calling_module, kws...)
 
             if isempty(upward_metadata.unused_macros)
                 # It has been applied! So we just return the inner part
@@ -121,7 +132,7 @@ function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
             @assert macro_behavior == DontPropagateMacro
 
             # Apply to last argument only
-            inner_ex, upward_metadata = _stabilize_all(ex.args[end], downward_metadata; kws...)
+            inner_ex, upward_metadata = _stabilize_all(ex.args[end], downward_metadata; calling_module, kws...)
             new_ex = Expr(:macrocall, ex.args[1:end-1]..., inner_ex)
             return new_ex, upward_metadata
         end
@@ -135,7 +146,7 @@ function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
         # Incompatible with two functions
         return ex, UpwardMetadata(downward_metadata)
     elseif ex.head == :module
-        return _stabilize_module(ex, downward_metadata; kws...)
+        return _stabilize_module(ex, downward_metadata; calling_module, kws...)
     elseif ex.head == :call && ex.args[1] == Symbol("include") && length(ex.args) == 2
         # We can't track the matches in includes, so just assume
         # there are some matches. TODO: However, this is not a great solution.
@@ -147,7 +158,9 @@ function _stabilize_all(ex::Expr, downward_metadata::DownwardMetadata; kws...)
         # TODO: Should report `isdef` to MacroTools as not capturing all cases
         return _stabilize_fnc(ex, downward_metadata; kws...)
     else
-        stabilized_args = map(e -> _stabilize_all(e, DownwardMetadata(); kws...), ex.args)
+        stabilized_args = map(
+            e -> _stabilize_all(e, DownwardMetadata(); calling_module, kws...), ex.args
+        )
         merged_upward_metadata = reduce(merge, map(last, stabilized_args); init=UpwardMetadata())
         new_ex = Expr(ex.head, map(first, stabilized_args)...)
         return new_ex, UpwardMetadata(downward_metadata; matching_function=merged_upward_metadata.matching_function)
@@ -158,7 +171,7 @@ end
 function _stabilizing_include(m::Module, path; kws...)
     inner = let kws = kws
         (ex,) -> let
-            new_ex, upward_metadata = _stabilize_all(ex, DownwardMetadata(); kws...)
+            new_ex, upward_metadata = _stabilize_all(ex, DownwardMetadata(); calling_module=m, kws...)
             @assert isempty(upward_metadata.unused_macros)
             new_ex
         end
@@ -166,9 +179,9 @@ function _stabilizing_include(m::Module, path; kws...)
     return m.include(inner, path)
 end
 
-function _stabilize_module(ex, downward_metadata; kws...)
+function _stabilize_module(ex, downward_metadata; calling_module::Module=Core.Main, kws...)
     stabilized_args = map(
-        e -> _stabilize_all(e, DownwardMetadata(); kws...), ex.args[3].args
+        e -> _stabilize_all(e, DownwardMetadata(); calling_module, kws...), ex.args[3].args
     )
     merged_upward_metadata = reduce(
         merge, map(last, stabilized_args); init=UpwardMetadata()
