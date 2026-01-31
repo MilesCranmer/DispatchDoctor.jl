@@ -32,7 +32,7 @@ function _stable(args...; calling_module, source_info, kws...)
         out, metadata = _stabilize_all(
             ex,
             DownwardMetadata();
-            calling_module,
+            calling_module = something(calling_module, Core.Main),
             source_info,
             kws...,
             options.mode,
