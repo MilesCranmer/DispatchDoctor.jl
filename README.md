@@ -158,7 +158,7 @@ end
 `"disable"` as the mode will turn `@stable` into a *no-op*, so that
 DispatchDoctor has no effect on your code by default.
 
-If you prefer annotating individual functions but want to avoid repeating keywords (e.g. always using `default_mode="disable"`), you can define a small wrapper macro inside your package:
+If you prefer annotating individual functions but want to avoid repeating keywords (e.g., always using `default_mode="disable"`), you can define a small wrapper macro inside your package:
 
 ```julia
 import DispatchDoctor
