@@ -155,6 +155,9 @@ end
 end
 ```
 
+`"disable"` as the mode will turn `@stable` into a *no-op*, so that
+DispatchDoctor has no effect on your code by default.
+
 If you prefer annotating individual functions but want to avoid repeating keywords (e.g. always using `default_mode="disable"`), you can define a small wrapper macro inside your package:
 
 ```julia
@@ -166,9 +169,6 @@ end
 ```
 
 Then you can use `@stable` throughout your code, while still being able to refer to the original macro explicitly as `DispatchDoctor.@stable`.
-
-`"disable"` as the mode will turn `@stable` into a *no-op*, so that
-DispatchDoctor has no effect on your code by default.
 
 The mode is configurable
 via [Preferences.jl](https://github.com/JuliaPackaging/Preferences.jl),
