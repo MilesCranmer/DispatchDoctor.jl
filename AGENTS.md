@@ -21,3 +21,4 @@ DispatchDoctor.jl is a pure Julia package (no external services, databases, or D
 - The first `Pkg.test()` run after `Pkg.instantiate()` will precompile ~70 dependencies and takes ~2 minutes. Subsequent runs are faster.
 - `JuliaFormatter` is installed in the default global environment (`~/.julia/environments/v1.10/`), not in the project environment. Use `julia -e '...'` (no `--project`) to access it.
 - The `@stable` macro warnings during tests (e.g., "found no compatible functions to stabilize") are expected and part of the test suite.
+- `TypeInstabilityError` has a `cause` field for chaining nested instabilities. When error mode detects instability, it calls the simulator to capture inner `TypeInstabilityError`s; non-`TypeInstabilityError` exceptions are rethrown.
