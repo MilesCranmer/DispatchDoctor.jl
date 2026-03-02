@@ -8,6 +8,26 @@ using TestItemRunner
         @test f(1) == 1
     end
 end
+
+@testitem "configure check timing" begin
+    using DispatchDoctor
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level default_check_timing = "after" f(x) = ABC(x)
+        @test_throws UndefVarError f(1)
+
+        @eval @stable default_codegen_level = $codegen_level default_check_timing = "before" g(x) = ABC(x)
+        if DispatchDoctor.JULIA_OK
+            @test_throws TypeInstabilityError g(1)
+        else
+            @test_throws UndefVarError g(1)
+        end
+
+        @eval @stable default_check_timing = "after" default_codegen_level = $codegen_level h(x) = x > 0 ? x : 1.0
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(1)
+        @test h(2.0) == 2.0
+    end
+end
+
 @testitem "with error" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
@@ -1238,14 +1258,14 @@ end
     # various settings
     using FakePackage1
 
-    options = DDP.StabilizationOptions("d", "e", 6)
+    options = DDP.StabilizationOptions("d", "e", 6, "before")
     @test DDP.get_all_preferred(options, FakePackage1) ==
-        DDP.StabilizationOptions("a", "b", 3)
+        DDP.StabilizationOptions("a", "b", 3, "before")
 
     using FakePackage2
-    options = DDP.StabilizationOptions("d", "e", 6)
+    options = DDP.StabilizationOptions("d", "e", 6, "before")
     @test DDP.get_all_preferred(options, FakePackage2) ==
-        DDP.StabilizationOptions("d", "alpha", 6)
+        DDP.StabilizationOptions("d", "alpha", 6, "before")
 
     # FakePackage3 has no preferences
     using FakePackage3
@@ -1259,6 +1279,7 @@ end
         DDP.GLOBAL_DEFAULT_MODE,
         DDP.GLOBAL_DEFAULT_CODEGEN_LEVEL,
         DDP.GLOBAL_DEFAULT_UNION_LIMIT,
+        DDP.GLOBAL_DEFAULT_CHECK_TIMING,
     )
 end
 @testitem "warn on no matches" begin
