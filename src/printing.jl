@@ -11,9 +11,10 @@ typeinfo(u::Unknown) = u
 function _print_instability_details(
     io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning}
 )
-    print(io, "in ", e.f)
+    printstyled(io, e.f; bold=true)
     if e.source_info !== nothing
-        print(io, " defined at ", e.source_info)
+        printstyled(io, " defined at "; color=:light_black)
+        printstyled(io, e.source_info; color=:light_black)
     end
     parts = []
     if !isempty(e.args)
@@ -29,8 +30,9 @@ function _print_instability_details(
         print(io, " with ")
         join(io, parts, " and ")
     end
-    print(io, ". ")
-    return print(io, "Inferred to be `", e.return_type, "`, which is not a concrete type.")
+    print(io, ". Inferred to be ")
+    printstyled(io, "`", e.return_type, "`"; color=:yellow)
+    return print(io, ", which is not a concrete type.")
 end
 
 function _collect_chain(e::TypeInstabilityError)
@@ -52,8 +54,14 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
             ": Instability detected with the following chain (innermost first):",
         )
         chain = _collect_chain(e)
+        n = length(chain)
         for (i, frame) in enumerate(chain)
-            print(io, "\n [", i, "] ")
+            is_last = i == n
+            connector = is_last ? " └── " : " ├── "
+            print(io, "\n")
+            printstyled(io, connector; color=:light_black)
+            printstyled(io, "[", i, "]"; bold=true)
+            print(io, " ")
             _print_instability_details(io, frame)
         end
     else
@@ -61,7 +69,7 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
             io,
             "DispatchDoctor.TypeInstability",
             e isa TypeInstabilityError ? "Error" : "Warning",
-            ": Instability detected ",
+            ": Instability detected in ",
         )
         _print_instability_details(io, e)
     end
