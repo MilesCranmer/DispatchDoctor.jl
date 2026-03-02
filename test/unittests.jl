@@ -26,6 +26,9 @@ end
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(1)
         @test h(2.0) == 2.0
     end
+
+    # Invalid option should fail at macro-expansion time
+    @test_throws LoadError @eval @stable default_check_timing = "nope" f(x) = x
 end
 
 @testitem "with error" begin
