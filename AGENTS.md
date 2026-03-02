@@ -12,9 +12,10 @@ DispatchDoctor.jl is a pure Julia package (no external services, databases, or D
 - Tests use `TestItemRunner` and `TestItems`. All 325 unit tests should pass.
 
 ### Formatting / Linting
-- Uses `JuliaFormatter` with Blue style (configured in `.JuliaFormatter.toml`).
-- Check: `julia -e 'using JuliaFormatter; format(".", style=BlueStyle(), overwrite=false)'`
-- Note: Some existing source files have minor deviations from Blue style; this is pre-existing.
+- Uses **JuliaFormatter v1** (NOT v2) with Blue style (configured in `.JuliaFormatter.toml`).
+- Install: `julia -e 'using Pkg; Pkg.add(name="JuliaFormatter", version="1")'`
+- Check: `julia -e 'using JuliaFormatter; format(".", overwrite=false)'`
+- Note: Some existing source files have minor formatting deviations; this is pre-existing.
 
 ### Key caveats
 - The first `Pkg.test()` run after `Pkg.instantiate()` will precompile ~70 dependencies and takes ~2 minutes. Subsequent runs are faster.
