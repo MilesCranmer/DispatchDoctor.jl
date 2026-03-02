@@ -334,22 +334,34 @@ function _stabilize_fnc(
             $(caller)
         end
     else
-        ok = gensym(string(name, "_ok"))
         func[:body] = @q begin
-            local $ok = true
-            try
+            local result = try
                 $(caller)
-            catch
-                $ok = false
-                rethrow()
-            finally
-                if $ok
+            catch _err
+                if $(mode) == "error" && _err isa TypeInstabilityError
                     $T = $infer
                     if $(checker) && !$ignore && $(checking_enabled)()
-                        $err
+                        throw(
+                            $(TypeInstabilityError)(
+                                $(print_name),
+                                $(source_info),
+                                ($(arg_symbols...),),
+                                (; $(kwarg_symbols...)),
+                                ($(_construct_pairs)($(where_param_symbols), ($(where_param_symbols...),))),
+                                $T,
+                                _err,
+                            ),
+                        )
                     end
                 end
+                rethrow()
             end
+
+            $T = $infer
+            if $(checker) && !$ignore && $(checking_enabled)()
+                $err
+            end
+            result
         end
     end
 

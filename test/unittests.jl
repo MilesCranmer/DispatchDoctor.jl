@@ -28,6 +28,35 @@ end
     end
 end
 
+@testitem "nested instability stack trace" begin
+    using DispatchDoctor
+    for codegen_level in ("debug", "min")
+        @eval @stable default_check_timing = "after" default_codegen_level = $codegen_level function inner(x)
+            x > 0 ? x : 1.0
+        end
+        @eval @stable default_check_timing = "after" default_codegen_level = $codegen_level outer(x) = inner(x)
+
+        if DispatchDoctor.JULIA_OK
+            try
+                outer(-1)
+                @test false
+            catch err
+                @test err isa TypeInstabilityError
+                @test err.caused_by isa TypeInstabilityError
+                @test err.caused_by.f == "`inner`"
+
+                msg = sprint(showerror, err)
+                @test occursin("Instability chain", msg)
+                @test occursin("`outer`", msg)
+                @test occursin("`inner`", msg)
+            end
+
+            @eval @stable default_check_timing = "after" default_codegen_level = $codegen_level bad(x) = ABC(x)
+            @test_throws UndefVarError bad(1)
+        end
+    end
+end
+
 @testitem "with error" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
