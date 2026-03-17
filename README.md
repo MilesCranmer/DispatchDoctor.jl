@@ -191,7 +191,7 @@ As with the `default_mode`, you can configure the codegen level with Preferences
 by using the `"dispatch_doctor_codegen_level"` key.
 
 Note that for code coverage to work as expected over stabilized code,
-you will also need to use `default_codegen_level="min"`.
+you will also need to use `dispatch_doctor_codegen_level="min"`.
 
 ## 🔬 Special Cases
 
