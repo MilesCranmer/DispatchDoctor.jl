@@ -1276,6 +1276,7 @@ end
     push!(LOAD_PATH, joinpath(@__DIR__, "FakePackage1"))
     push!(LOAD_PATH, joinpath(@__DIR__, "FakePackage2"))
     push!(LOAD_PATH, joinpath(@__DIR__, "FakePackage3"))
+    push!(LOAD_PATH, joinpath(@__DIR__, "FakePackage4"))
 
     # These packages have `LocalPreferences.toml` with
     # various settings
@@ -1289,6 +1290,23 @@ end
     options = DDP.StabilizationOptions("d", "e", 6)
     @test DDP.get_all_preferred(options, FakePackage2) ==
         DDP.StabilizationOptions("d", "alpha", 6)
+
+    using FakePackage4
+    options = DDP.StabilizationOptions("d", "e", 6)
+    err = try
+        DDP.get_all_preferred(options, FakePackage4)
+        nothing
+    catch e
+        e
+    end
+    @test err isa ArgumentError
+    msg = sprint(showerror, err)
+    @test occursin("default_codegen_level", msg)
+    @test occursin("dispatch_doctor_codegen_level", msg)
+    @test occursin("default_union_limit", msg)
+    @test occursin("dispatch_doctor_union_limit", msg)
+    @test occursin("default_mode", msg)
+    @test occursin("dispatch_doctor_mode", msg)
 
     # FakePackage3 has no preferences
     using FakePackage3
