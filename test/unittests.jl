@@ -255,6 +255,49 @@ end
     @test length(line_nodes) > 1
     @test length(unique(line_nodes)) == length(line_nodes)  # No dupes!
 end
+
+@testitem "coverage: function header is executable under @stable begin" begin
+    using DispatchDoctor
+
+    # Reproduce https://github.com/MilesCranmer/DispatchDoctor.jl/issues/114:
+    # when stabilizing a function inside an `@stable ... begin ... end` block,
+    # the function header line should get a coverage count (not `-`).
+    mktempdir() do dir
+        mwe_path = joinpath(dir, "mwe.jl")
+        write(
+            mwe_path,
+            """module StablePkg\n""" *
+            """using DispatchDoctor\n""" *
+            """export foo\n\n""" *
+            """@stable default_codegen_level=\"min\" begin\n\n""" *
+            """function foo(x)\n""" *
+            """    x + 1\n""" *
+            """end\n\n""" *
+            """end\n\n""" *
+            """end\n\n""" *
+            """using .StablePkg\n""" *
+            """StablePkg.foo(1)\n""" *
+            """""",
+        )
+
+        # Restrict coverage collection to the temporary directory so we don't
+        # litter the DispatchDoctor repo with .cov files during testing.
+        cmd = `$(Base.julia_cmd()) --project=$(pkgdir(DispatchDoctor)) --code-coverage=@$dir $mwe_path`
+        run(cmd)
+
+        cov_paths = filter(
+            p -> startswith(basename(p), "mwe.jl.") && endswith(p, ".cov"),
+            readdir(dir; join=true),
+        )
+        @test !isempty(cov_paths)
+        cov = read(first(cov_paths), String)
+
+        lines = split(cov, '\n')
+        i = findfirst(l -> occursin("function foo(x)", l), lines)
+        @test i !== nothing
+        @test occursin(r"^\s*\d+\s+function foo\(x\)", lines[i])
+    end
+end
 @testitem "Type specialization" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
