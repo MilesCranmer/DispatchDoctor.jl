@@ -1,0 +1,42 @@
+name: Commitlint
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install commitlint
+        run: npm install --no-save @commitlint/cli @commitlint/config-conventional
+
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: echo "$PR_TITLE" | npx commitlint --config commitlint.config.mjs --verbose
+
+      - name: Validate PR commits
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          while IFS= read -r sha; do
+            git log --format=%B -n 1 "$sha" |
+              npx commitlint --config commitlint.config.mjs --verbose
+          done < <(git rev-list "origin/${BASE_REF}..HEAD")
