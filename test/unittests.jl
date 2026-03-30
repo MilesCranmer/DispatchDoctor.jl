@@ -1454,4 +1454,21 @@ end
     @test_throws TypeInstabilityError f()
 end
 
+@testitem "no overhead for Type arguments" begin
+    using DispatchDoctor
+
+    @stable gs(::Type{T}, x) where {T} = T(x)
+    g(::Type{Int}, x) = Int(x)
+
+    # warmup
+    map(x -> g(Int, x), 1:10)
+    map(x -> gs(Int, x), 1:10)
+
+    a_plain = @allocated map(x -> g(Int, x), 1:10^4)
+    a_stable = @allocated map(x -> gs(Int, x), 1:10^4)
+
+    # @stable should not cause orders-of-magnitude more allocations
+    @test a_stable < 3 * max(a_plain, 1000)
+end
+
 @run_package_tests
