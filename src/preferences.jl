@@ -74,7 +74,36 @@ function get_preferred(
         return default
     end
 end
+const _MISNAMED_PREFERENCE_KEYS = (
+    ("default_mode", "dispatch_doctor_mode"),
+    ("default_codegen_level", "dispatch_doctor_codegen_level"),
+    ("default_union_limit", "dispatch_doctor_union_limit"),
+)
+
+function _check_for_misnamed_preference_keys(uuid)
+    uuid == Base.UUID(0) && return nothing
+
+    renames = String[]
+    for (bad, good) in _MISNAMED_PREFERENCE_KEYS
+        has_preference(uuid, bad) && push!(renames, "`$bad` -> `$good`")
+    end
+
+    isempty(renames) && return nothing
+
+    throw(
+        ArgumentError(
+            "Found misnamed DispatchDoctor preference key(s): " *
+            join(renames, ", ") *
+            ". Note: these are `@stable` keyword arguments, not Preferences.jl keys. " *
+            "Please rename them in your (Local)Preferences.toml.",
+        ),
+    )
+end
+
 function get_all_preferred(options::StabilizationOptions, calling_module)
+    uuid = _cached_get_uuid(calling_module)
+    _check_for_misnamed_preference_keys(uuid)
+
     mode = get_preferred(
         options.mode,
         PREFERENCE_CACHE.mode,
