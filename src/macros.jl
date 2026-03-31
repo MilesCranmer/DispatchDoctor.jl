@@ -11,6 +11,10 @@ A macro to enforce type stability in functions.
 When applied, it ensures that the return type of the function is concrete.
 If type instability is detected, a `TypeInstabilityError` is thrown.
 
+The check runs after the wrapped function body executes successfully, so runtime errors
+are not shadowed by `TypeInstabilityError`. (Side effects can still run before an
+instability error is raised.)
+
 # Options
 
 - `default_mode::String="error"`:
@@ -22,7 +26,6 @@ If type instability is detected, a `TypeInstabilityError` is thrown.
 - `default_union_limit::Int=1`:
   - Sets the maximum elements in a union to be considered stable. The default is `1`, meaning that all unions are considered unstable. A value of `2` would indicate that `Union{Float32,Float64}` is considered stable, but `Union{Float16,Float32,Float64}` is not.
   - To locally or globally override the union limit for a package that uses DispatchDoctor, you can use the `"dispatch_doctor_union_limit"` key in your LocalPreferences.toml.
-
 
 # Example
     
