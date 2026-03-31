@@ -12,6 +12,11 @@ struct TypeInstabilityError <: Exception
     kwargs::Any
     params::Any
     return_type::Any
+    cause::Union{TypeInstabilityError,Nothing}
+end
+
+function TypeInstabilityError(f, source_info, args, kwargs, params, return_type)
+    return TypeInstabilityError(f, source_info, args, kwargs, params, return_type, nothing)
 end
 
 struct TypeInstabilityWarning

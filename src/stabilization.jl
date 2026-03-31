@@ -260,32 +260,6 @@ function _stabilize_fnc(
     simulator = gensym(string(name, "_simulator"))
     T = gensym(string(name, "_return_type"))
 
-    err = if mode == "error"
-        :(throw(
-            $(TypeInstabilityError)(
-                $(print_name),
-                $(source_info),
-                ($(arg_symbols...),),
-                (; $(kwarg_symbols...)),
-                ($(_construct_pairs)($(where_param_symbols), ($(where_param_symbols...),))),
-                $T,
-            ),
-        ))
-    elseif mode == "warn"
-        :($(_show_warning)(
-            $(TypeInstabilityWarning)(
-                $(print_name),
-                $(source_info),
-                ($(arg_symbols...),),
-                (; $(kwarg_symbols...)),
-                ($(_construct_pairs)($(where_param_symbols), ($(where_param_symbols...),))),
-                $T,
-            ),
-        ))
-    else
-        error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
-    end
-
     typeof_args = :($(map_specializing_typeof)(($(arg_symbols...),)))
     infer = if isempty(kwarg_symbols)
         :($(_promote_op)($simulator, $(typeof_args)...))
@@ -323,6 +297,55 @@ function _stabilize_fnc(
     else
         func_simulator[:body]
     end
+
+    err = if mode == "error"
+        cause_var = gensym(string(name, "_instability_cause"))
+        exc_var = gensym(string(name, "_caught_exception"))
+        # Always call the simulator (not the inline body) to avoid `return` escaping
+        error_caller = if isempty(kwarg_symbols)
+            :($simulator($(arg_symbols...)))
+        else
+            :($simulator($(arg_symbols...); $(kwarg_symbols...)))
+        end
+        error_throw = :(throw(
+            $(TypeInstabilityError)(
+                $(print_name),
+                $(source_info),
+                ($(arg_symbols...),),
+                (; $(kwarg_symbols...)),
+                ($(_construct_pairs)($(where_param_symbols), ($(where_param_symbols...),))),
+                $T,
+                $cause_var,
+            ),
+        ))
+        @q begin
+            local $cause_var = nothing
+            try
+                $error_caller
+            catch $exc_var
+                if $exc_var isa $(TypeInstabilityError)
+                    $cause_var = $exc_var
+                else
+                    rethrow()
+                end
+            end
+            $error_throw
+        end
+    elseif mode == "warn"
+        :($(_show_warning)(
+            $(TypeInstabilityWarning)(
+                $(print_name),
+                $(source_info),
+                ($(arg_symbols...),),
+                (; $(kwarg_symbols...)),
+                ($(_construct_pairs)($(where_param_symbols), ($(where_param_symbols...),))),
+                $T,
+            ),
+        ))
+    else
+        error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
+    end
+
     func[:body] = @q begin
         $T = $infer
         if $(checker) && !$ignore && $(checking_enabled)()
