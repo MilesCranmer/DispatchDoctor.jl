@@ -323,13 +323,23 @@ function _stabilize_fnc(
     else
         func_simulator[:body]
     end
-    func[:body] = @q begin
-        $T = $infer
-        if $(checker) && !$ignore && $(checking_enabled)()
-            $err
-        end
+    ok = gensym(string(name, "_ok"))
 
-        $(caller)
+    func[:body] = @q begin
+        local $ok = true
+        try
+            $(caller)
+        catch
+            $ok = false
+            rethrow()
+        finally
+            if $ok
+                $T = $infer
+                if $(checker) && !$ignore && $(checking_enabled)()
+                    $err
+                end
+            end
+        end
     end
 
     func_simulator_ex = combinedef(func_simulator)
