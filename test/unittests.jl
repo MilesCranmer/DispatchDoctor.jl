@@ -364,6 +364,8 @@ end
     @eval @stable default_mode = $default_mode f() = Val(rand())
     @test f() isa Val
     @test DDPO._parse(QuoteNode(default_mode), String) == "disable"
+    @test DDPO._validate_check_timing("before") === nothing
+    @test DDPO._validate_check_timing("after") === nothing
 
     # Edge case
     @test DDPO._parse(nothing, String) == nothing
@@ -1263,12 +1265,12 @@ end
 
     options = DDP.StabilizationOptions("d", "e", 6, "before")
     @test DDP.get_all_preferred(options, FakePackage1) ==
-        DDP.StabilizationOptions("a", "b", 3, "before")
+        DDP.StabilizationOptions("a", "b", 3, "after")
 
     using FakePackage2
     options = DDP.StabilizationOptions("d", "e", 6, "before")
     @test DDP.get_all_preferred(options, FakePackage2) ==
-        DDP.StabilizationOptions("d", "alpha", 6, "before")
+        DDP.StabilizationOptions("d", "alpha", 6, "after")
 
     # FakePackage3 has no preferences
     using FakePackage3

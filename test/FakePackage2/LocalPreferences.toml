@@ -1,2 +1,3 @@
 [FakePackage2]
 instability_check_codegen = "alpha"
+instability_check_timing = "after"
