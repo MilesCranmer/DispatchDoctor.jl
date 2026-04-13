@@ -6,6 +6,7 @@ using .._Preferences:
     GLOBAL_DEFAULT_MODE,
     GLOBAL_DEFAULT_CODEGEN_LEVEL,
     GLOBAL_DEFAULT_UNION_LIMIT,
+    GLOBAL_DEFAULT_CHECK_TIMING,
     StabilizationOptions
 
 function parse_options(options, calling_module)
@@ -13,6 +14,7 @@ function parse_options(options, calling_module)
     mode = GLOBAL_DEFAULT_MODE
     codegen_level = GLOBAL_DEFAULT_CODEGEN_LEVEL
     union_limit = GLOBAL_DEFAULT_UNION_LIMIT
+    check_timing = GLOBAL_DEFAULT_CHECK_TIMING
 
     # Deprecated
     warnonly = nothing
@@ -35,6 +37,9 @@ function parse_options(options, calling_module)
             elseif option.args[1] == :default_union_limit
                 union_limit = option.args[2]
                 continue
+            elseif option.args[1] == :default_check_timing
+                check_timing = option.args[2]
+                continue
             end
         end
         error("Unknown macro option: $option")
@@ -43,9 +48,11 @@ function parse_options(options, calling_module)
     mode = _parse_even_if_expr(mode, calling_module, String)
     codegen_level = _parse(codegen_level, String)
     union_limit = _parse(union_limit, Int)
+    check_timing = _parse(check_timing, String)
 
     _validate_mode(mode)
     _validate_codegen_level(codegen_level)
+    _validate_check_timing(check_timing)
 
     # Deprecated
     warnonly = _parse_even_if_expr(warnonly, calling_module, Bool)
@@ -63,7 +70,7 @@ function parse_options(options, calling_module)
         mode
     end
 
-    options = StabilizationOptions(mode, codegen_level, union_limit)
+    options = StabilizationOptions(mode, codegen_level, union_limit, check_timing)
 
     if calling_module != Core.Main
         # Local setting from Preferences.jl overrides defaults
@@ -82,6 +89,13 @@ end
 function _validate_codegen_level(codegen_level)
     if codegen_level ∉ ("debug", "min")
         error("Unknown codegen level: $codegen_level. Please use \"debug\" or \"min\".")
+    end
+    return nothing
+end
+
+function _validate_check_timing(check_timing)
+    if check_timing ∉ ("before", "after")
+        error("Unknown check timing: $check_timing. Please use \"before\" or \"after\".")
     end
     return nothing
 end
