@@ -8,6 +8,48 @@ using TestItemRunner
         @test f(1) == 1
     end
 end
+
+@testitem "after-mode: runtime errors not shadowed" begin
+    using DispatchDoctor
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level f(x) = ABC(x)
+        @test_throws UndefVarError f(1)
+
+        @eval @stable default_codegen_level = $codegen_level h(x) = x > 0 ? x : 1.0
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError h(1)
+        @test h(2.0) == 2.0
+    end
+end
+
+@testitem "nested instability stack trace" begin
+    using DispatchDoctor
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level function inner(x)
+            x > 0 ? x : 1.0
+        end
+        @eval @stable default_codegen_level = $codegen_level outer(x) = inner(x)
+
+        if DispatchDoctor.JULIA_OK
+            try
+                outer(-1)
+                @test false
+            catch err
+                @test err isa TypeInstabilityError
+                @test err.caused_by isa TypeInstabilityError
+                @test err.caused_by.f == "`inner`"
+
+                msg = sprint(showerror, err)
+                @test occursin("Instability chain", msg)
+                @test occursin("`outer`", msg)
+                @test occursin("`inner`", msg)
+            end
+
+            @eval @stable default_codegen_level = $codegen_level bad(x) = ABC(x)
+            @test_throws UndefVarError bad(1)
+        end
+    end
+end
+
 @testitem "with error" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
@@ -1239,8 +1281,7 @@ end
     using FakePackage1
 
     options = DDP.StabilizationOptions("d", "e", 6)
-    @test DDP.get_all_preferred(options, FakePackage1) ==
-        DDP.StabilizationOptions("a", "b", 3)
+    @test DDP.get_all_preferred(options, FakePackage1) == DDP.StabilizationOptions("a", "b", 3)
 
     using FakePackage2
     options = DDP.StabilizationOptions("d", "e", 6)
