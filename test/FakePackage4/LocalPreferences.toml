@@ -1,0 +1,6 @@
+[FakePackage4]
+# These keys are `@stable` keyword arguments, *not* Preferences.jl keys.
+# DispatchDoctor should error with a helpful message.
+default_mode = "warn"
+default_codegen_level = "min"
+default_union_limit = 2
