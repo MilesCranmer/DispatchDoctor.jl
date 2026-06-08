@@ -106,10 +106,11 @@ function get_first_source_info(s::Expr)
 end
 
 # typeof but returns Type{T} for a type T input
-specializing_typeof(::T) where {T} = T
-specializing_typeof(::Type{T}) where {T} = Type{T}
-specializing_typeof(arg::Type{<:Type}) = typeof(arg)
-specializing_typeof(::Val{T}) where {T} = Val{T}
+# NOTE: avoid parametric `where` clauses here — they prevent the compiler
+# from constant-folding the map(specializing_typeof, args)... → _promote_op chain.
+specializing_typeof(x) = typeof(x)
+specializing_typeof(x::Type) = Type{x}
+specializing_typeof(x::Type{<:Type}) = typeof(x)
 map_specializing_typeof(args::Tuple) = map(specializing_typeof, args)
 
 function _promote_op(f::F, S::Vararg{Type,N}) where {F,N}
