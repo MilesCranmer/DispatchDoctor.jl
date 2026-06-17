@@ -1454,4 +1454,131 @@ end
     @test_throws TypeInstabilityError f()
 end
 
+@testitem "instability chain - nested @stable functions" begin
+    using DispatchDoctor
+
+    @stable begin
+        _chain_inner(x) = x > 0 ? x : 0.0
+        _chain_outer(x) = _chain_inner(x) + 1
+    end
+
+    if DispatchDoctor.JULIA_OK
+        try
+            _chain_outer(1)
+            @test false
+        catch e
+            @test e isa TypeInstabilityError
+            @test e.cause !== nothing
+            @test e.cause isa TypeInstabilityError
+            @test e.cause.cause === nothing
+            @test occursin("`_chain_outer`", e.f)
+            @test occursin("`_chain_inner`", e.cause.f)
+
+            msg = sprint(showerror, e)
+            @test occursin("chain (innermost first)", msg)
+            @test occursin("[1]", msg)
+            @test occursin("[2]", msg)
+            @test occursin("`_chain_inner`", msg)
+            @test occursin("`_chain_outer`", msg)
+        end
+    end
+end
+@testitem "instability chain - triple nesting" begin
+    using DispatchDoctor
+
+    @stable begin
+        _chain_a(x) = x > 0 ? x : 0.0
+        _chain_b(x) = _chain_a(x) + 1
+        _chain_c(x) = _chain_b(x) + 2
+    end
+
+    if DispatchDoctor.JULIA_OK
+        try
+            _chain_c(1)
+            @test false
+        catch e
+            @test e isa TypeInstabilityError
+            @test e.cause !== nothing
+            @test e.cause.cause !== nothing
+            @test e.cause.cause.cause === nothing
+
+            msg = sprint(showerror, e)
+            @test occursin("[1]", msg)
+            @test occursin("[2]", msg)
+            @test occursin("[3]", msg)
+            @test occursin("`_chain_a`", msg)
+            @test occursin("`_chain_b`", msg)
+            @test occursin("`_chain_c`", msg)
+        end
+    end
+end
+@testitem "instability chain - single instability has no chain" begin
+    using DispatchDoctor
+
+    @stable _solo_unstable(x) = x > 0 ? x : 0.0
+
+    if DispatchDoctor.JULIA_OK
+        try
+            _solo_unstable(1)
+            @test false
+        catch e
+            @test e isa TypeInstabilityError
+            @test e.cause === nothing
+
+            msg = sprint(showerror, e)
+            @test !occursin("chain", msg)
+            @test occursin("Instability detected in `_solo_unstable`", msg)
+        end
+    end
+end
+@testitem "instability chain - non-TypeInstabilityError propagates" begin
+    using DispatchDoctor
+
+    @stable begin
+        _chain_bad_inner(x) = UNDEFINED_VARIABLE(x)
+        _chain_bad_outer(x) = _chain_bad_inner(x) + 1
+    end
+
+    if DispatchDoctor.JULIA_OK
+        @test_throws UndefVarError _chain_bad_outer(1)
+    end
+end
+@testitem "instability chain - mixed stable/unstable inner" begin
+    using DispatchDoctor
+
+    _chain_plain_unstable(x) = x > 0 ? x : 0.0
+
+    @stable _chain_wrapper(x) = _chain_plain_unstable(x) + 1
+
+    if DispatchDoctor.JULIA_OK
+        try
+            _chain_wrapper(1)
+            @test false
+        catch e
+            @test e isa TypeInstabilityError
+            @test e.cause === nothing
+        end
+    end
+end
+@testitem "instability chain - codegen_level min" begin
+    using DispatchDoctor
+
+    @stable default_codegen_level = "min" begin
+        _chain_min_inner(x) = x > 0 ? x : 0.0
+        _chain_min_outer(x) = _chain_min_inner(x) + 1
+    end
+
+    if DispatchDoctor.JULIA_OK
+        try
+            _chain_min_outer(1)
+            @test false
+        catch e
+            @test e isa TypeInstabilityError
+            @test e.cause !== nothing
+            @test e.cause isa TypeInstabilityError
+            @test occursin("`_chain_min_inner`", e.cause.f)
+        end
+    end
+end
+
 @run_package_tests
