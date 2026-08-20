@@ -954,6 +954,23 @@ end
     register_macro!(tmp_sym, DDI.CompatibleMacro, nothing)
     @test_throws "already registered" register_macro!(tmp_sym, DDI.IncompatibleMacro, nothing)
 end
+@testitem "GlobalRef macro behavior uses calling module" begin
+    using DispatchDoctor
+    using DispatchDoctor: _Interactions as DDI
+
+    # `_stabilize_all` calls the two-argument form; a `GlobalRef` must not
+    # hit the generic `CompatibleMacro` fallback.
+    @test DDI.get_macro_behavior(GlobalRef(Base.Docs, Symbol("@doc")), Main) ==
+        DDI.DontPropagateMacro
+
+    # The calling module must be forwarded for scoped registrations.
+    macro_ident = Symbol("dd_globalref_macro_", rand(UInt))
+    macro_sym = Symbol("@", macro_ident)
+    register_macro!(macro_sym, DDI.IncompatibleMacro, Base)
+    ref = GlobalRef(Base, macro_sym)
+    @test DDI.get_macro_behavior(ref, Base) == DDI.IncompatibleMacro
+    @test DDI.get_macro_behavior(ref, Main) == DDI.CompatibleMacro
+end
 @testitem "merging behavior of registered macros" begin
     using DispatchDoctor
     using DispatchDoctor: _Interactions as DDI
@@ -1352,7 +1369,7 @@ end
     using JET
 
     if VERSION >= v"1.10"
-        JET.test_package(DispatchDoctor; target_defined_modules=true)
+        JET.test_package(DispatchDoctor; target_modules=(DispatchDoctor,))
     end
 end
 @testitem "llvm ir" begin
@@ -1452,6 +1469,23 @@ end
     # within another `allow_unstable` block.
     @test_nowarn allow_unstable(() -> (allow_unstable(f); f()))
     @test_throws TypeInstabilityError f()
+end
+
+@testitem "macro behavior with `GlobalRef`" begin
+    using DispatchDoctor
+
+    has_docstring(f) = !isnothing(match(r"\(Base.Docs.doc!\).+\(Base.Docs.Binding\)", string(f)))
+
+    for codegen_level in ("debug", "min")
+        f_expanded = @eval @macroexpand @stable default_codegen_level = $codegen_level begin
+            ""
+            f() = nothing
+        end
+        f_simulator, f_real = f_expanded.args[2].args
+
+        @test !has_docstring(f_simulator)
+        @test has_docstring(f_real)
+    end
 end
 
 @run_package_tests

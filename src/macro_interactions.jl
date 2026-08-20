@@ -82,6 +82,9 @@ function get_macro_behavior(ex::Expr, calling_module::Module)
     parts = map(x -> get_macro_behavior(x, calling_module), ex.args)
     return reduce(combine_behavior, parts; init=CompatibleMacro)
 end
+function get_macro_behavior(ref::GlobalRef, calling_module::Module)
+    return get_macro_behavior(ref.name, calling_module)
+end
 
 function combine_behavior(a::MacroInteractions, b::MacroInteractions)
     if a == CompatibleMacro && b == CompatibleMacro
