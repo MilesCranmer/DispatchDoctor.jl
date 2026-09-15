@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.30](https://github.com/MilesCranmer/DispatchDoctor.jl/compare/v0.4.29...v0.4.30) (2026-09-15)
+
+
+### Features
+
+* GlobalRef macro lookup ([#125](https://github.com/MilesCranmer/DispatchDoctor.jl/issues/125)) ([1a8c982](https://github.com/MilesCranmer/DispatchDoctor.jl/commit/1a8c98290593b103956338577cc194e622519a38))
+
 ## [0.4.29](https://github.com/MilesCranmer/DispatchDoctor.jl/compare/v0.4.28...v0.4.29) (2026-09-15)
 
 
