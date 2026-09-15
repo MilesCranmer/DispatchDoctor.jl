@@ -36,9 +36,20 @@ jobs:
         working-directory: release-please-src
         run: npm run compile
 
+      # NOTE: `pull-requests: write` above is not sufficient on its own when
+      # authenticating with GITHUB_TOKEN: the repo setting
+      #   Settings → Actions → General → Workflow permissions →
+      #   "Allow GitHub Actions to create and approve pull requests"
+      # must also be enabled, or PR creation fails with
+      #   403: GitHub Actions is not permitted to create or approve pull requests.
+      # Alternatives:
+      #   1. enable that repo setting, or
+      #   2. add a PAT with `repo` scope as the RELEASE_PLEASE_TOKEN secret
+      #      (PATs are not affected by that repo setting).
+      # This workflow prefers RELEASE_PLEASE_TOKEN when the secret exists.
       - name: Create or update release PR
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           node release-please-src/build/src/bin/release-please.js release-pr \
             --token "$GITHUB_TOKEN" \
@@ -49,7 +60,7 @@ jobs:
 
       - name: Create GitHub release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           node release-please-src/build/src/bin/release-please.js github-release \
             --token "$GITHUB_TOKEN" \
@@ -57,3 +68,26 @@ jobs:
             --target-branch main \
             --config-file release-please-config.json \
             --manifest-file .release-please-manifest.json
+
+      - name: Hint on failure
+        if: failure()
+        run: |
+          cat <<'HINT'
+          ============================================================
+          If the failure above is
+            403: GitHub Actions is not permitted to create or approve
+                 pull requests.
+          then the repo setting
+            Settings → Actions → General → Workflow permissions →
+              "Allow GitHub Actions to create and approve pull requests"
+          is disabled. The workflow-level `pull-requests: write`
+          permission cannot override it. Fix with either:
+            1. Enable that setting (requires repo admin), or
+            2. Add a repo secret RELEASE_PLEASE_TOKEN (PAT with `repo`
+               scope for an account with write access); this workflow
+               picks it up automatically, no code change needed.
+          Note: "commit could not be parsed" warnings earlier in the
+          log are benign — merge commits are simply skipped by the
+          conventional-commit changelog parser.
+          ============================================================
+          HINT
