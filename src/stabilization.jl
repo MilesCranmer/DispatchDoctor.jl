@@ -323,13 +323,82 @@ function _stabilize_fnc(
     else
         func_simulator[:body]
     end
+
+    result = gensym(string(name, "_result"))
+    end_label = gensym(string(name, "_end"))
+
+    function _rewrite_returns(ex)
+        if ex isa Expr
+            # Don't rewrite returns in nested scopes.
+            if ex.head in (:function, :->, :macro, :quote)
+                return ex
+            elseif ex.head == :return
+                val = isempty(ex.args) ? :(nothing) : ex.args[1]
+                return @q begin
+                    $result = $val
+                    Base.@goto $end_label
+                end
+            else
+                return Expr(ex.head, map(_rewrite_returns, ex.args)...)
+            end
+        else
+            return ex
+        end
+    end
+
+    caller_checked = if codegen_level == "debug"
+        raw = caller
+        if raw isa Expr && raw.head == :block
+            # Make sure fallthrough sets `result` (unless the last expression is
+            # already an explicit `return ...`).
+            last_i = findlast(x -> !(x isa LineNumberNode), raw.args)
+            if last_i === nothing
+                raw = Expr(:block, :($result = nothing))
+            else
+                last_stmt = raw.args[last_i]
+                if !(last_stmt isa Expr && last_stmt.head == :return)
+                    raw = Expr(:block, raw.args...)
+                    raw.args[last_i] = :($result = $(last_stmt))
+                end
+            end
+        else
+            raw = :($result = $(raw))
+        end
+        _rewrite_returns(raw)
+    else
+        :($result = $caller)
+    end
+
     func[:body] = @q begin
+        local $result = nothing
+        try
+            $(caller_checked)
+            Base.@label $end_label
+        catch _err
+            if $(mode) == "error" && _err isa TypeInstabilityError
+                $T = $infer
+                if $(checker) && !$ignore && $(checking_enabled)()
+                    throw(
+                        $(TypeInstabilityError)(
+                            $(print_name),
+                            $(source_info),
+                            ($(arg_symbols...),),
+                            (; $(kwarg_symbols...)),
+                            ($(_construct_pairs)($(where_param_symbols), ($(where_param_symbols...),))),
+                            $T,
+                            _err,
+                        ),
+                    )
+                end
+            end
+            rethrow()
+        end
+
         $T = $infer
         if $(checker) && !$ignore && $(checking_enabled)()
             $err
         end
-
-        $(caller)
+        $result
     end
 
     func_simulator_ex = combinedef(func_simulator)
