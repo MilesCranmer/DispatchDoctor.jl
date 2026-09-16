@@ -8,6 +8,15 @@ using TestItemRunner
         @test f(1) == 1
     end
 end
+
+@testitem "does not shadow runtime errors" begin
+    using DispatchDoctor
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level f(x) = ABC(x)
+        @test_throws UndefVarError f(1)
+    end
+end
+
 @testitem "with error" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")
