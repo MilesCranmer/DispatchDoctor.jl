@@ -255,6 +255,56 @@ end
     @test length(line_nodes) > 1
     @test length(unique(line_nodes)) == length(line_nodes)  # No dupes!
 end
+
+@testitem "coverage: function header is executable under @stable begin" begin
+    using DispatchDoctor
+
+    # Reproduce https://github.com/MilesCranmer/DispatchDoctor.jl/issues/114:
+    # when stabilizing a function inside an `@stable ... begin ... end` block,
+    # the function header line should get a coverage count (not `-`).
+    mktempdir() do dir
+        mwe_path = joinpath(dir, "mwe.jl")
+        mwe =
+            """module StablePkg\n""" *
+            """using DispatchDoctor\n""" *
+            """export foo\n\n""" *
+            """@stable default_codegen_level=\"min\" begin\n\n""" *
+            """function foo(x)\n""" *
+            """    x + 1\n""" *
+            """end\n\n""" *
+            """end\n\n""" *
+            """end\n\n""" *
+            """using .StablePkg\n""" *
+            """StablePkg.foo(1)\n""" *
+            """"""
+        write(mwe_path, mwe)
+
+        trace_path = joinpath(dir, "coverage.info")
+        julia = joinpath(Sys.BINDIR, Base.julia_exename())
+        cmd = `$julia --startup-file=no --project=$(pkgdir(DispatchDoctor)) --code-coverage=$trace_path $mwe_path`
+        run(cmd)
+
+        coverage_lines = split(read(trace_path, String), '\n')
+        record_start = findfirst(coverage_lines) do line
+            startswith(line, "SF:") && normpath(line[4:end]) == normpath(mwe_path)
+        end
+        @test record_start !== nothing
+        if record_start !== nothing
+            record_end = findnext(==("end_of_record"), coverage_lines, record_start)
+            @test record_end !== nothing
+            if record_end !== nothing
+                header_line = findfirst(
+                    line -> occursin("function foo(x)", line), split(mwe, '\n')
+                )
+                header_coverage = Regex("^DA:$header_line,[1-9][0-9]*\$")
+                @test any(
+                    line -> occursin(header_coverage, line),
+                    @view(coverage_lines[record_start:record_end]),
+                )
+            end
+        end
+    end
+end
 @testitem "Type specialization" begin
     using DispatchDoctor
     for codegen_level in ("debug", "min")

@@ -323,7 +323,7 @@ function _stabilize_fnc(
     else
         func_simulator[:body]
     end
-    func[:body] = @q begin
+    new_body = @q begin
         $T = $infer
         if $(checker) && !$ignore && $(checking_enabled)()
             $err
@@ -331,6 +331,14 @@ function _stabilize_fnc(
 
         $(caller)
     end
+
+    # Preserve the original function header's source location inside the stabilized
+    # method body so that coverage can attribute an execution count to the header line.
+    if codegen_level != "debug" && searched_source_info isa LineNumberNode
+        new_body = Expr(:block, searched_source_info, new_body.args...)
+    end
+
+    func[:body] = new_body
 
     func_simulator_ex = combinedef(func_simulator)
     func_ex = combinedef(func)
