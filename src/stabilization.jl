@@ -38,6 +38,7 @@ function _stable(args...; calling_module, source_info, kws...)
             options.mode,
             options.codegen_level,
             options.union_limit,
+            options.check_timing,
         )
         if metadata.matching_function == 0
             @warn(
@@ -204,6 +205,7 @@ function _stabilize_fnc(
     mode::String="error",
     codegen_level::String="debug",
     union_limit::Int=0,
+    check_timing::String="before",
     source_info::Union{LineNumberNode,Nothing}=nothing,
 )
     func = splitdef(fex)
@@ -323,13 +325,32 @@ function _stabilize_fnc(
     else
         func_simulator[:body]
     end
-    func[:body] = @q begin
-        $T = $infer
-        if $(checker) && !$ignore && $(checking_enabled)()
-            $err
+    if check_timing == "before"
+        func[:body] = @q begin
+            $T = $infer
+            if $(checker) && !$ignore && $(checking_enabled)()
+                $err
+            end
+            $(caller)
         end
-
-        $(caller)
+    else
+        ok = gensym(string(name, "_ok"))
+        func[:body] = @q begin
+            local $ok = true
+            try
+                $(caller)
+            catch
+                $ok = false
+                rethrow()
+            finally
+                if $ok
+                    $T = $infer
+                    if $(checker) && !$ignore && $(checking_enabled)()
+                        $err
+                    end
+                end
+            end
+        end
     end
 
     func_simulator_ex = combinedef(func_simulator)

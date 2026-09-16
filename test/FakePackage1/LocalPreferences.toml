@@ -2,3 +2,4 @@
 dispatch_doctor_mode = "a"
 dispatch_doctor_codegen_level = "b"
 dispatch_doctor_union_limit = 3
+dispatch_doctor_check_timing = "after"

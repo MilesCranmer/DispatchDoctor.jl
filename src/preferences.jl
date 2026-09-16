@@ -7,11 +7,13 @@ struct StabilizationOptions
     mode::String
     codegen_level::String
     union_limit::Int
+    check_timing::String
 end
 
 const GLOBAL_DEFAULT_MODE = "error"
 const GLOBAL_DEFAULT_CODEGEN_LEVEL = "debug"
 const GLOBAL_DEFAULT_UNION_LIMIT = 1
+const GLOBAL_DEFAULT_CHECK_TIMING = "before"
 
 @enum IsCached::Bool begin
     Cached
@@ -29,6 +31,7 @@ const PREFERENCE_CACHE = (;
     mode=Cache{Base.UUID,Tuple{String,IsCached}}(),
     codegen_level=Cache{Base.UUID,Tuple{String,IsCached}}(),
     union_limit=Cache{Base.UUID,Tuple{Int,IsCached}}(),
+    check_timing=Cache{Base.UUID,Tuple{String,IsCached}}(),
 )
 # All of our preferences are compile-time only, so we can safely cache them
 
@@ -84,7 +87,9 @@ function get_all_preferred(options::StabilizationOptions, calling_module)
     )
     if mode == "disable"
         # Short circuit and quit early
-        return StabilizationOptions("disable", options.codegen_level, options.union_limit)
+        return StabilizationOptions(
+            "disable", options.codegen_level, options.union_limit, options.check_timing
+        )
     end
     return StabilizationOptions(
         mode,
@@ -101,6 +106,13 @@ function get_all_preferred(options::StabilizationOptions, calling_module)
             calling_module,
             "dispatch_doctor_union_limit",
             ["instability_check_union_limit"],
+        ),
+        get_preferred(
+            options.check_timing,
+            PREFERENCE_CACHE.check_timing,
+            calling_module,
+            "dispatch_doctor_check_timing",
+            ["instability_check_timing"],
         ),
     )
 end

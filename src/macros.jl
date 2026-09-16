@@ -22,6 +22,10 @@ If type instability is detected, a `TypeInstabilityError` is thrown.
 - `default_union_limit::Int=1`:
   - Sets the maximum elements in a union to be considered stable. The default is `1`, meaning that all unions are considered unstable. A value of `2` would indicate that `Union{Float32,Float64}` is considered stable, but `Union{Float16,Float32,Float64}` is not.
   - To locally or globally override the union limit for a package that uses DispatchDoctor, you can use the `"dispatch_doctor_union_limit"` key in your LocalPreferences.toml.
+- `default_check_timing::String="before"`:
+  - By default, type-instability checks run *before* executing your function body (preserving current behavior), throwing `TypeInstabilityError` even when the function body throws another exception.
+  - Set to `"after"` to only evaluate instability after the wrapped function body executes successfully, so runtime errors are not shadowed. This can run side effects before an instability error is raised.
+  - To locally or globally override the check timing for a package that uses DispatchDoctor, you can use the `"dispatch_doctor_check_timing"` key in your LocalPreferences.toml.
 
 
 # Example
