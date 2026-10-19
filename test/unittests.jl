@@ -478,6 +478,34 @@ end
     @test Asingleline.f(1.0) == 1.0
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Asingleline.f(1)
 end
+@testitem "baremodule without Base" begin
+    using DispatchDoctor
+
+    # The generated check must not rely on names (`!`, `Val`) from Base,
+    # which a `baremodule` does not import.
+    for codegen_level in ("debug", "min")
+        m = Module(:Bare, false)
+        Core.eval(m, :(using DispatchDoctor: @stable))
+        Core.eval(m, :(@stable default_codegen_level = $codegen_level begin
+            stable(x) = x
+            unstable(r) = Core.getfield(r, :x)
+            unstable_kw(r; k=1) = Core.getfield(r, :x)
+            unstable_union(c) = Core.ifelse(c, 1, 0.0)
+        end))
+        limit2 = :(default_union_limit = 2)
+        Core.eval(m, :(@stable default_codegen_level = $codegen_level $limit2 begin
+            small_union(c) = Core.ifelse(c, 1, 0.0)
+        end))
+        call(name, args...; kws...) = Base.invokelatest(getglobal(m, name), args...; kws...)
+        @test call(:stable, 1) === 1
+        @test call(:small_union, true) === 1
+        if DispatchDoctor.JULIA_OK
+            @test_throws TypeInstabilityError call(:unstable, Ref{Any}(1))
+            @test_throws TypeInstabilityError call(:unstable_kw, Ref{Any}(1); k=2)
+            @test_throws TypeInstabilityError call(:unstable_union, true)
+        end
+    end
+end
 @testitem "module with include" begin
     using DispatchDoctor
     (path, io) = mktemp()
