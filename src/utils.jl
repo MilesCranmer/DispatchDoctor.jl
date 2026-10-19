@@ -110,17 +110,28 @@ specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(arg::Type{<:Type}) = typeof(arg)
 specializing_typeof(::Val{T}) where {T} = Val{T}
-map_specializing_typeof(args::Tuple) = map(specializing_typeof, args)
 
-function _promote_op(f::F, S::Vararg{Type,N}) where {F,N}
-    return Base.promote_op(f, S...)
-end
-@static if isdefined(Core, :kwcall)
-    function _promote_op(
-        ::typeof(Core.kwcall), ::Type{Kwargs}, ::Type{F}, S::Tuple
-    ) where {Kwargs,F}
-        return Base.promote_op(Core.kwcall, Kwargs, F, S...)
+# `Base.map` over a tuple of more than 32 elements switches to a heap-allocated
+# buffer, so build the tuple of specializing types at its known size instead.
+@inline function map_specializing_typeof(args::Tuple)
+    if @generated
+        elements = [:(specializing_typeof(getfield(args, $i))) for i in 1:fieldcount(args)]
+        return Expr(:tuple, elements...)
+    else
+        return map(specializing_typeof, args)  # LCOV_EXCL_LINE
     end
+end
+
+"""
+    _promote_op(f, ::Type{S}) where {S<:Tuple}
+
+The return type inferred for calling `f` with arguments of the types `S.parameters`,
+like `Base.promote_op(f, S.parameters...)`. The argument types are passed as one
+`Tuple` type, built where they are known, rather than splatted: inference on Julia
+1.10 gives up on splatting more than 32 types, so the check would not fold.
+"""
+function _promote_op(f::F, ::Type{S}) where {F,S<:Tuple}
+    return Base._return_type(f, S)
 end
 
 """

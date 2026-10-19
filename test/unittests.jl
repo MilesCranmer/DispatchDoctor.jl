@@ -334,6 +334,66 @@ end
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(*, *)
     end
 end
+@testitem "wide argument lists check without allocating" begin
+    using DispatchDoctor
+    using DispatchDoctor: _Utils
+
+    # `Base.map` over a tuple of more than 32 elements switches to a heap
+    # buffer, and inference on Julia 1.10 gives up on splatting more than 32
+    # types, which made every call of a wide stabilized function allocate.
+    names = [Symbol(:x, i) for i in 1:36]
+    values = ntuple(identity, 36)
+    for codegen_level in ("debug", "min")
+        ok, bad, kw, va = gensym(:ok), gensym(:bad), gensym(:kw), gensym(:va)
+        @eval begin
+            @stable default_codegen_level = $codegen_level $ok($(names...)) = x1 + x36
+            @stable default_codegen_level = $codegen_level $bad($(names...)) =
+                x1 > 0 ? x1 : Float64(x36)
+            @stable default_codegen_level = $codegen_level $kw($(names...); k=1) =
+                x1 + x36 + k
+            @stable default_codegen_level = $codegen_level $va(xs::Int...) = xs[1] + xs[end]
+        end
+        callers = [
+            (@eval(() -> $ok($(values...))), 37, true),
+            (@eval(() -> $kw($(values...); k=2)), 39, true),
+            # (With code coverage enabled, Julia itself allocates when forwarding
+            # more than 32 varargs, as it cannot remove the instrumented calls.)
+            (@eval(() -> $va($(values...))), 37, Base.JLOptions().code_coverage == 0),
+        ]
+        for (caller, expected, check_allocations) in callers
+            @test Base.invokelatest(caller) == expected
+            if check_allocations
+                @test Base.invokelatest(() -> @allocated caller()) == 0
+            end
+        end
+        if DispatchDoctor.JULIA_OK
+            @test_throws TypeInstabilityError Base.invokelatest(@eval($bad), values...)
+        end
+    end
+
+    kinds = (Int, Type{Int}, Union{Int,Float64}, Val(:tag), nothing, 1.0)
+    @test _Utils.map_specializing_typeof(kinds) == map(_Utils.specializing_typeof, kinds)
+    @test _Utils.map_specializing_typeof(()) == ()
+    @test _Utils.map_specializing_typeof(values) == ntuple(_ -> Int, 36)
+end
+@testitem "Type arguments do not add overhead" begin
+    using DispatchDoctor
+
+    # https://github.com/MilesCranmer/DispatchDoctor.jl/issues/98
+    # (reproducer from https://github.com/MilesCranmer/DispatchDoctor.jl/pull/108):
+    # collecting the arguments into a tuple before taking their specializing
+    # types widened `Type{Int}` to `DataType`, so the check ran at runtime.
+    @stable gs(::Type{T}, x) where {T} = T(x)
+    g(::Type{Int}, x) = Int(x)
+
+    plain() = map(x -> g(Int, x), 1:(10^4))
+    stable() = map(x -> gs(Int, x), 1:(10^4))
+    @test plain() == stable()
+
+    a_plain = @allocated plain()
+    a_stable = @allocated stable()
+    @test a_stable <= 2 * a_plain
+end
 @testitem "QuoteNode in options" begin
     using DispatchDoctor
     using DispatchDoctor: _ParseOptions as DDPO
