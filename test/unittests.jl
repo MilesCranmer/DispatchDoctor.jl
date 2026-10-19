@@ -292,6 +292,51 @@ end
         @test f4(1, 1, 2, 3; d=0, a=1, b=2, c=3) == sum((1, 1, 2, 3, 0, 1, 2, 3))
     end
 end
+@testitem "type-valued keyword arguments" begin
+    using DispatchDoctor
+
+    # Keyword values are inferred with their specializing types, like positional
+    # arguments, so a type passed by keyword is `Type{T}` rather than `DataType`.
+    struct Workspace{T}
+        x::Vector{T}
+    end
+    for codegen_level in ("debug", "min")
+        @eval begin
+            @stable default_codegen_level = $codegen_level kw_type(; T=Float64) =
+                zeros(T, 3)
+            @stable default_codegen_level = $codegen_level kw_annot(;
+                T::Type{<:Real}=Float64
+            ) = one(T)
+            @stable default_codegen_level = $codegen_level Workspace(
+                n::Int; T::Type=Float64
+            ) = Workspace(n, T)
+            @stable default_codegen_level = $codegen_level Workspace(
+                n::Int, ::Type{T}
+            ) where {T} = Workspace{T}(Vector{T}(undef, n))
+            @stable default_codegen_level = $codegen_level kw_slurp(; kw...) =
+                zeros(kw[:T], 2)
+            @stable default_codegen_level = $codegen_level kw_mixed(x; T=Float64, kw...) =
+                zeros(T, x)
+            @stable default_codegen_level = $codegen_level kw_bad(x::Int; T::Type=Float64) =
+                x > 0 ? x : T(x)
+        end
+        @test kw_type() == zeros(3)
+        @test kw_type(; T=Float32) isa Vector{Float32}
+        @test kw_annot(; T=Int) === 1
+        @test eltype(Workspace(2).x) === Float64
+        @test eltype(Workspace(2; T=Float32).x) === Float32
+        @test kw_slurp(; T=Int) == [0, 0]
+        @test kw_mixed(2; T=Int, a=1) == [0, 0]
+        if DispatchDoctor.JULIA_OK
+            # Genuine instabilities are still caught, and reported with the
+            # keyword types that were inferred:
+            @test_throws TypeInstabilityError kw_bad(-1; T=Float32)
+            @test_throws(
+                "keyword arguments `@NamedTuple{T::Type{Float32}}`", kw_bad(-1; T=Float32)
+            )
+        end
+    end
+end
 @testitem "string macro" begin
     using DispatchDoctor
 

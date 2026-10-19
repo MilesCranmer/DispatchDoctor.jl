@@ -6,6 +6,7 @@ using MacroTools: @capture, @q, combinedef, splitdef, isdef, longdef, rmlines, p
 using .._Utils:
     specializing_typeof,
     map_specializing_typeof,
+    specializing_kwargs_typeof,
     _promote_op,
     is_function_name_compatible,
     get_first_source_info,
@@ -195,6 +196,18 @@ function _stabilize_module(ex, downward_metadata; calling_module::Module=Core.Ma
     )
 end
 
+"""Expression for the `NamedTuple` type of the keywords, with specializing types."""
+function _specializing_kwargs_typeof_expr(kwarg_symbols)
+    if all(k -> k isa Symbol, kwarg_symbols)
+        names = Tuple(kwarg_symbols)
+        types = map(k -> :($(specializing_typeof)($k)), kwarg_symbols)
+        return :($(NamedTuple){$names,$(Tuple){$(types...)}})
+    else
+        # `kwargs...` (a `Base.Pairs`) is merged into a `NamedTuple` first.
+        return :($(specializing_kwargs_typeof)((; $(kwarg_symbols...))))
+    end
+end
+
 _show_warning(w::TypeInstabilityWarning) = (@warn w; nothing)
 _construct_pairs(x, y) = x .=> y
 
@@ -292,7 +305,7 @@ function _stabilize_fnc(
     else
         :($(_promote_op)(
             Core.kwcall,
-            typeof((; $(kwarg_symbols...))),
+            $(_specializing_kwargs_typeof_expr(kwarg_symbols)),
             typeof($simulator),
             $(typeof_args),
         ))
