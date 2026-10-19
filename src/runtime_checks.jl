@@ -14,6 +14,13 @@ end
 const INSTABILITY_CHECK_ENABLED = (; value=Ref(true), lock=ReentrantLock())
 
 """
+Whether type inference runs for code in module `m`. It does not after
+`Base.Experimental.@compiler_options infer=false` (as in JLL packages),
+in which case every function in `m` would be inferred to be `Any`.
+"""
+@inline inference_enabled(m::Module) = ccall(:jl_get_module_infer, Cint, (Any,), m) != 0
+
+"""
     allow_unstable(f::F) where {F<:Function}
 
 Globally disable type DispatchDoctor instability checks within the provided function `f`.

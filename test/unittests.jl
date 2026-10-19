@@ -581,6 +581,47 @@ end
     @test Aallowunstable.f() in (0, 1.0)
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Aallowunstable.g()
 end
+@testitem "modules with inference disabled" begin
+    using DispatchDoctor
+
+    # Without inference (e.g. JLL packages, which use
+    # `@compiler_options infer=false` to load faster), every return type
+    # is `Any`, so there is nothing to check.
+    for codegen_level in ("debug", "min")
+        no_infer = @eval module $(gensym(:NoInfer))
+        using DispatchDoctor
+        Base.Experimental.@compiler_options infer = false
+        @stable default_codegen_level = $codegen_level begin
+            stable(x) = x + 1
+            unstable(x) = x > 0 ? x : 0.0
+            unstable_kw(x; k=1) = x > 0 ? x : 0.0
+        end
+        module Inner
+            using DispatchDoctor
+            @stable default_codegen_level = $codegen_level unstable(x) = x > 0 ? x : 0.0
+        end
+        end
+        # The option can also be set after the definitions:
+        late = @eval module $(gensym(:LateNoInfer))
+        using DispatchDoctor
+        @stable default_codegen_level = $codegen_level unstable(x) = x > 0 ? x : 0.0
+        Base.Experimental.@compiler_options infer = false
+        end
+        control = @eval module $(gensym(:Infer))
+        using DispatchDoctor
+        @stable default_codegen_level = $codegen_level unstable(x) = x > 0 ? x : 0.0
+        end
+
+        @test no_infer.stable(1) == 2
+        @test no_infer.unstable(1) == 1
+        @test no_infer.unstable_kw(1; k=2) == 1
+        @test no_infer.Inner.unstable(1) == 1
+        @test late.unstable(1) == 1
+        if DispatchDoctor.JULIA_OK
+            @test_throws TypeInstabilityError control.unstable(1)
+        end
+    end
+end
 @testitem "anonymous functions" begin
     using DispatchDoctor
     using DispatchDoctor: _stabilize_fnc
