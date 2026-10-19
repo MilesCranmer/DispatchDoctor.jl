@@ -108,7 +108,11 @@ end
 # typeof but returns Type{T} for a type T input
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
-specializing_typeof(arg::Type{<:Type}) = typeof(arg)
+function specializing_typeof(arg::Type{<:Type})
+    # A type of types, like `DataType`, is specialized on as `Type{DataType}` too,
+    # unless it has free type parameters (`Type{T}` with an unbound `T`).
+    return Base.has_free_typevars(arg) ? typeof(arg) : Type{arg}
+end
 specializing_typeof(::Val{T}) where {T} = Val{T}
 map_specializing_typeof(args::Tuple) = map(specializing_typeof, args)
 
