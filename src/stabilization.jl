@@ -316,8 +316,6 @@ function _stabilize_fnc(
     end
 
     ignore = haskey(func, :name) ? :($(ignore_function)(var"#self#")) : :(false)
-    # (Qualified, as the calling module may be a `baremodule` without Base.)
-    not = GlobalRef(Base, :!)
 
     func_simulator[:name] = simulator
     func_simulator[:body] = if codegen_level == "debug"
@@ -327,7 +325,7 @@ function _stabilize_fnc(
     end
     func[:body] = @q begin
         $T = $infer
-        if $(checker) && $not($ignore) && $(checking_enabled)()
+        if $(checker) && $(!)($ignore) && $(checking_enabled)()
             $err
         end
 
