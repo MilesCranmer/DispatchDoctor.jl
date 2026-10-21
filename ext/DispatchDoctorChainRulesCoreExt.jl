@@ -1,7 +1,7 @@
 module DispatchDoctorChainRulesCoreExt
 
 using ChainRulesCore: @ignore_derivatives, @non_differentiable
-import DispatchDoctor._RuntimeChecks: is_precompiling, checking_enabled, inference_enabled
+import DispatchDoctor._RuntimeChecks: is_precompiling, checking_enabled
 import DispatchDoctor._Stabilization: _show_warning, _construct_pairs
 import DispatchDoctor._Utils:
     specializing_typeof,
@@ -23,7 +23,6 @@ import DispatchDoctor._Utils:
 
 # foreigncall expressions
 @non_differentiable is_precompiling()
-@non_differentiable checking_enabled()
-@non_differentiable inference_enabled(::Any)
+@non_differentiable checking_enabled(::Module)
 
 end

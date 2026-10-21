@@ -7,18 +7,13 @@ using .._Errors: AllowUnstableDataRace
 @inline is_precompiling() = ccall(:jl_generating_output, Cint, ()) == 1
 
 """To locally enable/disable instability checks."""
-@inline function checking_enabled()
-    return !is_precompiling() && INSTABILITY_CHECK_ENABLED.value[]
+@inline function checking_enabled(m::Module)
+    return !is_precompiling() &&
+           INSTABILITY_CHECK_ENABLED.value[] &&
+           ccall(:jl_get_module_infer, Cint, (Any,), m) != 0
 end
 
 const INSTABILITY_CHECK_ENABLED = (; value=Ref(true), lock=ReentrantLock())
-
-"""
-Whether type inference runs for code in module `m`. It does not after
-`Base.Experimental.@compiler_options infer=false` (as in JLL packages),
-in which case every function in `m` would be inferred to be `Any`.
-"""
-@inline inference_enabled(m::Module) = ccall(:jl_get_module_infer, Cint, (Any,), m) != 0
 
 """
     allow_unstable(f::F) where {F<:Function}

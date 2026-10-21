@@ -21,7 +21,7 @@ using .._Interactions:
     IncompatibleMacro,
     CompatibleMacro,
     DontPropagateMacro
-using .._RuntimeChecks: is_precompiling, checking_enabled, inference_enabled
+using .._RuntimeChecks: is_precompiling, checking_enabled
 using .._ParseOptions: parse_options
 
 function _stable(args...; calling_module, source_info, kws...)
@@ -316,9 +316,6 @@ function _stabilize_fnc(
     end
 
     ignore = haskey(func, :name) ? :($(ignore_function)(var"#self#")) : :(false)
-    # Only checked once the return type is found to be unstable, and at
-    # runtime, as the module's `infer=false` may be set after this definition:
-    this_module = Expr(:macrocall, GlobalRef(Base, Symbol("@__MODULE__")), nothing)
 
     func_simulator[:name] = simulator
     func_simulator[:body] = if codegen_level == "debug"
@@ -328,10 +325,7 @@ function _stabilize_fnc(
     end
     func[:body] = @q begin
         $T = $infer
-        if $(checker) &&
-            !$ignore &&
-            $(checking_enabled)() &&
-            $(inference_enabled)($this_module)
+        if $(checker) && !$ignore && $(checking_enabled)($(Base).@__MODULE__)
             $err
         end
 
