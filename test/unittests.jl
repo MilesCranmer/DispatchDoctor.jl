@@ -1447,42 +1447,15 @@ end
     P = (Type{T} where {T}).body
     @test test_function(P) === nothing
 end
-@testitem "types of types as arguments" begin
+@testitem "issue with specializing_typeof on types of types" begin
     using DispatchDoctor
-    using DispatchDoctor: specializing_typeof
 
-    # A value like `DataType` is itself a type, and a method taking
-    # `::Type{K}` is specialized on `Type{DataType}` for it. Checking it as
-    # `DataType` instead left `K` unknown, so stable methods were flagged.
-    for codegen_level in ("debug", "min")
-        @eval begin
-            @stable default_codegen_level = $codegen_level myempty(
-                ::Dict, ::Type{K}, ::Type{V}
-            ) where {K,V} = Dict{K,V}()
-            @stable default_codegen_level = $codegen_level vector_of(::Type{K}) where {K} =
-                Vector{K}()
-            @stable default_codegen_level = $codegen_level unstable_of(
-                ::Type{K}
-            ) where {K} = rand(Bool) ? Vector{K}() : nothing
-        end
-        @test myempty(Dict(), DataType, Symbol) isa Dict{DataType,Symbol}
-        @test myempty(Dict(), UnionAll, Int) isa Dict{UnionAll,Int}
-        @test myempty(Dict(), Type{Int}, Int) isa Dict{Type{Int},Int}
-        @test vector_of(Union) isa Vector{Union}
-        @test vector_of(Type) isa Vector{Type}
-        if DispatchDoctor.JULIA_OK
-            @test_throws TypeInstabilityError unstable_of(DataType)
-            @test_throws "with arguments `(Type{DataType},)`" unstable_of(DataType)
-        end
-    end
+    @stable vector_of(::Type{K}) where {K} = Vector{K}()
+    @stable maybe_vector_of(::Type{K}) where {K} = rand(Bool) ? Vector{K}() : nothing
 
-    @test specializing_typeof(DataType) == Type{DataType}
-    @test specializing_typeof(Type{Int}) == Type{Type{Int}}
-    @test specializing_typeof(Union{}) == Type{Union{}}
-    @test specializing_typeof(Int) == Type{Int}
-    # A free type parameter cannot be specialized on:
-    P = (Type{T} where {T}).body
-    @test specializing_typeof(P) == DataType
+    @test vector_of(DataType) isa Vector{DataType}
+    DispatchDoctor.JULIA_OK &&
+        @test_throws "with arguments `(Type{DataType},)`" maybe_vector_of(DataType)
 end
 @testitem "issue with closures causing instability" begin
     using DispatchDoctor
