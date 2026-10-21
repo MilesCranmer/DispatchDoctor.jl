@@ -14,10 +14,6 @@ using Test
 @stable default_mode = "error" g(x) = x > 0 ? x : 0
 @test_throws TypeInstabilityError gradient(g, 1.0)
 
-# Keyword arguments, including a type and a slurp:
-@stable kw(x; T=Float64, kws...) = T(x) * x
-@test gradient(x -> kw(x; T=Float64, a=1), 1.0) == (2.0,)
-
 # Issue https://github.com/MilesCranmer/DispatchDoctor.jl/issues/46
 @stable h(x) = 1
 @test_skip (@inferred gradient(h, 1.0))

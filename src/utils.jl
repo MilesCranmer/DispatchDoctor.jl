@@ -105,22 +105,15 @@ function get_first_source_info(s::Expr)
     return nothing
 end
 
-"""
-    specializing_kwargs_typeof(kwargs::NamedTuple)
-
-The type of `kwargs`, but with `specializing_typeof` for each value,
-so that a type-valued keyword is inferred as `Type{T}` rather than `DataType`.
-"""
-@inline function specializing_kwargs_typeof(kwargs::NamedTuple{K}) where {K}
-    return NamedTuple{K,Tuple{map_specializing_typeof(values(kwargs))...}}
-end
-
 # typeof but returns Type{T} for a type T input
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(arg::Type{<:Type}) = typeof(arg)
 specializing_typeof(::Val{T}) where {T} = Val{T}
 map_specializing_typeof(args::Tuple) = map(specializing_typeof, args)
+function specializing_kwargs_typeof(kwargs::NamedTuple{K}) where {K}
+    return NamedTuple{K,Tuple{map_specializing_typeof(values(kwargs))...}}
+end
 
 function _promote_op(f::F, S::Vararg{Type,N}) where {F,N}
     return Base.promote_op(f, S...)

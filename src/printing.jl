@@ -21,7 +21,7 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
         push!(parts, "arguments `$(map(typeinfo, e.args))`")
     end
     if !isempty(e.kwargs)
-        push!(parts, "keyword arguments `$(kwtypeinfo(e.kwargs))`")
+        push!(parts, "keyword arguments `$(specializing_kwargs_typeof(e.kwargs))`")
     end
     if !isempty(e.params)
         push!(parts, "parameters `$(e.params)`")
@@ -35,8 +35,6 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
 end
 typeinfo(x) = specializing_typeof(x)
 typeinfo(u::Unknown) = u
-kwtypeinfo(kwargs::NamedTuple) = specializing_kwargs_typeof(kwargs)
-kwtypeinfo(kwargs) = typeof(kwargs)
 
 Base.showerror(io::IO, e::TypeInstabilityError) = _print_msg(io, e)
 Base.show(io::IO, w::TypeInstabilityWarning) = _print_msg(io, w)
