@@ -8,7 +8,6 @@ using .._Utils:
     map_specializing_typeof,
     _promote_op,
     is_function_name_compatible,
-    get_first_source_info,
     sanitize_arg_for_stability_check,
     extract_symbol,
     type_instability,
@@ -218,11 +217,11 @@ function _stabilize_fnc(
     func_simulator = splitdef(deepcopy(fex))
 
     # Load any information about the source
-    searched_source_info = get_first_source_info(fex)
-    source_line = if searched_source_info isa LineNumberNode
-        searched_source_info
-    else
-        source_info
+    source_line = source_info
+    body = func[:body]
+    if Meta.isexpr(body, :block) && get(body.args, 1, nothing) isa LineNumberNode
+        source_line = body.args[1]
+        func[:body] = Expr(:block, body.args[2:end]...)
     end
     source_info = if source_line isa LineNumberNode
         string(source_line.file, ":", source_line.line)
@@ -310,10 +309,6 @@ function _stabilize_fnc(
     caller = if codegen_level == "debug"
         # We duplicate entire body, so `@code_warntype` works
         body = func[:body]
-        if source_line isa LineNumberNode && _starts_with(body, source_line)
-            # (The wrapper body below already starts at this line.)
-            body = Expr(:block, body.args[2:end]...)
-        end
         # and we also destructure the signature
         Expr(:block, destructurings..., body)
     elseif isempty(kwarg_symbols)
@@ -324,22 +319,15 @@ function _stabilize_fnc(
 
     ignore = haskey(func, :name) ? :($(ignore_function)(var"#self#")) : :(false)
 
-    # The simulator keeps the original body, including its source lines:
-    # macros such as `@__DIR__`, `@__FILE__` and command literals expand
-    # using their `LineNumberNode`, so stripping them would change (or break)
-    # the code that is inferred.
     func_simulator[:name] = simulator
     func[:body] = @q begin
+        $(source_line)
         $T = $infer
         if $(checker) && !$ignore && $(checking_enabled)()
             $err
         end
 
         $(caller)
-    end
-    if source_line isa LineNumberNode
-        # Attribute the check (and coverage of the definition) to its source line
-        pushfirst!(func[:body].args, source_line)
     end
 
     func_simulator_ex = combinedef(func_simulator)
@@ -356,11 +344,6 @@ function _stabilize_fnc(
         $(Base).@__doc__ $(func_ex)
     end
     return final_ex, UpwardMetadata(; matching_function=true)  # Clean metadata – all macros were consumed
-end
-
-function _starts_with(body, line::LineNumberNode)
-    body isa Expr && body.head == :block && !isempty(body.args) || return false
-    return body.args[1] == line
 end
 
 end

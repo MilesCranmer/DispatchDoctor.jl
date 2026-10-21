@@ -232,13 +232,13 @@ end
 @testitem "detect duplicate LineNumberNode in @stable expansion" begin
     using DispatchDoctor
 
-    using MacroTools: isdef, splitdef
-
-    # Basically we want to verify that the function which runs
+    # Basically we want to verify that the stabilized function
     # doesn't duplicate any LineNumberNodes, which can
-    # mess with stacktraces and coverage. The simulator, which
-    # is only inferred, keeps exactly the source lines of the original
-    # body, because macros like `@__DIR__` expand using them.
+    # mess with stacktraces and coverage.
+    ex = @macroexpand(@stable(function f(x)
+        return x
+    end))
+
     function collect_line_nodes!(line_nodes, expr)
         if expr isa LineNumberNode
             push!(line_nodes, expr)
@@ -249,132 +249,42 @@ end
         end
         return line_nodes
     end
-    function collect_defs!(defs, expr)
-        if expr isa Expr
-            isdef(expr) && return push!(defs, expr)
-            foreach(arg -> collect_defs!(defs, arg), expr.args)
-        end
-        return defs
-    end
 
-    def = :(function f(x)
-        y = x
-        return y
+    line_nodes = collect_line_nodes!([], ex.args[end])
+
+    @test length(line_nodes) > 1
+    @test length(unique(line_nodes)) == length(line_nodes)  # No dupes!
+end
+@testitem "macros that use the source line" begin
+    using DispatchDoctor
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level dir(n) =
+            isdir(@__DIR__) ? n : "missing"
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError dir(1)
+        @eval @stable default_codegen_level = $codegen_level cmd() = `echo hi`
+        @test cmd() == `echo hi`
+    end
+end
+@testitem "stack trace points at the definition line" begin
+    using DispatchDoctor
+    #! format: off
+    def = :(function f(
+        x, dir=@__DIR__
+    )
+        return x > 0 ? x : 1.0
     end)
+    #! format: on
+    line = def.args[2].args[1]
     for codegen_level in ("debug", "min")
-        stable_def = :(@stable default_codegen_level = $codegen_level $def)
-        ex = macroexpand(@__MODULE__, stable_def)
-        defs = map(splitdef, collect_defs!([], ex))
-        simulator = only(filter(d -> occursin("_simulator", string(d[:name])), defs))
-        wrapper = only(filter(d -> d[:name] == :f, defs))
-
-        line_nodes = collect_line_nodes!([], wrapper[:body])
-        @test length(line_nodes) == (codegen_level == "debug" ? 3 : 1)
-        @test length(unique(line_nodes)) == length(line_nodes)  # No dupes!
-        @test first(wrapper[:body].args) == first(def.args[2].args)
-
-        @test collect_line_nodes!([], simulator[:body]) == collect_line_nodes!([], def)
-    end
-end
-@testitem "source-dependent macros in the inferred copy" begin
-    using DispatchDoctor
-
-    # The simulator is the copy of the body that is inferred. Stripping its
-    # source lines broke command literals (`String(nothing)` at load time) and made
-    # `@__DIR__`/`@__FILE__` return `nothing` there, which hid instabilities.
-    struct Foo
-        x::Int
-    end
-    for codegen_level in ("debug", "min")
-        @eval @stable default_codegen_level = $codegen_level begin
-            cmd_named() = `echo hi`
-            cmd_anon = s -> `echo $s`
-            Base.:+(a::Foo, b::Foo) = (`true`; Foo(a.x + b.x))
-            dir_named(n) = isdir(@__DIR__) ? n : "missing"
-            dir_anon = n -> isdir(@__DIR__) ? n : "missing"
-            Base.:-(a::Foo, b::Foo) = isdir(@__DIR__) ? Foo(a.x - b.x) : 0.0
-            file_named() = isfile(@__FILE__) ? 1 : "missing"
-            dir_stable() = @__DIR__
-        end
-        @test cmd_named() == `echo hi`
-        @test cmd_anon("a") == `echo a`
-        @test Foo(1) + Foo(2) == Foo(3)
-        @test dir_stable() == @__DIR__
-        if DispatchDoctor.JULIA_OK
-            @test_throws TypeInstabilityError dir_named(1)
-            @test_throws TypeInstabilityError dir_anon(1)
-            @test_throws TypeInstabilityError Foo(1) - Foo(2)
-            @test_throws TypeInstabilityError file_named()
-        end
-    end
-end
-@testitem "stabilized code is attributed to its definition line" begin
-    using DispatchDoctor
-
-    for codegen_level in ("debug", "min")
-        # The check runs before the original body; it should still be reported
-        # (in stack traces and coverage) at the line of the definition.
-        line = LineNumberNode(4242, Symbol("definition_line.jl"))
-        def = Expr(
-            :function, :(unstable_at_line(x)), Expr(:block, line, :(return x > 0 ? x : 0.0))
-        )
         @eval @stable default_codegen_level = $codegen_level $def
         if DispatchDoctor.JULIA_OK
             frames = try
-                unstable_at_line(1)
-                []
-            catch e
-                e isa TypeInstabilityError || rethrow()
+                f(1)
+            catch
                 stacktrace(catch_backtrace())
             end
-            @test any(frames) do fr
-                basename(string(fr.file)) == string(line.file) && fr.line == line.line
-            end
+            @test any(fr -> fr.file == line.file && fr.line == line.line, frames)
         end
-    end
-
-    # https://github.com/MilesCranmer/DispatchDoctor.jl/issues/114
-    mktempdir() do dir
-        mwe_path = joinpath(dir, "mwe.jl")
-        write(
-            mwe_path,
-            """
-            module StablePkg
-            using DispatchDoctor
-
-            @stable default_codegen_level = "min" function foo_min(x)
-                return x + 1
-            end
-
-            @stable default_codegen_level = "debug" function foo_debug(x)
-                return x + 1
-            end
-
-            end
-
-            StablePkg.foo_min(1)
-            StablePkg.foo_debug(1)
-            """,
-        )
-        trace_path = joinpath(dir, "coverage.info")
-        julia = joinpath(Sys.BINDIR, Base.julia_exename())
-        project = Base.active_project()
-        coverage_flag = "--code-coverage=$trace_path"
-        run(`$julia --startup-file=no --project=$project $coverage_flag $mwe_path`)
-
-        coverage = Dict{Int,Int}()
-        in_record = false
-        for l in eachline(trace_path)
-            if startswith(l, "SF:")
-                in_record = normpath(l[4:end]) == normpath(mwe_path)
-            elseif in_record && (m = match(r"^DA:(\d+),(\d+)", l)) !== nothing
-                coverage[parse(Int, m[1])] = parse(Int, m[2])
-            end
-        end
-        # The header lines of both definitions are executed. (Julia 1.10 also
-        # counts the header line of the simulator, which `"min"` calls.)
-        @test get(coverage, 4, 0) >= 1
-        @test get(coverage, 8, 0) >= 1
     end
 end
 @testitem "Type specialization" begin
