@@ -198,15 +198,6 @@ end
 _show_warning(w::TypeInstabilityWarning) = (@warn w; nothing)
 _construct_pairs(x, y) = x .=> y
 
-"""Expression for the specializing type of one argument (a tuple of them for `xs...`)."""
-function _specializing_typeof_expr(arg)
-    if arg isa Expr && arg.head == :(...) && length(arg.args) == 1
-        return Expr(:(...), :($(map_specializing_typeof)($(only(arg.args)))))
-    else
-        return :($(specializing_typeof)($arg))
-    end
-end
-
 function _stabilize_fnc(
     fex::Expr,
     downward_metadata::DownwardMetadata;
@@ -295,17 +286,19 @@ function _stabilize_fnc(
         error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
     end
 
-    # Take the specializing type of each argument where it is named, rather than
-    # first collecting the values into a tuple (which widens a `Type{T}` value to
-    # `DataType`) and mapping over it (which allocates beyond 32 elements), and
-    # pass them to inference as one `Tuple` type rather than splatting them.
-    typeof_args = map(_specializing_typeof_expr, arg_symbols)
+    typeof_args = map(arg_symbols) do arg
+        if Meta.isexpr(arg, :(...))
+            :($(map_specializing_typeof)($(only(arg.args)))...)
+        else
+            :($(specializing_typeof)($arg))
+        end
+    end
     infer = if isempty(kwarg_symbols)
-        :($(_promote_op)($simulator, $(Tuple){$(typeof_args...)}))
+        :($(_promote_op)($simulator, Tuple{$(typeof_args...)}))
     else
         :($(_promote_op)(
             Core.kwcall,
-            $(Tuple){typeof((; $(kwarg_symbols...))),typeof($simulator),$(typeof_args...)},
+            Tuple{typeof((; $(kwarg_symbols...))),typeof($simulator),$(typeof_args...)},
         ))
     end
 
