@@ -299,7 +299,7 @@ function _stabilize_fnc(
     end
 
     checker = if union_limit > 1
-        :($(type_instability_limit_unions)($T, Val($union_limit)))
+        :($(type_instability_limit_unions)($T, $(Val(union_limit))))
     else
         :($(type_instability)($T))
     end
@@ -325,7 +325,7 @@ function _stabilize_fnc(
     end
     func[:body] = @q begin
         $T = $infer
-        if $(checker) && !$ignore && $(checking_enabled)()
+        if $(checker) && $(!)($ignore) && $(checking_enabled)()
             $err
         end
 

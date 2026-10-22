@@ -478,6 +478,17 @@ end
     @test Asingleline.f(1.0) == 1.0
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Asingleline.f(1)
 end
+@testitem "baremodule" begin
+    using DispatchDoctor
+    baremodule Abaremodule
+    using DispatchDoctor: @stable
+    @stable f(c) = Core.ifelse(c, 1, 0.0)
+    @stable default_union_limit = 2 g(c) = Core.ifelse(c, 1, 0.0)
+    end
+
+    @test Abaremodule.g(true) === 1
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Abaremodule.f(true)
+end
 @testitem "module with include" begin
     using DispatchDoctor
     (path, io) = mktemp()
