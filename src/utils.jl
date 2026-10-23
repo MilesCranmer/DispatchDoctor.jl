@@ -99,7 +99,6 @@ specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(arg::Type{<:Type}) = typeof(arg)
 specializing_typeof(::Val{T}) where {T} = Val{T}
 
-# `map` allocates for tuples longer than 32
 function map_specializing_typeof(args::NTuple{N,Any}) where {N}
     return ntuple(i -> specializing_typeof(args[i]), Val(N))
 end
