@@ -1531,4 +1531,23 @@ end
     end
 end
 
+@testitem "stack trace points at the user's source line" begin
+    using DispatchDoctor
+
+    def = :(function f(x)
+        return error("boom")
+    end)
+    line = filter(x -> x isa LineNumberNode, def.args[2].args)[end]
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level $def
+        frames = try
+            f(1)
+        catch
+            stacktrace(catch_backtrace())
+        end
+        @test any(fr -> fr.file == line.file && fr.line == line.line, frames)
+        @test !any(fr -> endswith(string(fr.file), "stabilization.jl"), frames)
+    end
+end
+
 @run_package_tests
