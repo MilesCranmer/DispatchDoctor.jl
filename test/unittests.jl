@@ -232,7 +232,7 @@ end
 @testitem "detect duplicate LineNumberNode in @stable expansion" begin
     using DispatchDoctor
 
-    # Basically we want to verify that the simulator function
+    # Basically we want to verify that the stabilized function
     # doesn't duplicate any LineNumberNodes, which can
     # mess with stacktraces and coverage.
     ex = @macroexpand(@stable(function f(x)
@@ -250,10 +250,42 @@ end
         return line_nodes
     end
 
-    line_nodes = collect_line_nodes!([], ex)
+    line_nodes = collect_line_nodes!([], ex.args[end])
 
     @test length(line_nodes) > 1
     @test length(unique(line_nodes)) == length(line_nodes)  # No dupes!
+end
+@testitem "macros that use the source line" begin
+    using DispatchDoctor
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level dir(n) =
+            isdir(@__DIR__) ? n : "missing"
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError dir(1)
+        @eval @stable default_codegen_level = $codegen_level cmd() = `echo hi`
+        @test cmd() == `echo hi`
+    end
+end
+@testitem "stack trace points at the definition line" begin
+    using DispatchDoctor
+    #! format: off
+    def = :(function f(
+        x, dir=@__DIR__
+    )
+        return x > 0 ? x : 1.0
+    end)
+    #! format: on
+    line = def.args[2].args[1]
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level $def
+        if DispatchDoctor.JULIA_OK
+            frames = try
+                f(1)
+            catch
+                stacktrace(catch_backtrace())
+            end
+            @test any(fr -> fr.file == line.file && fr.line == line.line, frames)
+        end
+    end
 end
 @testitem "Type specialization" begin
     using DispatchDoctor

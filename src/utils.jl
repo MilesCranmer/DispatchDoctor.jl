@@ -93,18 +93,6 @@ function sanitize_arg_for_stability_check(
     end
 end
 
-get_first_source_info(ex) = nothing
-get_first_source_info(l::LineNumberNode) = l
-function get_first_source_info(s::Expr)
-    for arg in s.args
-        extracted_arg = get_first_source_info(arg)
-        if extracted_arg isa LineNumberNode
-            return extracted_arg
-        end
-    end
-    return nothing
-end
-
 # typeof but returns Type{T} for a type T input
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
