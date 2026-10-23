@@ -1,5 +1,5 @@
 using BenchmarkTools
-using DispatchDoctor: DispatchDoctor, _stable
+using DispatchDoctor: DispatchDoctor, _stable, @stable
 
 const SUITE = BenchmarkGroup()
 
@@ -26,3 +26,10 @@ for mode in ("error", "warn", "disable")
         setup = (ex = $(QuoteNode(ex)); options = $options)
     )
 end
+
+@stable type_arg(::Type{T}, x) where {T} = T(x)
+SUITE["call"]["Type argument"] = @benchmarkable(map(x -> type_arg(Int, x), 1:10^4))
+
+@eval @stable wide($([Symbol(:x, i) for i in 1:36]...)) = x1 + x36
+@eval call_wide() = wide($(1:36...))
+SUITE["call"]["36 arguments"] = @benchmarkable(call_wide())
