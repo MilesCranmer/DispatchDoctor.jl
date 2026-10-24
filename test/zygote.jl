@@ -1,7 +1,8 @@
 """Test that `@stable` is compatible with Zygote"""
 module ZygoteTest
 
-using DispatchDoctor: @stable, TypeInstabilityError, _RuntimeChecks
+using DispatchDoctor: @stable, TypeInstabilityError, _RuntimeChecks, _Utils
+using ChainRulesCore: rrule
 using Zygote: gradient
 using Test
 
@@ -20,6 +21,7 @@ using Test
 @stable h(x) = 1
 @test_skip (@inferred gradient(h, 1.0))
 # TODO: Fix Zygote inference
+@test first(rrule(_Utils.specializing_typeof, Float64)) === Type{Float64}
 
 # Test foreign call expressions doesn't lead to errors
 is_precompiling(x) = _RuntimeChecks.is_precompiling()
