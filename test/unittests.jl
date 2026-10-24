@@ -1520,6 +1520,16 @@ end
     P = (Type{T} where {T}).body
     @test test_function(P) === nothing
 end
+@testitem "issue with specializing_typeof on types of types" begin
+    using DispatchDoctor
+
+    @stable vector_of(::Type{K}) where {K} = Vector{K}()
+    @stable maybe_vector_of(::Type{K}) where {K} = rand(Bool) ? Vector{K}() : nothing
+
+    @test vector_of(DataType) isa Vector{DataType}
+    DispatchDoctor.JULIA_OK &&
+        @test_throws "with arguments `(Type{DataType},)`" maybe_vector_of(DataType)
+end
 @testitem "issue with closures causing instability" begin
     using DispatchDoctor
 
