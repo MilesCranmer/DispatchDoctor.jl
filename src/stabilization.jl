@@ -288,15 +288,19 @@ function _stabilize_fnc(
         error("Unknown mode: $mode. Please use \"error\" or \"warn\".")
     end
 
-    typeof_args = :($(map_specializing_typeof)(($(arg_symbols...),)))
+    typeof_args = map(arg_symbols) do arg
+        if Meta.isexpr(arg, :(...))
+            :($(map_specializing_typeof)($(only(arg.args)))...)
+        else
+            :($(specializing_typeof)($arg))
+        end
+    end
     infer = if isempty(kwarg_symbols)
-        :($(_promote_op)($simulator, $(typeof_args)...))
+        :($(_promote_op)($simulator, $(Tuple){$(typeof_args...)}))
     else
         :($(_promote_op)(
             Core.kwcall,
-            typeof((; $(kwarg_symbols...))),
-            typeof($simulator),
-            $(typeof_args),
+            $(Tuple){typeof((; $(kwarg_symbols...))),typeof($simulator),$(typeof_args...)},
         ))
     end
 

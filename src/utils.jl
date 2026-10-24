@@ -98,18 +98,12 @@ specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(arg::Type{<:Type}) = typeof(arg)
 specializing_typeof(::Val{T}) where {T} = Val{T}
-map_specializing_typeof(args::Tuple) = map(specializing_typeof, args)
 
-function _promote_op(f::F, S::Vararg{Type,N}) where {F,N}
-    return Base.promote_op(f, S...)
+function map_specializing_typeof(args::NTuple{N,Any}) where {N}
+    return ntuple(i -> specializing_typeof(args[i]), Val(N))
 end
-@static if isdefined(Core, :kwcall)
-    function _promote_op(
-        ::typeof(Core.kwcall), ::Type{Kwargs}, ::Type{F}, S::Tuple
-    ) where {Kwargs,F}
-        return Base.promote_op(Core.kwcall, Kwargs, F, S...)
-    end
-end
+
+_promote_op(f::F, ::Type{S}) where {F,S<:Tuple} = Base._return_type(f, S)
 
 """
     type_instability(T::Type)

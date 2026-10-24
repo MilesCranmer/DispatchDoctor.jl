@@ -366,6 +366,36 @@ end
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(*, *)
     end
 end
+@testitem "wide signatures do not allocate" begin
+    using DispatchDoctor
+    args = [Symbol(:x, i) for i in 1:36]
+    @eval @stable f($(args...)) = x1 + x36
+    @eval @stable g($(args...); k=1) = x1 + x36 + k
+    @eval @stable h(xs::Int...) = xs[1] + xs[end]
+    @eval call_f() = f($(1:36...))
+    @eval call_g() = g($(1:36...); k=2)
+    @eval call_h() = h($(1:36...))
+    @test call_f() == 37
+    @test call_g() == 39
+    @test call_h() == 37
+    @test @allocated(call_f()) == 0
+    @test @allocated(call_g()) == 0
+    @test @allocated(call_h()) == 0
+end
+@testitem "Type arguments do not allocate" begin
+    using DispatchDoctor
+    @stable f(::Type{T}, x) where {T} = T(x)
+    g() = sum(x -> f(Int, x), 1:100)
+    @test g() == 5050
+    @test @allocated(g()) == 0
+end
+@testitem "argument named Tuple" begin
+    using DispatchDoctor
+    @stable f(Tuple) = Tuple
+    @stable g(Tuple; k=1) = Tuple + k
+    @test f(1) == 1
+    @test g(1; k=2) == 3
+end
 @testitem "QuoteNode in options" begin
     using DispatchDoctor
     using DispatchDoctor: _ParseOptions as DDPO
