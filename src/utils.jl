@@ -108,7 +108,7 @@ end
 # typeof but returns Type{T} for a type T input
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
-specializing_typeof(arg::Type{<:Type}) = Type{arg}
+specializing_typeof(arg::Type{<:Type}) = Base.has_free_typevars(arg) ? typeof(arg) : Type{arg}
 specializing_typeof(::Val{T}) where {T} = Val{T}
 map_specializing_typeof(args::Tuple) = map(specializing_typeof, args)
 
