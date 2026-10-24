@@ -321,6 +321,7 @@ function _stabilize_fnc(
 
     func_simulator[:name] = simulator
     func[:body] = @q begin
+        # LCOV_EXCL_START
         $(source_line)
         $T = $infer
         if $(checker) && $(!)($ignore) && $(checking_enabled)($(Base).@__MODULE__)
@@ -328,6 +329,7 @@ function _stabilize_fnc(
         end
 
         $(caller)
+        # LCOV_EXCL_STOP
     end
 
     func_simulator_ex = combinedef(func_simulator)
@@ -340,8 +342,10 @@ function _stabilize_fnc(
     end
 
     final_ex = @q begin
+        # LCOV_EXCL_START
         $(func_simulator_ex)
         $(Base).@__doc__ $(func_ex)
+        # LCOV_EXCL_STOP
     end
     return final_ex, UpwardMetadata(; matching_function=true)  # Clean metadata – all macros were consumed
 end
