@@ -232,7 +232,7 @@ end
 @testitem "detect duplicate LineNumberNode in @stable expansion" begin
     using DispatchDoctor
 
-    # Basically we want to verify that the simulator function
+    # Basically we want to verify that the stabilized function
     # doesn't duplicate any LineNumberNodes, which can
     # mess with stacktraces and coverage.
     ex = @macroexpand(@stable(function f(x)
@@ -250,10 +250,42 @@ end
         return line_nodes
     end
 
-    line_nodes = collect_line_nodes!([], ex)
+    line_nodes = collect_line_nodes!([], ex.args[end])
 
     @test length(line_nodes) > 1
     @test length(unique(line_nodes)) == length(line_nodes)  # No dupes!
+end
+@testitem "macros that use the source line" begin
+    using DispatchDoctor
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level dir(n) =
+            isdir(@__DIR__) ? n : "missing"
+        DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError dir(1)
+        @eval @stable default_codegen_level = $codegen_level cmd() = `echo hi`
+        @test cmd() == `echo hi`
+    end
+end
+@testitem "stack trace points at the definition line" begin
+    using DispatchDoctor
+    #! format: off
+    def = :(function f(
+        x, dir=@__DIR__
+    )
+        return x > 0 ? x : 1.0
+    end)
+    #! format: on
+    line = def.args[2].args[1]
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level $def
+        if DispatchDoctor.JULIA_OK
+            frames = try
+                f(1)
+            catch
+                stacktrace(catch_backtrace())
+            end
+            @test any(fr -> fr.file == line.file && fr.line == line.line, frames)
+        end
+    end
 end
 @testitem "Type specialization" begin
     using DispatchDoctor
@@ -333,6 +365,36 @@ end
         end
         DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError g(*, *)
     end
+end
+@testitem "wide signatures do not allocate" begin
+    using DispatchDoctor
+    args = [Symbol(:x, i) for i in 1:36]
+    @eval @stable f($(args...)) = x1 + x36
+    @eval @stable g($(args...); k=1) = x1 + x36 + k
+    @eval @stable h(xs::Int...) = xs[1] + xs[end]
+    @eval call_f() = f($(1:36...))
+    @eval call_g() = g($(1:36...); k=2)
+    @eval call_h() = h($(1:36...))
+    @test call_f() == 37
+    @test call_g() == 39
+    @test call_h() == 37
+    @test @allocated(call_f()) == 0
+    @test @allocated(call_g()) == 0
+    @test @allocated(call_h()) == 0
+end
+@testitem "Type arguments do not allocate" begin
+    using DispatchDoctor
+    @stable f(::Type{T}, x) where {T} = T(x)
+    g() = sum(x -> f(Int, x), 1:100)
+    @test g() == 5050
+    @test @allocated(g()) == 0
+end
+@testitem "argument named Tuple" begin
+    using DispatchDoctor
+    @stable f(Tuple) = Tuple
+    @stable g(Tuple; k=1) = Tuple + k
+    @test f(1) == 1
+    @test g(1; k=2) == 3
 end
 @testitem "QuoteNode in options" begin
     using DispatchDoctor
@@ -477,6 +539,17 @@ end
 
     @test Asingleline.f(1.0) == 1.0
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Asingleline.f(1)
+end
+@testitem "baremodule" begin
+    using DispatchDoctor
+    baremodule Abaremodule
+    using DispatchDoctor: @stable
+    @stable f(c) = Core.ifelse(c, 1, 0.0)
+    @stable default_union_limit = 2 g(c) = Core.ifelse(c, 1, 0.0)
+    end
+
+    @test Abaremodule.g(true) === 1
+    DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Abaremodule.f(true)
 end
 @testitem "module with include" begin
     using DispatchDoctor
@@ -1495,6 +1568,25 @@ end
 
         @test !has_docstring(f_simulator)
         @test has_docstring(f_real)
+    end
+end
+
+@testitem "stack trace points at the user's source line" begin
+    using DispatchDoctor
+
+    def = :(function f(x)
+        return error("boom")
+    end)
+    line = filter(x -> x isa LineNumberNode, def.args[2].args)[end]
+    for codegen_level in ("debug", "min")
+        @eval @stable default_codegen_level = $codegen_level $def
+        frames = try
+            f(1)
+        catch
+            stacktrace(catch_backtrace())
+        end
+        @test any(fr -> fr.file == line.file && fr.line == line.line, frames)
+        @test !any(fr -> endswith(string(fr.file), "stabilization.jl"), frames)
     end
 end
 

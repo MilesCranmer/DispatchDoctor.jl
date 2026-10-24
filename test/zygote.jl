@@ -1,7 +1,8 @@
 """Test that `@stable` is compatible with Zygote"""
 module ZygoteTest
 
-using DispatchDoctor: @stable, TypeInstabilityError, _RuntimeChecks
+using DispatchDoctor: @stable, TypeInstabilityError, _RuntimeChecks, _Utils
+using ChainRulesCore: rrule
 using Zygote: gradient
 using Test
 
@@ -9,6 +10,8 @@ using Test
 @stable default_mode = "warn" f(x) = x * x
 
 @test gradient(f, 1.0) == (2.0,)
+@stable default_mode = "warn" k(x; a=1) = x > 0 ? a * x : 0
+@test (@test_logs (:warn,) gradient(x -> k(x; a=2.0), 1.0)) == (2.0,)
 
 # Still want errors to show up:
 @stable default_mode = "error" g(x) = x > 0 ? x : 0
@@ -18,6 +21,7 @@ using Test
 @stable h(x) = 1
 @test_skip (@inferred gradient(h, 1.0))
 # TODO: Fix Zygote inference
+@test first(rrule(_Utils.specializing_typeof, Float64)) === Type{Float64}
 
 # Test foreign call expressions doesn't lead to errors
 is_precompiling(x) = _RuntimeChecks.is_precompiling()

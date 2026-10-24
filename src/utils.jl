@@ -93,35 +93,17 @@ function sanitize_arg_for_stability_check(
     end
 end
 
-get_first_source_info(ex) = nothing
-get_first_source_info(l::LineNumberNode) = l
-function get_first_source_info(s::Expr)
-    for arg in s.args
-        extracted_arg = get_first_source_info(arg)
-        if extracted_arg isa LineNumberNode
-            return extracted_arg
-        end
-    end
-    return nothing
-end
-
 # typeof but returns Type{T} for a type T input
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(arg::Type{<:Type}) = Base.has_free_typevars(arg) ? typeof(arg) : Type{arg}
 specializing_typeof(::Val{T}) where {T} = Val{T}
-map_specializing_typeof(args::Tuple) = map(specializing_typeof, args)
 
-function _promote_op(f::F, S::Vararg{Type,N}) where {F,N}
-    return Base.promote_op(f, S...)
+function map_specializing_typeof(args::NTuple{N,Any}) where {N}
+    return ntuple(i -> specializing_typeof(args[i]), Val(N))
 end
-@static if isdefined(Core, :kwcall)
-    function _promote_op(
-        ::typeof(Core.kwcall), ::Type{Kwargs}, ::Type{F}, S::Tuple
-    ) where {Kwargs,F}
-        return Base.promote_op(Core.kwcall, Kwargs, F, S...)
-    end
-end
+
+_promote_op(f::F, ::Type{S}) where {F,S<:Tuple} = Base._return_type(f, S)
 
 """
     type_instability(T::Type)
