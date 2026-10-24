@@ -296,11 +296,11 @@ function _stabilize_fnc(
         end
     end
     infer = if isempty(kwarg_symbols)
-        :($(_promote_op)($simulator, Tuple{$(typeof_args...)}))
+        :($(_promote_op)($simulator, $(Tuple){$(typeof_args...)}))
     else
         :($(_promote_op)(
             Core.kwcall,
-            Tuple{typeof((; $(kwarg_symbols...))),typeof($simulator),$(typeof_args...)},
+            $(Tuple){typeof((; $(kwarg_symbols...))),typeof($simulator),$(typeof_args...)},
         ))
     end
 

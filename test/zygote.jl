@@ -9,6 +9,8 @@ using Test
 @stable default_mode = "warn" f(x) = x * x
 
 @test gradient(f, 1.0) == (2.0,)
+@stable default_mode = "warn" k(x; a=1) = x > 0 ? a * x : 0
+@test (@test_logs (:warn,) gradient(x -> k(x; a=2.0), 1.0)) == (2.0,)
 
 # Still want errors to show up:
 @stable default_mode = "error" g(x) = x > 0 ? x : 0

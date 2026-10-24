@@ -15,7 +15,7 @@ import DispatchDoctor._Utils:
 @non_differentiable _construct_pairs(::Any...)
 
 # Issue #46
-@non_differentiable specializing_typeof(::Any)
+@non_differentiable specializing_typeof(::Any)  # LCOV_EXCL_LINE
 @non_differentiable map_specializing_typeof(::Any...)
 @non_differentiable _promote_op(::Any...)
 @non_differentiable type_instability(::Any...)

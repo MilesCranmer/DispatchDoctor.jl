@@ -389,6 +389,13 @@ end
     @test g() == 5050
     @test @allocated(g()) == 0
 end
+@testitem "argument named Tuple" begin
+    using DispatchDoctor
+    @stable f(Tuple) = Tuple
+    @stable g(Tuple; k=1) = Tuple + k
+    @test f(1) == 1
+    @test g(1; k=2) == 3
+end
 @testitem "QuoteNode in options" begin
     using DispatchDoctor
     using DispatchDoctor: _ParseOptions as DDPO
