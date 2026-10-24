@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.30](https://github.com/MilesCranmer/DispatchDoctor.jl/compare/v0.4.29...v0.4.30) (2026-10-24)
+
+
+### Features
+
+* GlobalRef macro lookup ([#125](https://github.com/MilesCranmer/DispatchDoctor.jl/issues/125)) ([1a8c982](https://github.com/MilesCranmer/DispatchDoctor.jl/commit/1a8c98290593b103956338577cc194e622519a38))
+
+
+### Bug Fixes
+
+* fold the stability check for `Type` arguments and wide signatures ([#131](https://github.com/MilesCranmer/DispatchDoctor.jl/issues/131)) ([062265e](https://github.com/MilesCranmer/DispatchDoctor.jl/commit/062265e0284963ebabb0e171b1e797577e69c9f8))
+* keep source lines in the simulator; start the wrapper at the definition ([#133](https://github.com/MilesCranmer/DispatchDoctor.jl/issues/133)) ([b08a204](https://github.com/MilesCranmer/DispatchDoctor.jl/commit/b08a204d70ce98e3a3fe7f957dd133ad41d1bfac))
+* qualify `!` and `Val` in the generated check ([#134](https://github.com/MilesCranmer/DispatchDoctor.jl/issues/134)) ([e52372a](https://github.com/MilesCranmer/DispatchDoctor.jl/commit/e52372a2a685393e89abba20956e44db54d53753))
+* specialize on `Type{K}` when `K` is itself a type of types ([#136](https://github.com/MilesCranmer/DispatchDoctor.jl/issues/136)) ([8e9b741](https://github.com/MilesCranmer/DispatchDoctor.jl/commit/8e9b74108252b7e295b941d16efbe98f6c3f40a4))
+
 ## [0.4.29](https://github.com/MilesCranmer/DispatchDoctor.jl/compare/v0.4.28...v0.4.29) (2026-09-15)
 
 
