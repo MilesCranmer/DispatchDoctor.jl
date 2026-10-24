@@ -97,6 +97,9 @@ end
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(arg::Type{<:Type}) = Base.has_free_typevars(arg) ? typeof(arg) : Type{arg}
+# `Union{}` is the only instance of `Core.TypeofBottom`, so no branch is needed.
+# Julia 1.10 inference throws a `BoundsError` on the branch above for `Union{}`.
+specializing_typeof(::Core.TypeofBottom) = Core.TypeofBottom
 specializing_typeof(::Val{T}) where {T} = Val{T}
 
 function map_specializing_typeof(args::NTuple{N,Any}) where {N}
