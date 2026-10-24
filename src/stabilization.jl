@@ -1,14 +1,13 @@
 """This module holds the main processing functions for `@stable`"""
 module _Stabilization
 
-using MacroTools: @capture, @q, combinedef, splitdef, isdef, longdef, rmlines, prewalk
+using MacroTools: @capture, @q, combinedef, splitdef, isdef, longdef
 
 using .._Utils:
     specializing_typeof,
     map_specializing_typeof,
     _promote_op,
     is_function_name_compatible,
-    get_first_source_info,
     sanitize_arg_for_stability_check,
     extract_symbol,
     type_instability,
@@ -218,11 +217,14 @@ function _stabilize_fnc(
     func_simulator = splitdef(deepcopy(fex))
 
     # Load any information about the source
-    searched_source_info = get_first_source_info(fex)
-    source_info = if searched_source_info isa LineNumberNode
-        string(searched_source_info.file, ":", searched_source_info.line)
-    elseif source_info isa LineNumberNode
-        string(source_info.file, ":", source_info.line)
+    source_line = source_info
+    body = func[:body]
+    if Meta.isexpr(body, :block) && get(body.args, 1, nothing) isa LineNumberNode
+        source_line = body.args[1]
+        func[:body] = Expr(:block, body.args[2:end]...)
+    end
+    source_info = if source_line isa LineNumberNode
+        string(source_line.file, ":", source_line.line)
     else
         nothing
     end
@@ -299,7 +301,7 @@ function _stabilize_fnc(
     end
 
     checker = if union_limit > 1
-        :($(type_instability_limit_unions)($T, Val($union_limit)))
+        :($(type_instability_limit_unions)($T, $(Val(union_limit))))
     else
         :($(type_instability)($T))
     end
@@ -318,14 +320,10 @@ function _stabilize_fnc(
     ignore = haskey(func, :name) ? :($(ignore_function)(var"#self#")) : :(false)
 
     func_simulator[:name] = simulator
-    func_simulator[:body] = if codegen_level == "debug"
-        prewalk(rmlines, func_simulator[:body])
-    else
-        func_simulator[:body]
-    end
     func[:body] = @q begin
+        $(source_line)
         $T = $infer
-        if $(checker) && !$ignore && $(checking_enabled)($(Base).@__MODULE__)
+        if $(checker) && $(!)($ignore) && $(checking_enabled)($(Base).@__MODULE__)
             $err
         end
 
