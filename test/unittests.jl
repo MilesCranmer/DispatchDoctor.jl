@@ -1530,6 +1530,15 @@ end
     DispatchDoctor.JULIA_OK &&
         @test_throws "with arguments `(Type{DataType},)`" maybe_vector_of(DataType)
 end
+@testitem "Union{} as an argument" begin
+    using DispatchDoctor
+
+    @stable identity_stable(x) = x
+    call_with_bottom() = identity_stable(Union{})
+
+    @test Union{} isa only(Base.return_types(call_with_bottom, ()))
+    @test call_with_bottom() === Union{}
+end
 @testitem "issue with closures causing instability" begin
     using DispatchDoctor
 

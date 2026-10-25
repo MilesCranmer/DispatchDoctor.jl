@@ -97,6 +97,7 @@ end
 specializing_typeof(::T) where {T} = T
 specializing_typeof(::Type{T}) where {T} = Type{T}
 specializing_typeof(arg::Type{<:Type}) = Base.has_free_typevars(arg) ? typeof(arg) : Type{arg}
+specializing_typeof(::Core.TypeofBottom) = Core.TypeofBottom
 specializing_typeof(::Val{T}) where {T} = Val{T}
 
 function map_specializing_typeof(args::NTuple{N,Any}) where {N}
