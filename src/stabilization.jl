@@ -20,7 +20,7 @@ using .._Interactions:
     IncompatibleMacro,
     CompatibleMacro,
     DontPropagateMacro
-using .._RuntimeChecks: is_precompiling, checking_enabled
+using .._RuntimeChecks: is_precompiling, checking_enabled, inference_enabled
 using .._ParseOptions: parse_options
 
 function _stable(args...; calling_module, source_info, kws...)
@@ -327,7 +327,10 @@ function _stabilize_fnc(
     func[:body] = @q begin
         $(source_line)
         $T = $infer
-        if $(checker) && $(!)($ignore) && $(checking_enabled)()
+        if $(checker) &&
+            $(!)($ignore) &&
+            $(checking_enabled)() &&
+            $(inference_enabled)($(Base).@__MODULE__)
             $err
         end
 

@@ -11,6 +11,8 @@ using .._Errors: AllowUnstableDataRace
     return !is_precompiling() && INSTABILITY_CHECK_ENABLED.value[]
 end
 
+@inline inference_enabled(m::Module) = ccall(:jl_get_module_infer, Cint, (Any,), m) != 0
+
 const INSTABILITY_CHECK_ENABLED = (; value=Ref(true), lock=ReentrantLock())
 
 """
