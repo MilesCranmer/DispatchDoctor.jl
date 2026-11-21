@@ -654,6 +654,29 @@ end
     @test Aallowunstable.f() in (0, 1.0)
     DispatchDoctor.JULIA_OK && @test_throws TypeInstabilityError Aallowunstable.g()
 end
+@testitem "modules with inference disabled" begin
+    using DispatchDoctor
+
+    module Anoinfer
+    using DispatchDoctor
+
+    @stable f(x) = x > 0 ? x : 0.0
+    Base.Experimental.@compiler_options infer = false
+    end
+
+    @test Anoinfer.f(1) == 1
+
+    module Anoinfer2
+    using DispatchDoctor
+
+    Base.Experimental.@compiler_options infer = false
+    @stable f(x) = x + 1
+    @stable h(x; k=1) = x + k
+    end
+
+    @test Anoinfer2.f(1) == 2
+    @test Anoinfer2.h(1) == 2
+end
 @testitem "anonymous functions" begin
     using DispatchDoctor
     using DispatchDoctor: _stabilize_fnc
