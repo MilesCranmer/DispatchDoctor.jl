@@ -322,15 +322,18 @@ function _stabilize_fnc(
     end
 
     ignore = haskey(func, :name) ? :($(ignore_function)(var"#self#")) : :(false)
+    should_error = :(
+        $(checker) &&
+        $(!)($ignore) &&
+        $(checking_enabled)() &&
+        $(inference_enabled)($(Base).@__MODULE__)
+    )
 
     func_simulator[:name] = simulator
     func[:body] = @q begin
         $(source_line)
         $T = $infer
-        if $(checker) &&
-            $(!)($ignore) &&
-            $(checking_enabled)() &&
-            $(inference_enabled)($(Base).@__MODULE__)
+        if $(should_error)
             $err
         end
 
