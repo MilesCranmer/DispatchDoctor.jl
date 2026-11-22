@@ -1,6 +1,6 @@
 module _Printing
 
-using .._Utils: specializing_typeof, Unknown
+using .._Utils: Unknown
 using .._Errors: AllowUnstableDataRace, TypeInstabilityError, TypeInstabilityWarning
 
 Base.showerror(io::IO, e::AllowUnstableDataRace) = print(io, e.msg)
@@ -17,11 +17,11 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
         print(io, " defined at ", e.source_info)
     end
     parts = []
-    if !isempty(e.args)
-        push!(parts, "arguments `$(map(typeinfo, e.args))`")
+    if !isempty(e.arg_types)
+        push!(parts, "arguments `$(e.arg_types)`")
     end
-    if !isempty(e.kwargs)
-        push!(parts, "keyword arguments `$(typeof(e.kwargs))`")
+    if fieldcount(e.kwarg_types) > 0
+        push!(parts, "keyword arguments `$(e.kwarg_types)`")
     end
     if !isempty(e.params)
         push!(parts, "parameters `$(e.params)`")
@@ -33,8 +33,6 @@ function _print_msg(io::IO, e::Union{TypeInstabilityError,TypeInstabilityWarning
     print(io, ". ")
     return print(io, "Inferred to be `", e.return_type, "`, which is not a concrete type.")
 end
-typeinfo(x) = specializing_typeof(x)
-typeinfo(u::Unknown) = u
 
 Base.showerror(io::IO, e::TypeInstabilityError) = _print_msg(io, e)
 Base.show(io::IO, w::TypeInstabilityWarning) = _print_msg(io, w)
