@@ -455,6 +455,62 @@ end
         end
     end
 end
+@testitem "instability reports keep the argument types, not the values" begin
+    using DispatchDoctor
+    using DispatchDoctor: TypeInstabilityWarning
+    using Test: TestLogger
+
+    # An argument whose memory is freed while the error unwinds (a GPU array whose owner
+    # closes, say): showing it reads that memory. Here, showing it fails.
+    mutable struct Freed
+        x::Int
+    end
+    Base.show(::IO, ::Freed) = error("showed an argument of the call")
+
+    @stable unstable_debug(a, rest...; k) = a.x > 0 ? 1 : 1.0
+    @stable default_codegen_level = "min" unstable_min(a, rest...; k) = a.x > 0 ? 1 : 1.0
+    @stable default_mode = "warn" unstable_warn(a, rest...; k) = a.x > 0 ? 1 : 1.0
+
+    # The arguments exist only inside this call, so only the report could keep them alive.
+    @noinline function report_of(f, logger)
+        a, b, k = Freed(1), Freed(2), Freed(3)
+        refs = (WeakRef(a), WeakRef(b), WeakRef(k))
+        report = try
+            Base.CoreLogging.with_logger(() -> f(a, b; k), logger)
+            only(logger.logs).message
+        catch e
+            e
+        end
+        return report, refs
+    end
+    alive_after_gc(refs) = (GC.gc(true); GC.gc(true); count(r -> r.value !== nothing, refs))
+
+    if DispatchDoctor.JULIA_OK
+        for (f, R) in (
+            (unstable_debug, TypeInstabilityError),
+            (unstable_min, TypeInstabilityError),
+            (unstable_warn, TypeInstabilityWarning),
+        )
+            logger = TestLogger()
+            report, refs = report_of(f, logger)
+            @test report isa R
+            # The report (and the logger that recorded the warning) keeps none of them alive
+            alive = alive_after_gc(refs)
+            @test alive == 0
+            # Test records an unexpected error with `sprint(show, err)`
+            @test occursin(string(nameof(R)), sprint(show, report))
+            @test occursin(string(nameof(R)), sprint(show, MIME("text/plain"), report))
+            msg = sprint(R === TypeInstabilityError ? showerror : show, report)
+            @test occursin("Instability detected in `$(nameof(f))` defined at ", msg)
+            @test occursin(@__FILE__, msg)
+            @test occursin(
+                "with arguments `$((Freed, Freed))` and keyword arguments " *
+                "`$(typeof((; k=Freed(0))))`. Inferred to be `Union{Float64, Int64}`",
+                msg,
+            )
+        end
+    end
+end
 @testitem "Test forwarding documentation" begin
     using DispatchDoctor
 
